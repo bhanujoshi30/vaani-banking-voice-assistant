@@ -1,0 +1,541 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 1.5rem 1rem 2rem;
+  font-size: 0.9rem;
+  color: rgba(15, 27, 42, 0.6);
+}
+
+.app-gradient {
+  background: linear-gradient(135deg, rgba(255, 176, 71, 0.18), rgba(124, 181, 255, 0.12));
+  border-radius: 32px;
+  padding: 0.75rem;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  box-shadow: 0 24px 48px -24px rgba(15, 27, 42, 0.2);
+}
+
+.card-surface {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 24px;
+  padding: 2.5rem clamp(1.5rem, 2.5vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  border: 1px solid rgba(15, 27, 42, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.card-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 2.4vw, 2.6rem);
+}
+
+.card-hero p {
+  margin: 0.5rem 0 0;
+  color: rgba(15, 27, 42, 0.66);
+}
+
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+.card-form input[type="text"],
+.card-form input[type="password"] {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 27, 42, 0.12);
+  padding: 0.9rem 1.1rem;
+  font-size: 1rem;
+  background: rgba(249, 251, 255, 0.9);
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-form input[type="text"]:focus,
+.card-form input[type="password"]:focus {
+  outline: none;
+  border-color: rgba(255, 149, 58, 0.65);
+  box-shadow: 0 0 0 4px rgba(255, 184, 90, 0.2);
+}
+
+.card-form__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: rgba(15, 27, 42, 0.6);
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff8f42;
+}
+
+.muted-link {
+  color: rgba(255, 143, 66, 0.95);
+  font-weight: 600;
+}
+
+.muted-link:hover {
+  text-decoration: underline;
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn {
+  border-radius: 999px;
+  padding: 0.85rem 1.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #ff9a3c, #ff7a59);
+  color: #fff;
+  box-shadow: 0 16px 24px -16px rgba(255, 122, 89, 0.6);
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 32px -18px rgba(255, 122, 89, 0.7);
+}
+
+.primary-btn:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.ghost-btn {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(15, 27, 42, 0.12);
+  color: rgba(15, 27, 42, 0.8);
+}
+
+.ghost-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -18px rgba(15, 27, 42, 0.25);
+}
+
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(15, 27, 42, 0.08);
+  color: #0f1b2a;
+}
+
+.secondary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px -22px rgba(15, 27, 42, 0.35);
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 143, 66, 0.95);
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:disabled {
+  color: rgba(15, 27, 42, 0.35);
+  cursor: not-allowed;
+}
+
+.profile-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.account-status {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(84, 214, 129, 0.15);
+  color: #157347;
+}
+
+.account-status--dormant {
+  background: rgba(255, 193, 7, 0.22);
+  color: #8f6400;
+}
+
+.account-status--suspended,
+.account-status--closed {
+  background: rgba(239, 68, 68, 0.18);
+  color: #c53030;
+}
+
+.transactions-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.transaction-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(15, 27, 42, 0.06);
+  flex-wrap: wrap;
+}
+
+.form-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #c53030;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid rgba(15, 27, 42, 0.08);
+  padding-top: 1.25rem;
+  font-size: 0.95rem;
+  color: rgba(15, 27, 42, 0.65);
+}
+
+.card-footer a {
+  font-weight: 600;
+  color: rgba(255, 143, 66, 0.95);
+}
+
+.profile-surface {
+  gap: 2.5rem;
+}
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.85rem;
+  color: rgba(15, 27, 42, 0.52);
+  margin: 0 0 0.4rem;
+}
+
+.profile-hero h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 2.6vw, 2.8rem);
+}
+
+.profile-segment {
+  margin: 0.4rem 0 0;
+  color: rgba(15, 27, 42, 0.58);
+  font-weight: 500;
+}
+
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(84, 214, 129, 0.14);
+  color: #157347;
+  border: 1px solid rgba(84, 214, 129, 0.3);
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.status-dot--online {
+  background: #2ecc71;
+  box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.2);
+}
+
+.profile-grid {
+  display: grid;
+  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.profile-card {
+  background: rgba(249, 251, 255, 0.85);
+  padding: 1.75rem;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 27, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.profile-card--span {
+  grid-column: span 2;
+}
+
+.profile-card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.profile-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-card li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(15, 27, 42, 0.06);
+  flex-wrap: wrap;
+}
+
+.profile-label {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(15, 27, 42, 0.48);
+}
+
+.profile-value {
+  margin: 0.35rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.profile-amount {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.profile-amount span {
+  font-size: 0.85rem;
+  color: rgba(15, 27, 42, 0.45);
+}
+
+.profile-amount strong {
+  font-size: 1.3rem;
+  letter-spacing: 0.4px;
+}
+
+.profile-meta {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.profile-hint {
+  margin: 0.35rem 0 0;
+  color: rgba(15, 27, 42, 0.45);
+  font-size: 0.9rem;
+}
+
+.quick-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.balance-visibility {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.account-card-groups {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cards-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.card-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(249, 251, 255, 0.85);
+  border: 1px solid rgba(15, 27, 42, 0.08);
+  font-size: 0.9rem;
+}
+
+.card-status {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+
+.card-status--active {
+  color: #157347;
+}
+
+.card-status--blocked,
+.card-status--expired {
+  color: #c53030;
+}
+
+.form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 1rem;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 27, 42, 0.12);
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  background: rgba(249, 251, 255, 0.9);
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  outline: none;
+  border-color: rgba(255, 149, 58, 0.65);
+  box-shadow: 0 0 0 4px rgba(255, 184, 90, 0.2);
+}
+
+.form-grid textarea {
+  min-height: 120px;
+}
+
+.form-grid--span {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .form-grid--span {
+    grid-column: span 1;
+  }
+}
+
+.form-success {
+  background: rgba(76, 175, 80, 0.12);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+  color: #157347;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  margin-top: 1rem;
+}
+
+.balance-result {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.transactions-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reminders-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reminder-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(15, 27, 42, 0.06);
+}
+
+@media (max-width: 768px) {
+  .card-surface {
+    padding: 2rem 1.5rem;
+  }
+
+  .profile-card--span {
+    grid-column: span 1;
+  }
+}

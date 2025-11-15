@@ -1,0 +1,56 @@
+.sun-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  box-shadow: 0 18px 40px -28px rgba(15, 27, 42, 0.3);
+  border: 1px solid rgba(255, 190, 110, 0.25);
+  gap: 1.5rem;
+}
+
+.sun-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.sun-header__logo {
+  width: 60px;
+  height: 60px;
+}
+
+.sun-header__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.sun-header__subtitle {
+  margin: 0.15rem 0 0;
+  color: rgba(15, 27, 42, 0.6);
+  font-size: 0.95rem;
+}
+
+.sun-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (max-width: 680px) {
+  .sun-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .sun-header__identity {
+    gap: 1rem;
+  }
+}
+

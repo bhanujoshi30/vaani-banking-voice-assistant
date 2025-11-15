@@ -1,0 +1,248 @@
+"""High-level services orchestrating banking workflows."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+
+from ..engine import session_scope
+from ..repositories import (
+    TransferResult,
+    create_reminder,
+    execute_internal_transfer,
+    fetch_due_reminders,
+    get_account_balance,
+    get_account_by_id,
+    get_transaction_history,
+    list_accounts_for_user,
+    list_reminders_for_user,
+    mark_reminder_status,
+)
+from ..utils.enums import CardType, ReminderStatus, ReminderType, TransactionChannel
+
+
+def _serialize_account(account) -> dict:
+    return {
+        "id": str(account.id),
+        "accountNumber": account.account_number,
+        "type": account.account_type.value,
+        "status": account.status.value,
+        "currency": account.currency_code,
+        "balance": float(account.balance),
+        "availableBalance": float(account.available_balance),
+        "openedOn": account.opened_on.isoformat(),
+        "branchId": str(account.branch_id) if account.branch_id else None,
+        "debitCards": [
+            {
+                "id": str(card.id),
+                "cardType": card.card_type.value,
+                "status": card.status.value,
+                "maskedNumber": card.masked_number,
+                "network": card.network,
+                "expiryMonth": card.expiry_month,
+                "expiryYear": card.expiry_year,
+            }
+            for card in account.cards
+            if card.card_type == CardType.DEBIT
+        ],
+        "creditCards": [
+            {
+                "id": str(card.id),
+                "cardType": card.card_type.value,
+                "status": card.status.value,
+                "maskedNumber": card.masked_number,
+                "network": card.network,
+                "expiryMonth": card.expiry_month,
+                "expiryYear": card.expiry_year,
+            }
+            for card in account.cards
+            if card.card_type == CardType.CREDIT
+        ],
+    }
+
+
+class BankingService:
+    """
+    Domain service that encapsulates core operations exposed by the voice assistant.
+    """
+
+    def __init__(self, session_factory):
+        self._session_factory = session_factory
+
+    def list_accounts(self, *, user_id) -> list[dict]:
+        with session_scope(self._session_factory) as session:
+            accounts = list_accounts_for_user(session, user_id)
+            return [_serialize_account(account) for account in accounts]
+
+    def get_account_for_user(self, *, user_id, account_id) -> Optional[dict]:
+        with session_scope(self._session_factory) as session:
+            account = get_account_by_id(session, account_id, user_id=user_id)
+            if account is None:
+                return None
+            return _serialize_account(account)
+
+    def lookup_account_balance(self, *, account_id) -> dict:
+        with session_scope(self._session_factory) as session:
+            account = get_account_by_id(session, account_id)
+            if account is None:
+                raise ValueError("account_not_found")
+            details = get_account_balance(session, account.account_number)
+            return {
+                "accountNumber": details["account_number"],
+                "currency": details["currency"],
+                "ledgerBalance": float(details["ledger_balance"]),
+                "availableBalance": float(details["available_balance"]),
+                "status": details["status"],
+            }
+
+    def transfer_between_accounts(
+        self,
+        *,
+        source_account_number: str,
+        destination_account_number: str,
+        amount: Decimal | float | int,
+        currency_code: str = "INR",
+        description: Optional[str] = None,
+        channel: TransactionChannel = TransactionChannel.VOICE,
+        session_id: Optional[str] = None,
+        reference_id: Optional[str] = None,
+    ) -> TransferResult:
+        with session_scope(self._session_factory) as session:
+            return execute_internal_transfer(
+                session,
+                source_account_number=source_account_number,
+                destination_account_number=destination_account_number,
+                amount=amount,
+                currency_code=currency_code,
+                description=description,
+                channel=channel,
+                initiated_session_id=session_id,
+                reference_id=reference_id,
+            )
+
+    def fetch_transaction_history(
+        self,
+        *,
+        user_id,
+        account_id,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        with session_scope(self._session_factory) as session:
+            account = get_account_by_id(session, account_id, user_id=user_id)
+            if account is None:
+                raise ValueError("account_not_found")
+            transactions = get_transaction_history(
+                session,
+                account_id=account.id,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+            )
+            return [
+                {
+                    "id": str(txn.id),
+                    "type": txn.transaction_type.value,
+                    "status": txn.status.value,
+                    "amount": float(txn.amount),
+                    "currency": txn.currency_code,
+                    "description": txn.description,
+                    "referenceId": txn.reference_id,
+                    "counterpartyAccount": txn.counterparty_account,
+                    "counterpartyName": txn.counterparty_name,
+                    "occurredAt": txn.occurred_at,
+                }
+                for txn in transactions
+            ]
+
+    def schedule_reminder(
+        self,
+        *,
+        user_id,
+        remind_at: datetime,
+        message: str,
+        reminder_type: ReminderType = ReminderType.BILL_PAYMENT,
+        account_id=None,
+        channel: str = "voice",
+        recurrence_rule: Optional[str] = None,
+    ) -> dict:
+        with session_scope(self._session_factory) as session:
+            reminder = create_reminder(
+                session,
+                user_id=user_id,
+                remind_at=remind_at,
+                message=message,
+                reminder_type=reminder_type,
+                account_id=account_id,
+                channel=channel,
+                recurrence_rule=recurrence_rule,
+            )
+            session.flush()
+            return {
+                "id": str(reminder.id),
+                "reminderType": reminder.reminder_type.value,
+                "status": reminder.status.value,
+                "message": reminder.message,
+                "remindAt": reminder.remind_at,
+                "channel": reminder.channel,
+                "accountId": str(reminder.account_id) if reminder.account_id else None,
+                "recurrenceRule": reminder.recurrence_rule,
+            }
+
+    def get_due_reminders(self, *, as_of: datetime) -> list[dict]:
+        with session_scope(self._session_factory) as session:
+            reminders = fetch_due_reminders(session, as_of=as_of)
+            return [
+                {
+                    "id": str(reminder.id),
+                    "reminderType": reminder.reminder_type.value,
+                    "status": reminder.status.value,
+                    "message": reminder.message,
+                    "remindAt": reminder.remind_at,
+                    "channel": reminder.channel,
+                    "accountId": str(reminder.account_id) if reminder.account_id else None,
+                    "recurrenceRule": reminder.recurrence_rule,
+                }
+                for reminder in reminders
+            ]
+
+    def list_reminders(self, *, user_id) -> list[dict]:
+        with session_scope(self._session_factory) as session:
+            reminders = list_reminders_for_user(session, user_id=user_id)
+            return [
+                {
+                    "id": str(reminder.id),
+                    "reminderType": reminder.reminder_type.value,
+                    "status": reminder.status.value,
+                    "message": reminder.message,
+                    "remindAt": reminder.remind_at,
+                    "channel": reminder.channel,
+                    "accountId": str(reminder.account_id) if reminder.account_id else None,
+                    "recurrenceRule": reminder.recurrence_rule,
+                }
+                for reminder in reminders
+            ]
+
+    def update_reminder_status(self, *, reminder_id, status: ReminderStatus) -> Optional[dict]:
+        with session_scope(self._session_factory) as session:
+            reminder = mark_reminder_status(session, reminder_id, status)
+            if reminder is None:
+                return None
+            session.flush()
+            return {
+                "id": str(reminder.id),
+                "reminderType": reminder.reminder_type.value,
+                "status": reminder.status.value,
+                "message": reminder.message,
+                "remindAt": reminder.remind_at,
+                "channel": reminder.channel,
+                "accountId": str(reminder.account_id) if reminder.account_id else None,
+                "recurrenceRule": reminder.recurrence_rule,
+            }
+
+
+__all__ = ["BankingService"]
+
+

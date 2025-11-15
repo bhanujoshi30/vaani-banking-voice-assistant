@@ -1,0 +1,25 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sunGradient" x1="60" y1="15" x2="60" y2="105" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB347"/>
+      <stop offset="1" stop-color="#FF7B47"/>
+    </linearGradient>
+    <linearGradient id="ringGradient" x1="60" y1="0" x2="60" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD26F" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#FF8C42" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="36" fill="url(#sunGradient)"/>
+  <circle cx="60" cy="60" r="52" stroke="url(#ringGradient)" stroke-width="6" fill="none" opacity="0.7"/>
+  <g stroke="#FF9D3A" stroke-width="6" stroke-linecap="round">
+    <line x1="60" y1="8" x2="60" y2="26"/>
+    <line x1="60" y1="114" x2="60" y2="94"/>
+    <line x1="12" y1="60" x2="30" y2="60"/>
+    <line x1="108" y1="60" x2="90" y2="60"/>
+    <line x1="25" y1="25" x2="38" y2="38"/>
+    <line x1="95" y1="95" x2="82" y2="82"/>
+    <line x1="95" y1="25" x2="82" y2="38"/>
+    <line x1="25" y1="95" x2="38" y2="82"/>
+  </g>
+</svg>
+
