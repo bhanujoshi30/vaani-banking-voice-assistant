@@ -7,6 +7,7 @@ import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Reminders from "./pages/Reminders.jsx";
+import Chat from "./pages/Chat.jsx";
 import { authenticateUser } from "./api/client.js";
 
 const mockProfile = {
@@ -133,6 +134,16 @@ const App = () => {
         element={
           session.authenticated ? (
             <Reminders session={session} onSignOut={signOut} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          session.authenticated ? (
+            <Chat session={session} onSignOut={signOut} />
           ) : (
             <Navigate to="/" replace />
           )
