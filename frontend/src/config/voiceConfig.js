@@ -146,6 +146,23 @@ export const VOICE_SETTINGS = {
   
   // Enable voice feedback (beep sounds, etc.)
   enableFeedback: true,
+  
+  // Text-to-Speech Settings
+  tts: {
+    // Voice gender preference (for future use)
+    // Currently: 'female' (Indian woman voice)
+    // Future: 'male', 'neutral', or specific voice name
+    voiceGender: 'female',
+    
+    // Speech rate (0.1 - 10, default 1.0)
+    rate: 1.0,
+    
+    // Speech pitch (0 - 2, default 1.0)
+    pitch: 1.0,
+    
+    // Volume (0 - 1, default 1.0)
+    volume: 1.0,
+  },
 };
 
 /**

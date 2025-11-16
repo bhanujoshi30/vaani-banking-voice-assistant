@@ -8,10 +8,13 @@ import TypingIndicator from "../components/Chat/TypingIndicator.jsx";
 import ChatInput from "../components/Chat/ChatInput.jsx";
 import ChatSidebar from "../components/Chat/ChatSidebar.jsx";
 import LanguageSelector from "../components/Chat/LanguageSelector.jsx";
+import VoiceModeToggle from "../components/Chat/VoiceModeToggle.jsx";
 import useSpeechRecognition from "../hooks/useSpeechRecognition.js";
+import useTextToSpeech from "../hooks/useTextToSpeech.js";
 import { createMessage, simulateAIResponse, INITIAL_MESSAGE } from "../utils/chatUtils.js";
 import { DEFAULT_LANGUAGE, getLanguageByCode } from "../config/voiceConfig.js";
 import "./Chat.css";
+import "../components/Chat/VoiceModeToggle.css";
 
 const Chat = ({ session, onSignOut }) => {
   const navigate = useNavigate();
@@ -19,8 +22,10 @@ const Chat = ({ session, onSignOut }) => {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
+  const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const lastMessageRef = useRef(null);
 
   // Get current language info
   const currentLanguage = getLanguageByCode(language);
@@ -35,11 +40,27 @@ const Chat = ({ session, onSignOut }) => {
     interimTranscript,
     error: speechError,
     toggleListening,
+    startListening,
+    stopListening,
     resetTranscript,
   } = useSpeechRecognition({
     lang: language,
     continuous: true,
     interimResults: true,
+  });
+
+  // Use text-to-speech hook
+  const {
+    isSpeaking,
+    isTTSSupported,
+    selectedVoice,
+    speak,
+    stop: stopSpeaking,
+  } = useTextToSpeech({
+    lang: language,
+    rate: 1.0,
+    pitch: 1.0,
+    volume: 1.0,
   });
 
   const scrollToBottom = () => {
@@ -52,11 +73,11 @@ const Chat = ({ session, onSignOut }) => {
 
   // Update input text when speech transcript changes
   useEffect(() => {
-    if (fullTranscript) {
+    if (fullTranscript && !isSpeaking) {
       console.log('Updating input with transcript:', fullTranscript);
       setInputText(fullTranscript);
     }
-  }, [fullTranscript]);
+  }, [fullTranscript, isSpeaking]);
 
   // Show speech errors
   useEffect(() => {
@@ -65,6 +86,72 @@ const Chat = ({ session, onSignOut }) => {
       alert(speechError); // Show error to user
     }
   }, [speechError]);
+
+  // Voice Mode: Auto-start listening when enabled and not speaking
+  useEffect(() => {
+    if (isVoiceModeEnabled && !isLanguageComingSoon && !isSpeaking && !isTyping) {
+      if (!isListening) {
+        console.log('🎤 Voice mode: Auto-starting microphone');
+        startListening();
+      }
+    } else if (isVoiceModeEnabled && isSpeaking && isListening) {
+      // IMPORTANT: Stop listening while speaking to prevent feedback
+      console.log('🛑 Voice mode: Stopping microphone during speech');
+      stopListening();
+    }
+  }, [isVoiceModeEnabled, isSpeaking, isTyping, isListening, isLanguageComingSoon, startListening, stopListening]);
+
+  // Voice Mode: Read assistant messages aloud
+  useEffect(() => {
+    if (isVoiceModeEnabled && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // Check if this is a new assistant message
+      if (lastMessage.role === 'assistant' && lastMessage.id !== lastMessageRef.current) {
+        lastMessageRef.current = lastMessage.id;
+        
+        // Stop listening while speaking
+        if (isListening) {
+          stopListening();
+        }
+        
+        // Clear any transcript that might have been picked up
+        resetTranscript();
+        setInputText('');
+        
+        console.log('🔊 Voice mode: Reading assistant message');
+        speak(lastMessage.content, () => {
+          console.log('✅ Voice mode: Finished reading, ready for next input');
+          // Auto-restart listening after speaking (handled by useEffect above)
+        });
+      }
+    }
+  }, [messages, isVoiceModeEnabled, speak, isListening, stopListening, resetTranscript]);
+
+  // Voice Mode: Auto-send when transcript is complete
+  useEffect(() => {
+    if (isVoiceModeEnabled && fullTranscript && !isSpeaking && !isTyping) {
+      // Wait a moment to see if user continues speaking
+      const timer = setTimeout(() => {
+        if (fullTranscript.trim() && !isSpeaking) {
+          console.log('📤 Voice mode: Auto-sending message');
+          handleSendMessage(new Event('submit'));
+        }
+      }, 1500); // 1.5 second delay for natural conversation
+
+      return () => clearTimeout(timer);
+    }
+  }, [fullTranscript, isVoiceModeEnabled, isSpeaking, isTyping]);
+
+  // Cleanup: Stop speech and listening when voice mode is disabled
+  useEffect(() => {
+    if (!isVoiceModeEnabled) {
+      stopSpeaking();
+      if (isListening) {
+        stopListening();
+      }
+    }
+  }, [isVoiceModeEnabled, stopSpeaking, isListening, stopListening]);
 
   if (!session.authenticated) {
     return <Navigate to="/" replace />;
@@ -75,8 +162,14 @@ const Chat = ({ session, onSignOut }) => {
     
     if (!inputText.trim()) return;
 
-    // Stop listening if currently recording
-    if (isListening) {
+    // Don't send if speaking in voice mode
+    if (isVoiceModeEnabled && isSpeaking) {
+      console.log('⚠️ Cannot send while speaking');
+      return;
+    }
+
+    // Stop listening if currently recording (only in manual mode)
+    if (!isVoiceModeEnabled && isListening) {
       toggleListening();
     }
 
@@ -94,6 +187,8 @@ const Chat = ({ session, onSignOut }) => {
       const response = await simulateAIResponse(messageContent);
       const assistantMessage = createMessage("assistant", response);
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // In voice mode, the message will be spoken by useEffect
     } catch (error) {
       console.error("Error getting AI response:", error);
       const errorMessage = createMessage(
@@ -107,6 +202,11 @@ const Chat = ({ session, onSignOut }) => {
   };
 
   const handleVoiceInput = () => {
+    // In voice mode, microphone is always on, so this just toggles manually
+    if (isVoiceModeEnabled) {
+      return; // Do nothing in voice mode - mic is auto-managed
+    }
+
     if (!isSpeechSupported) {
       alert('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
@@ -117,8 +217,22 @@ const Chat = ({ session, onSignOut }) => {
       return;
     }
 
-    // Toggle listening state
+    // Toggle listening state in manual mode
     toggleListening();
+  };
+
+  const handleVoiceModeToggle = () => {
+    if (!isSpeechSupported || !isTTSSupported) {
+      alert('Voice mode requires browser support for both speech recognition and text-to-speech. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isLanguageComingSoon) {
+      alert('Voice mode is not available for this language yet. Please use English or Hindi.');
+      return;
+    }
+
+    setIsVoiceModeEnabled((prev) => !prev);
   };
 
   return (
@@ -129,10 +243,15 @@ const Chat = ({ session, onSignOut }) => {
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
               <div className="chat-header-actions">
+                <VoiceModeToggle
+                  isEnabled={isVoiceModeEnabled}
+                  onToggle={handleVoiceModeToggle}
+                  disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
+                />
                 <LanguageSelector 
                   selectedLanguage={language}
                   onLanguageChange={setLanguage}
-                  disabled={isListening}
+                  disabled={isListening || isVoiceModeEnabled}
                 />
                 <button
                   type="button"
@@ -147,8 +266,42 @@ const Chat = ({ session, onSignOut }) => {
               </div>
             }
           />
-          <main className="chat-container">
+          <main className={`chat-container ${isVoiceModeEnabled ? 'chat-container--voice-mode' : ''}`}>
             <div className="chat-main">
+              {/* Speaking indicator */}
+              {isSpeaking && (
+                <div className="chat-speaking-indicator">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z"
+                      fill="currentColor"
+                      opacity="0.2"
+                    />
+                    <path
+                      d="M12 6V12L16 14"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <div>
+                    <div>Assistant is speaking...</div>
+                    {selectedVoice && (
+                      <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                        Voice: {selectedVoice.name.split(' ')[0]}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="chat-messages">
                 {messages.map((message) => (
                   <ChatMessage 
@@ -168,6 +321,8 @@ const Chat = ({ session, onSignOut }) => {
                 isListening={isListening}
                 isSpeechSupported={isSpeechSupported}
                 isLanguageComingSoon={isLanguageComingSoon}
+                isSpeaking={isSpeaking}
+                isVoiceModeEnabled={isVoiceModeEnabled}
                 onSubmit={handleSendMessage}
                 onVoiceClick={handleVoiceInput}
                 inputRef={inputRef}

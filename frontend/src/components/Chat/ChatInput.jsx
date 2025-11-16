@@ -10,15 +10,18 @@ const ChatInput = ({
   isListening,
   isSpeechSupported,
   isLanguageComingSoon,
+  isSpeaking = false,
+  isVoiceModeEnabled = false,
   onSubmit,
   onVoiceClick,
   inputRef,
 }) => {
   const isVoiceDisabled = !isSpeechSupported || isLanguageComingSoon;
+  const isInputDisabled = isTyping || isSpeaking;
 
   return (
     <form className="chat-input-container" onSubmit={onSubmit}>
-      <div className="chat-input-wrapper">
+      <div className={`chat-input-wrapper ${isSpeaking ? 'chat-input-wrapper--disabled' : ''}`}>
         <button
           type="button"
           className={`chat-input-icon ${isListening ? 'chat-input-icon--listening' : ''} ${isVoiceDisabled ? 'chat-input-icon--disabled' : ''}`}
@@ -28,11 +31,13 @@ const ChatInput = ({
               ? "Voice input not supported in this browser"
               : isLanguageComingSoon
               ? "This language is coming soon. Please use English or Hindi."
+              : isVoiceModeEnabled
+              ? "Voice mode enabled - microphone is always on"
               : isListening
               ? "Stop listening"
               : "Start voice input"
           }
-          disabled={isVoiceDisabled}
+          disabled={isVoiceDisabled || isSpeaking || isVoiceModeEnabled}
         >
           <svg
             width="24"
@@ -76,21 +81,25 @@ const ChatInput = ({
           type="text"
           className="chat-input"
           placeholder={
-            isLanguageComingSoon
+            isSpeaking
+              ? "Assistant is speaking... please wait"
+              : isLanguageComingSoon
               ? "Voice input not available for this language yet. Type your message or switch to English/Hindi."
+              : isVoiceModeEnabled
+              ? "Voice mode active - speak your message..."
               : isListening
               ? "Listening... speak now"
               : "Type your message or use voice input..."
           }
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          disabled={isTyping}
+          disabled={isInputDisabled}
         />
         <button
           type="submit"
           className="chat-send-button"
-          disabled={!inputText.trim() || isTyping}
-          title="Send message"
+          disabled={!inputText.trim() || isInputDisabled}
+          title={isSpeaking ? "Please wait while assistant is speaking" : "Send message"}
         >
           <svg
             width="24"
@@ -117,7 +126,22 @@ const ChatInput = ({
         </button>
       </div>
       <div className="chat-input-hints">
-        {isLanguageComingSoon && (
+        {isSpeaking && (
+          <span className="chat-hint chat-hint--warning">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="12" cy="12" r="10" fill="#f39c12" />
+              <path d="M12 6V12L16 14" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Assistant is speaking... Input disabled
+          </span>
+        )}
+        {!isSpeaking && isLanguageComingSoon && (
           <span className="chat-hint chat-hint--warning">
             <svg
               width="14"
@@ -133,7 +157,21 @@ const ChatInput = ({
             Voice input coming soon for this language. Please use English or Hindi.
           </span>
         )}
-        {!isLanguageComingSoon && isListening && (
+        {!isSpeaking && !isLanguageComingSoon && isVoiceModeEnabled && (
+          <span className="chat-hint chat-hint--listening">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="12" cy="12" r="10" fill="#7cb5ff" />
+            </svg>
+            Voice mode active - Speak naturally, your message will be sent automatically
+          </span>
+        )}
+        {!isSpeaking && !isLanguageComingSoon && !isVoiceModeEnabled && isListening && (
           <span className="chat-hint chat-hint--listening">
             <svg
               width="14"
@@ -147,7 +185,7 @@ const ChatInput = ({
             Listening... Speak clearly
           </span>
         )}
-        {!isLanguageComingSoon && !isListening && (
+        {!isSpeaking && !isLanguageComingSoon && !isVoiceModeEnabled && !isListening && (
           <span className="chat-hint">
             <svg
               width="14"
@@ -174,6 +212,8 @@ ChatInput.propTypes = {
   isListening: PropTypes.bool.isRequired,
   isSpeechSupported: PropTypes.bool.isRequired,
   isLanguageComingSoon: PropTypes.bool,
+  isSpeaking: PropTypes.bool,
+  isVoiceModeEnabled: PropTypes.bool,
   onSubmit: PropTypes.func.isRequired,
   onVoiceClick: PropTypes.func.isRequired,
   inputRef: PropTypes.object,
