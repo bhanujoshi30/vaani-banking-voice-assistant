@@ -1,37 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
 
-const hashText = async (text) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  if (window.crypto?.subtle) {
-    const digest = await window.crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  return window.btoa(unescape(encodeURIComponent(text)));
-};
-
-const buildFingerprintSource = () => {
-  const { userAgent, language, platform } = navigator;
-  const screenInfo = window.screen
-    ? `${window.screen.width}x${window.screen.height}-${window.devicePixelRatio}`
-    : "unknown-screen";
-  return `${userAgent}::${language}::${platform}::${screenInfo}`;
-};
-
-const inferPlatform = () => {
-  const ua = navigator.userAgent.toLowerCase();
-  if (ua.includes("android")) return "android";
-  if (ua.includes("iphone") || ua.includes("ipad")) return "ios";
-  if (ua.includes("windows")) return "windows";
-  if (ua.includes("mac os")) return "macos";
-  return "web";
-};
+const verifyPasswordLocally = (inputPassword) => inputPassword.trim().length >= 4;
 
 const mixToMono = (audioBuffer) => {
   if (audioBuffer.numberOfChannels === 1) {
@@ -99,21 +72,33 @@ const convertBlobToWav = async (blob) => {
 
 const MAX_RECORDING_MS = 7000;
 const VOICE_PHRASE = "Sun Bank mera saathi, har kadam surakshit banking ka vaada";
+const FIXED_OTP = "12345";
+
 const Login = ({ onAuthenticate, authenticated }) => {
+  const [authMode, setAuthMode] = useState("password");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberDevice, setRememberDevice] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [awaitingOtp, setAwaitingOtp] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [showOtp, setShowOtp] = useState(false);
+  const [isVoiceEnrolled, setIsVoiceEnrolled] = useState(false);
   const [voiceBlob, setVoiceBlob] = useState(null);
-  const [voiceHash, setVoiceHash] = useState("");
   const [voiceSummary, setVoiceSummary] = useState("");
   const [recordingState, setRecordingState] = useState("idle");
   const [recordingStatus, setRecordingStatus] = useState("");
+  const [voiceCaptureStep, setVoiceCaptureStep] = useState(1);
+  const [firstVoiceSummary, setFirstVoiceSummary] = useState("");
+  const [recordingProgress, setRecordingProgress] = useState(0);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const voiceSectionRef = useRef(null);
+  const otpInputRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const recordingStartRef = useRef(null);
+  const isFirstVoiceLogin = authMode === "voice" && userId.trim() && !isVoiceEnrolled;
 
   useEffect(
     () => () => {
@@ -121,69 +106,100 @@ const Login = ({ onAuthenticate, authenticated }) => {
       if (recorder && recorder.state !== "inactive") {
         recorder.stop();
       }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
     },
     [],
   );
 
   useEffect(() => {
-    if (!rememberDevice) {
-      setVoiceMode(false);
-      setVoiceBlob(null);
-      setVoiceHash("");
-      setVoiceSummary("");
-      setRecordingStatus("");
-      setRecordingState("idle");
+    if (!awaitingOtp) {
+      setOtp("");
+      setShowOtp(false);
     }
-  }, [rememberDevice]);
+  }, [awaitingOtp]);
+
+  useEffect(() => {
+    if (authMode === "voice" && userId.trim()) {
+      let enrolled = false;
+      try {
+        enrolled =
+          window.localStorage.getItem(`voiceEnrolled:${userId.trim()}`) === "true";
+      } catch {
+        enrolled = false;
+      }
+      setIsVoiceEnrolled(enrolled);
+      resetVoiceCapture(enrolled ? 2 : 1);
+      requestAnimationFrame(() => {
+        if (voiceSectionRef.current) {
+          voiceSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    } else if (authMode !== "voice") {
+      resetVoiceCapture(1);
+      setIsVoiceEnrolled(false);
+    }
+    setError("");
+  }, [authMode, userId]);
+
+  const resetVoiceCapture = (nextStep, flushEnrollment = false) => {
+    setVoiceBlob(null);
+    setVoiceSummary("");
+    setRecordingStatus("");
+    setRecordingState("idle");
+    setFirstVoiceSummary("");
+    setRecordingProgress(0);
+    if (authMode === "voice") {
+      setError("");
+    }
+    setVoiceCaptureStep(
+      typeof nextStep === "number" ? nextStep : isVoiceEnrolled ? 2 : 1,
+    );
+    if (flushEnrollment) {
+      setIsVoiceEnrolled(false);
+      if (userId.trim()) {
+        try {
+          window.localStorage.removeItem(`voiceEnrolled:${userId.trim()}`);
+        } catch {
+          /* ignore storage */
+        }
+      }
+    }
+  };
 
   if (authenticated) {
     return <Navigate to="/profile" replace />;
   }
-
-  const scrollToVoiceSection = () => {
-    if (voiceSectionRef.current) {
-      voiceSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  };
-
-  const enableVoiceMode = () => {
-    if (!voiceMode) {
-      setVoiceMode(true);
-      requestAnimationFrame(scrollToVoiceSection);
-    } else {
-      scrollToVoiceSection();
-    }
-  };
-
-  const hashArrayBuffer = async (arrayBuffer) => {
-    if (crypto?.subtle) {
-      const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
-      return Array.from(new Uint8Array(digest))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    }
-    const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
-    return window.btoa(binary);
-  };
 
   const stopRecording = () => {
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== "inactive") {
       recorder.stop();
     }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
   };
 
   const startRecording = async () => {
-    enableVoiceMode();
+    if (authMode === "voice") {
+      setError("");
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setRecordingStatus("Microphone access is not supported on this device.");
       return;
     }
 
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setRecordingProgress(0);
+
     setRecordingStatus("Requesting microphone access…");
-    setVoiceBlob(null);
-    setVoiceHash("");
-    setVoiceSummary("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -194,15 +210,31 @@ const Login = ({ onAuthenticate, authenticated }) => {
         }
       };
       recorder.onstop = async () => {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
         try {
           const blob = new Blob(chunksRef.current, { type: "audio/webm" });
           const { wavBlob, duration } = await convertBlobToWav(blob);
-          const wavBuffer = await wavBlob.arrayBuffer();
-          const hash = await hashArrayBuffer(wavBuffer);
-          setVoiceBlob(wavBlob);
-          setVoiceHash(hash);
-          setVoiceSummary(`Sample ready · ${(duration ?? 0).toFixed(1)}s`);
-          setRecordingStatus("Voice sample captured and secured.");
+          if (voiceCaptureStep === 1) {
+            setFirstVoiceSummary(`Sample 1 ready · ${(duration ?? 0).toFixed(1)}s`);
+            setRecordingStatus(
+              'First sample captured. Please re-record the passphrase to confirm your voice.',
+            );
+            setVoiceCaptureStep(2);
+            setVoiceBlob(null);
+            setVoiceSummary("");
+          } else {
+            setVoiceBlob(wavBlob);
+            const label =
+              isFirstVoiceLogin && voiceCaptureStep === 2
+                ? `Sample 2 ready · ${(duration ?? 0).toFixed(1)}s`
+                : `Sample ready · ${(duration ?? 0).toFixed(1)}s`;
+            setVoiceSummary(label);
+            setRecordingStatus("Voice sample confirmed. You can proceed to login.");
+          }
+          setRecordingProgress(1);
         } catch (processingError) {
           setRecordingStatus(
             processingError?.message || "Unable to process the voice sample.",
@@ -215,7 +247,16 @@ const Login = ({ onAuthenticate, authenticated }) => {
       recorder.start();
       mediaRecorderRef.current = recorder;
       setRecordingState("recording");
-      setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE}"`);
+      recordingStartRef.current = Date.now();
+      recordingTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - recordingStartRef.current;
+        setRecordingProgress(Math.min(elapsed / MAX_RECORDING_MS, 1));
+      }, 60);
+      if (voiceCaptureStep === 1) {
+        setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE}"`);
+      } else {
+        setRecordingStatus("Recording… Speak naturally in your own words.");
+      }
       setTimeout(() => {
         if (mediaRecorderRef.current === recorder && recorder.state === "recording") {
           stopRecording();
@@ -223,29 +264,67 @@ const Login = ({ onAuthenticate, authenticated }) => {
       }, MAX_RECORDING_MS);
     } catch (permissionError) {
       setRecordingState("idle");
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
       setRecordingStatus(
         permissionError?.message || "Microphone permission denied by the browser.",
       );
     }
   };
 
+  const credentialInputsDisabled = awaitingOtp || isSubmitting;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    if (isSubmitting) return;
 
-    if (!userId.trim() || !password.trim()) {
-      setError("Please enter both User ID and Password to continue.");
+    if (!awaitingOtp) {
+      if (!userId.trim()) {
+        setError("Please enter your User ID to continue.");
+        return;
+      }
+      if (authMode === "password") {
+        if (!verifyPasswordLocally(password)) {
+          setError("Enter a valid password (minimum 4 characters).");
+          return;
+        }
+      } else if (!voiceBlob) {
+        setError("Please capture and confirm your voice sample before continuing.");
+        return;
+      }
+
+      const validationPayload = {
+        userId: userId.trim(),
+        password: authMode === "password" ? password.trim() : "",
+        authMode,
+      };
+
+      if (authMode === "voice") {
+        validationPayload.voiceSampleBlob = voiceBlob;
+      }
+
+      const preliminary = await onAuthenticate({
+        ...validationPayload,
+        validateOnly: true,
+      });
+
+      if (!preliminary?.success) {
+        setError(preliminary?.message || "Credentials could not be verified. Try again.");
+        return;
+      }
+
+      setAwaitingOtp(true);
+      setOtp("");
+      setTimeout(() => otpInputRef.current?.focus(), 150);
       return;
     }
 
-    if (rememberDevice) {
-      enableVoiceMode();
-      if (!voiceBlob) {
-        setError(
-          'Please record your voice sample by speaking "Sun Bank mera saathi, har kadam surakshit banking ka vaada".',
-        );
-        return;
-      }
+    if (otp.trim() !== FIXED_OTP) {
+      setError("The OTP you entered is incorrect. Please try again.");
+      return;
     }
 
     setIsSubmitting(true);
@@ -253,43 +332,39 @@ const Login = ({ onAuthenticate, authenticated }) => {
     try {
       const authPayload = {
         userId: userId.trim(),
-        password: password.trim(),
-        rememberDevice,
+        password: authMode === "password" ? password.trim() : "",
+        authMode,
+        otp: otp.trim(),
       };
 
-      if (rememberDevice) {
-        const fingerprintSource = buildFingerprintSource();
-        const deviceIdentifier = await hashText(fingerprintSource);
-        const platform = inferPlatform();
-
-        const deviceLabel =
-          platform === "android" || platform === "ios"
-            ? "Mobile voice device"
-            : "Web voice browser";
-
-        authPayload.rememberDevice = true;
-        authPayload.deviceIdentifier = deviceIdentifier;
-        authPayload.deviceFingerprint = deviceIdentifier;
-        authPayload.platform = platform;
-        authPayload.deviceLabel = deviceLabel;
+      if (authMode === "voice") {
         authPayload.voiceSampleBlob = voiceBlob;
-      } else {
-        authPayload.voiceBypass = true;
       }
 
       const result = await onAuthenticate(authPayload);
 
       if (!result?.success) {
         setError(result?.message || "We could not verify those credentials. Try again.");
+        setAwaitingOtp(false);
+      } else if (authMode === "voice" && userId.trim()) {
+        setIsVoiceEnrolled(true);
+        window.localStorage.setItem(`voiceEnrolled:${userId.trim()}`, "true");
       }
     } catch (authError) {
       setError(
         authError?.message ||
           "Something went wrong while contacting the bank. Please try again.",
       );
+      setAwaitingOtp(false);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelOtp = () => {
+    setAwaitingOtp(false);
+    setOtp("");
+    setError("");
   };
 
   return (
@@ -302,10 +377,22 @@ const Login = ({ onAuthenticate, authenticated }) => {
               <h1>Welcome back.</h1>
               <p>Sign in to continue to your Sun National Bank profile.</p>
             </div>
-            <div className="voice-binding-banner" ref={voiceSectionRef}>
-              Prefer the conversation experience?{" "}
-              <button type="button" className="link-btn" onClick={enableVoiceMode}>
-                {voiceMode ? "Voice binding ready below" : "Use voice + device binding"}
+            <div className="login-mode-switch">
+              <button
+                type="button"
+                className={`mode-chip ${authMode === "password" ? "mode-chip--active" : ""}`}
+                onClick={() => !credentialInputsDisabled && setAuthMode("password")}
+                disabled={credentialInputsDisabled}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                className={`mode-chip ${authMode === "voice" ? "mode-chip--active" : ""}`}
+                onClick={() => !credentialInputsDisabled && setAuthMode("voice")}
+                disabled={credentialInputsDisabled}
+              >
+                Voice
               </button>
             </div>
             <form className="card-form" onSubmit={handleSubmit} noValidate>
@@ -319,66 +406,141 @@ const Login = ({ onAuthenticate, authenticated }) => {
                   placeholder="Enter your customer ID"
                   value={userId}
                   onChange={(event) => setUserId(event.target.value)}
+                  disabled={credentialInputsDisabled}
                 />
               </label>
-              <label htmlFor="password">
-                Password
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </label>
-              <div className="card-form__meta">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={rememberDevice}
-                    onChange={(event) => setRememberDevice(event.target.checked)}
-                  />
-                  Trust this device for quick voice authentication
+              {authMode === "password" && (
+                <label htmlFor="password" className="input-with-toggle">
+                  Password
+                  <div className="input-with-toggle__wrapper">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      disabled={credentialInputsDisabled}
+                    />
+                    <button
+                      type="button"
+                      className="input-with-toggle__btn"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </label>
-                <a className="muted-link" href="#help">
-                  Need help signing in?
-                </a>
-              </div>
-              {voiceMode && (
-                <div className="card-form__voice">
-                  <p className="profile-hint">
-                    Speak the passphrase <strong>"{VOICE_PHRASE}"</strong> so we can verify your
-                    voice on each login.
-                  </p>
+              )}
+              {authMode === "voice" && (
+                <div className="card-form__voice" ref={voiceSectionRef}>
+                  {isFirstVoiceLogin ? (
+                    <div className="info-banner">
+                      First time with voice login? We’ll capture the passphrase{" "}
+                      <strong>"{VOICE_PHRASE}"</strong> twice to enroll your voice securely. From the
+                      next login you can speak any short phrase.
+                    </div>
+                  ) : (
+                    <p className="profile-hint">
+                      Speak in your normal voice—any short phrase works for quick verification.
+                    </p>
+                  )}
                   <div className="voice-controls">
                     <button
                       className="secondary-btn"
                       type="button"
                       onClick={recordingState === "recording" ? stopRecording : startRecording}
+                      disabled={credentialInputsDisabled}
                     >
                       {recordingState === "recording" ? "Stop recording" : "Record voice sample"}
                     </button>
-                    {voiceSummary && (
+                    {voiceCaptureStep === 2 && !voiceBlob && firstVoiceSummary && (
+                      <span className="profile-hint">{firstVoiceSummary}</span>
+                    )}
+                    {voiceSummary && voiceBlob && (
                       <span className="profile-hint">
                         {voiceSummary}
-                        {voiceHash && (
-                          <>
-                            {" "}
-                            · Hash: <code>{voiceHash.slice(0, 12)}…</code>
-                          </>
-                        )}
                       </span>
                     )}
                   </div>
+                  {recordingState === "recording" && (
+                    <div className="voice-meter">
+                      <div className="voice-meter__wave" aria-hidden="true" />
+                      <div className="voice-meter__bar">
+                        <div
+                          className="voice-meter__progress"
+                          style={{ width: `${Math.min(recordingProgress * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className="voice-meter__time">
+                        {Math.min(
+                          Math.round((recordingProgress * MAX_RECORDING_MS) / 1000),
+                          MAX_RECORDING_MS / 1000,
+                        )}
+                        s / {MAX_RECORDING_MS / 1000}s
+                      </span>
+                    </div>
+                  )}
                   {recordingStatus && <p className="profile-hint">{recordingStatus}</p>}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => resetVoiceCapture(1, true)}
+                    disabled={credentialInputsDisabled}
+                  >
+                    Reset voice capture
+                  </button>
                 </div>
               )}
+              {awaitingOtp && (
+                <label htmlFor="otp" className="input-with-toggle">
+                  Enter OTP
+                  <div className="input-with-toggle__wrapper">
+                    <input
+                      id="otp"
+                      name="otp"
+                      type={showOtp ? "text" : "password"}
+                      placeholder="Enter the 5-digit OTP"
+                      value={otp}
+                      onChange={(event) => setOtp(event.target.value)}
+                      ref={otpInputRef}
+                    />
+                    <button
+                      type="button"
+                      className="input-with-toggle__btn"
+                      onClick={() => setShowOtp((prev) => !prev)}
+                      aria-label={showOtp ? "Hide OTP" : "Show OTP"}
+                    >
+                      {showOtp ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </label>
+              )}
               {error && <div className="form-error">{error}</div>}
-              <button className="primary-btn" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Verifying…" : "Log in"}
-              </button>
+              <div className="card-form__actions">
+                <button className="primary-btn" type="submit" disabled={isSubmitting}>
+                  {awaitingOtp ? (isSubmitting ? "Verifying…" : "Verify OTP") : "Log in"}
+                </button>
+                {awaitingOtp && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={handleCancelOtp}
+                    disabled={isSubmitting}
+                  >
+                    Edit details
+                  </button>
+                )}
+              </div>
+              {!awaitingOtp && (
+                <div className="card-form__meta">
+                  <Link className="muted-link" to="/sign-in-help">
+                    Need help signing in?
+                  </Link>
+                </div>
+              )}
             </form>
           </main>
         </div>

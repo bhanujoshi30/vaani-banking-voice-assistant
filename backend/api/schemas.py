@@ -39,8 +39,8 @@ class LoginRequest(BaseModel):
     userId: constr(min_length=4, max_length=32) = Field(
         description="Customer identifier issued by Sun National Bank."
     )
-    password: constr(min_length=4, max_length=128) = Field(
-        description="Secret shared during onboarding or updated by customer."
+    password: constr(min_length=0, max_length=128) = Field(
+        description="Secret shared during onboarding or updated by customer. Optional when using voice mode."
     )
     deviceIdentifier: Optional[constr(min_length=4, max_length=128)] = Field(
         default=None,
@@ -59,6 +59,13 @@ class LoginRequest(BaseModel):
     registrationMethod: Optional[constr(max_length=40)] = Field(
         default="otp+voice",
         description="Method used to confirm device binding (otp, otp+voice, etc.).",
+    )
+    loginMode: constr(min_length=4, max_length=16) = Field(
+        default="password",
+        description="Mode chosen by customer (password or voice).",
+    )
+    otp: constr(min_length=4, max_length=10) = Field(
+        description="One-time password provided during step-up verification."
     )
 
 
@@ -236,7 +243,37 @@ class ReminderListResponse(BaseModel):
     data: List[ReminderResource]
 
 
-# --- Device Bindings -------------------------------------------------------------
+class BeneficiaryResource(BaseModel):
+    id: str
+    name: str
+    accountNumber: str
+    bankName: str
+    ifsc: str
+    status: str
+    addedAt: datetime
+    verifiedAt: Optional[datetime] = None
+    lastUsedAt: Optional[datetime] = None
+    removedAt: Optional[datetime] = None
+
+
+class BeneficiaryCreateRequest(BaseModel):
+    name: constr(min_length=2, max_length=120)
+    accountNumber: constr(min_length=10, max_length=32)
+    bankName: Optional[constr(max_length=120)] = None
+    ifsc: Optional[constr(min_length=4, max_length=16)] = None
+
+
+class BeneficiaryListResponse(BaseModel):
+    meta: ResponseMeta
+    data: List[BeneficiaryResource]
+
+
+class BeneficiaryResponse(BaseModel):
+    meta: ResponseMeta
+    data: BeneficiaryResource
+
+
+# --- Device Binding -------------------------------------------------------------
 
 
 class DeviceBindingResource(BaseModel):

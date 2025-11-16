@@ -86,6 +86,12 @@ class ReminderStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class BeneficiaryStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    BLOCKED = "blocked"
+
+
 __all__ = [
     "AccountType",
     "AccountStatus",
@@ -98,6 +104,7 @@ __all__ = [
     "CardStatus",
     "ReminderType",
     "ReminderStatus",
+    "BeneficiaryStatus",
     "DeviceTrustLevel",
 ]
 

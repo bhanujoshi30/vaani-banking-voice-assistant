@@ -18,8 +18,14 @@ from ..repositories import (
     list_accounts_for_user,
     list_reminders_for_user,
     mark_reminder_status,
+    list_beneficiaries as repo_list_beneficiaries,
+    create_beneficiary as repo_create_beneficiary,
+    get_beneficiary_by_id,
+    get_beneficiary_by_account_number,
+    deactivate_beneficiary,
+    mark_beneficiary_used,
 )
-from ..utils.enums import CardType, ReminderStatus, ReminderType, TransactionChannel
+from ..utils.enums import CardType, ReminderStatus, ReminderType, TransactionChannel, BeneficiaryStatus
 
 
 def _serialize_account(account) -> dict:
@@ -62,6 +68,21 @@ def _serialize_account(account) -> dict:
     }
 
 
+def _serialize_beneficiary(beneficiary) -> dict:
+    return {
+        "id": str(beneficiary.id),
+        "name": beneficiary.display_name,
+        "accountNumber": beneficiary.account_number,
+        "bankName": beneficiary.bank_name,
+        "ifsc": beneficiary.ifsc_code,
+        "status": beneficiary.status.value,
+        "addedAt": beneficiary.added_at,
+        "verifiedAt": beneficiary.verified_at,
+        "lastUsedAt": beneficiary.last_used_at,
+        "removedAt": beneficiary.removed_at,
+    }
+
+
 class BankingService:
     """
     Domain service that encapsulates core operations exposed by the voice assistant.
@@ -74,6 +95,45 @@ class BankingService:
         with session_scope(self._session_factory) as session:
             accounts = list_accounts_for_user(session, user_id)
             return [_serialize_account(account) for account in accounts]
+
+    def list_beneficiaries(self, *, user_id, include_blocked: bool = False) -> list[dict]:
+        with session_scope(self._session_factory) as session:
+            beneficiaries = repo_list_beneficiaries(
+                session, user_id=user_id, include_blocked=include_blocked
+            )
+            return [_serialize_beneficiary(item) for item in beneficiaries]
+
+    def add_beneficiary(
+        self,
+        *,
+        user_id,
+        display_name: str,
+        account_number: str,
+        bank_name: str | None = None,
+        ifsc: str | None = None,
+    ) -> dict:
+        with session_scope(self._session_factory) as session:
+            beneficiary = repo_create_beneficiary(
+                session,
+                user_id=user_id,
+                display_name=display_name.strip(),
+                account_number=account_number.strip(),
+                bank_name=(bank_name.strip() if bank_name and bank_name.strip() else None),
+                ifsc_code=(ifsc.strip() if ifsc and ifsc.strip() else None),
+            )
+            session.flush()
+            return _serialize_beneficiary(beneficiary)
+
+    def remove_beneficiary(self, *, user_id, beneficiary_id) -> Optional[dict]:
+        with session_scope(self._session_factory) as session:
+            beneficiary = get_beneficiary_by_id(
+                session, beneficiary_id=beneficiary_id, user_id=user_id
+            )
+            if beneficiary is None:
+                return None
+            deactivate_beneficiary(session, beneficiary=beneficiary)
+            session.flush()
+            return _serialize_beneficiary(beneficiary)
 
     def get_account_for_user(self, *, user_id, account_id) -> Optional[dict]:
         with session_scope(self._session_factory) as session:
@@ -105,6 +165,7 @@ class BankingService:
         currency_code: str = "INR",
         description: Optional[str] = None,
         channel: TransactionChannel = TransactionChannel.VOICE,
+        user_id: Optional[str] = None,
         session_id: Optional[str] = None,
         reference_id: Optional[str] = None,
     ) -> dict:
@@ -120,6 +181,16 @@ class BankingService:
                 initiated_session_id=session_id,
                 reference_id=reference_id,
             )
+
+            if user_id:
+                beneficiary = get_beneficiary_by_account_number(
+                    session,
+                    user_id=user_id,
+                    account_number=destination_account_number,
+                )
+                if beneficiary and beneficiary.status != BeneficiaryStatus.BLOCKED:
+                    mark_beneficiary_used(session, beneficiary=beneficiary)
+
             session.flush()
 
             debit_txn = result.debit_transaction

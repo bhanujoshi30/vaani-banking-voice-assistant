@@ -83,28 +83,49 @@ class AuthService:
         device_label: Optional[str] = None,
         voice_sample: Optional[bytes] = None,
         registration_method: Optional[str] = None,
-        voice_bypass: bool = False,
+        login_mode: str = "password",
+        validate_only: bool = False,
     ) -> AuthResult:
         with session_scope(self._session_factory) as session:
             user = get_user_by_customer_number(session, customer_number)
             if user is None:
                 return AuthResult(success=False, reason="invalid_credentials")
 
-            if not verify_password(password, user.password_hash):
-                return AuthResult(success=False, reason="invalid_credentials")
+            if login_mode != "voice":
+                if not verify_password(password, user.password_hash):
+                    return AuthResult(success=False, reason="invalid_credentials")
+                device_identifier = None
+                fingerprint_hash = None
+                voice_sample = None
+            else:
+                if voice_sample is None:
+                    return AuthResult(
+                        success=False,
+                        reason="voice_sample_invalid",
+                        detail={
+                            "message": "Voice sample required for voice login.",
+                            "voicePhrase": VOICE_ENROLLMENT_PHRASE,
+                        },
+                    )
+                # Allow empty password in voice-first mode.
+                if password and not verify_password(password, user.password_hash):
+                    return AuthResult(success=False, reason="invalid_credentials")
+                if device_identifier is None:
+                    device_identifier = f"default-voice-{user.id}"
+                if fingerprint_hash is None:
+                    fingerprint_hash = device_identifier
+                if platform is None:
+                    platform = "web"
+                if device_label is None:
+                    device_label = "Primary voice device"
 
             user_id_value = user.id
             customer_number_value = user.customer_number
 
             tz = ZoneInfo("Asia/Kolkata")
             now = datetime.now(tz)
-            detail: dict = {}
+            detail: dict = {"loginMode": login_mode}
             binding_id: Optional[str] = None
-
-            if voice_bypass:
-                device_identifier = None
-                fingerprint_hash = None
-                voice_sample = None
 
             voice_embedding = None
             voice_vector_bytes: Optional[bytes] = None
@@ -126,6 +147,7 @@ class AuthService:
                     binding_id = str(binding.id)
                     detail.setdefault("deviceBindingId", binding_id)
                     detail.setdefault("voicePhrase", VOICE_ENROLLMENT_PHRASE)
+                    detail.setdefault("firstVoiceEnrollment", False)
                     if binding.last_verified_at is not None and binding.last_verified_at.tzinfo is None:
                         binding.last_verified_at = binding.last_verified_at.replace(tzinfo=tz)
                     if binding.revoked_at is not None and binding.revoked_at.tzinfo is None:
@@ -143,12 +165,13 @@ class AuthService:
                             },
                         )
 
-                    if fingerprint_hash:
-                        binding.fingerprint_hash = fingerprint_hash
-                    if platform:
-                        binding.platform = platform
-                    if device_label:
-                        binding.device_label = device_label
+                    if not validate_only:
+                        if fingerprint_hash:
+                            binding.fingerprint_hash = fingerprint_hash
+                        if platform:
+                            binding.platform = platform
+                        if device_label:
+                            binding.device_label = device_label
 
                     if voice_embedding is None or voice_vector_bytes is None or voice_hash is None:
                         return AuthResult(
@@ -187,16 +210,17 @@ class AuthService:
                     else:
                         detail["enrolled"] = True
 
-                    binding.voice_signature_hash = voice_hash
-                    binding.voice_signature_vector = voice_vector_bytes
-                    binding.last_verified_at = now
-                    detail.pop("voiceEnrollmentRequired", None)
-                    detail.pop("voiceReverificationRequired", None)
-                    detail.pop("voicePhrase", None)
-                    binding.revoked_at = None
-                    mark_device_binding_trust(
-                        session, binding=binding, trust_level=DeviceTrustLevel.TRUSTED
-                    )
+                    if not validate_only:
+                        binding.voice_signature_hash = voice_hash
+                        binding.voice_signature_vector = voice_vector_bytes
+                        binding.last_verified_at = now
+                        detail.pop("voiceEnrollmentRequired", None)
+                        detail.pop("voiceReverificationRequired", None)
+                        detail.pop("voicePhrase", None)
+                        binding.revoked_at = None
+                        mark_device_binding_trust(
+                            session, binding=binding, trust_level=DeviceTrustLevel.TRUSTED
+                        )
                 else:
                     if voice_embedding is None or voice_vector_bytes is None or voice_hash is None:
                         return AuthResult(
@@ -208,40 +232,38 @@ class AuthService:
                             },
                         )
 
-                    new_binding = create_device_binding(
-                        session,
-                        user_id=user_id_value,
-                        device_identifier=device_identifier,
-                        fingerprint_hash=fingerprint_hash or device_identifier,
-                        registration_method=registration_method or "otp+voice",
-                        platform=platform,
-                        device_label=device_label,
-                        voice_signature_hash=voice_hash,
-                        voice_signature_vector=voice_vector_bytes,
-                    )
-                    session.flush()
-                    session.refresh(new_binding)
-                    binding = new_binding
-                    binding.last_verified_at = now
-                    session.flush()
-                    binding_id = str(binding.id)
-                    detail = {"deviceBindingId": binding_id, "enrolled": True}
-            else:
-                if voice_bypass:
-                    detail["voiceBypass"] = True
-                    if bindings:
-                        detail.setdefault(
-                            "deviceBindings",
-                            [
-                                {
-                                    "bindingId": str(existing.id),
-                                    "trustLevel": existing.trust_level.value,
-                                }
-                                for existing in bindings
-                            ],
+                    if validate_only:
+                        detail = {
+                            "loginMode": login_mode,
+                            "firstVoiceEnrollment": True,
+                            "deviceBindingPreview": True,
+                        }
+                    else:
+                        new_binding = create_device_binding(
+                            session,
+                            user_id=user_id_value,
+                            device_identifier=device_identifier,
+                            fingerprint_hash=fingerprint_hash or device_identifier,
+                            registration_method=registration_method or "otp+voice",
+                            platform=platform,
+                            device_label=device_label,
+                            voice_signature_hash=voice_hash,
+                            voice_signature_vector=voice_vector_bytes,
                         )
-                        detail.setdefault("voicePhrase", VOICE_ENROLLMENT_PHRASE)
-                else:
+                        session.flush()
+                        session.refresh(new_binding)
+                        binding = new_binding
+                        binding.last_verified_at = now
+                        session.flush()
+                        binding_id = str(binding.id)
+                        detail = {
+                            "deviceBindingId": binding_id,
+                            "enrolled": True,
+                            "loginMode": login_mode,
+                            "firstVoiceEnrollment": True,
+                        }
+            else:
+                if login_mode == "voice":
                     if bindings:
                         return AuthResult(
                             success=False,
@@ -261,9 +283,15 @@ class AuthService:
                             detail={
                                 **detail,
                                 "message": "Voice sample was too short or unclear. Please record again.",
-                                "rebindSuggested": True,
                             },
                         )
+
+            if validate_only:
+                return AuthResult(
+                    success=True,
+                    reason="validated",
+                    detail=detail or None,
+                )
 
             token = token_urlsafe(32)
             expires_at = now + timedelta(seconds=ACCESS_TOKEN_TTL_SECONDS)
@@ -272,11 +300,11 @@ class AuthService:
                 user_id=user_id_value,
                 external_id=token,
                 access_token=token,
-                channel=TransactionChannel.VOICE,
+                channel=TransactionChannel.VOICE if login_mode == "voice" else TransactionChannel.SYSTEM,
                 status=SessionStatus.ACTIVE,
                 auth_level=AuthenticationLevel.FULL,
                 device_fingerprint=device_identifier or fingerprint_hash,
-                mfa_method="password+binding",
+                mfa_method="voice+otp" if login_mode == "voice" else "password+otp",
                 started_at=now,
                 last_activity_at=now,
                 last_intent="login",
@@ -324,12 +352,8 @@ class AuthService:
 
             if binding_id:
                 detail.setdefault("deviceBindingId", binding_id)
-            if voice_bypass:
-                detail.setdefault("voiceBypass", True)
-                detail.setdefault(
-                    "voiceMessage",
-                    "Voice verification skipped. Rebind this device to restore quick voice login.",
-                )
+            if voice_sample:
+                detail.setdefault("voiceLogin", True)
 
             return AuthResult(
                 success=True,
@@ -338,6 +362,7 @@ class AuthService:
                 expires_in=ACCESS_TOKEN_TTL_SECONDS,
                 detail=detail or None,
             )
+
 
     def validate_token(self, *, token: str) -> AuthenticatedSession:
         error: SessionValidationError | None = None

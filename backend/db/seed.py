@@ -31,6 +31,7 @@ from .models import (
     Session,
     Transaction,
     User,
+    Beneficiary,
 )
 from .utils.enums import (
     AccountStatus,
@@ -45,6 +46,7 @@ from .utils.enums import (
     TransactionChannel,
     TransactionStatus,
     TransactionType,
+    BeneficiaryStatus,
 )
 from .utils.security import hash_password
 
@@ -268,6 +270,39 @@ def _create_reminder(session, *, user: User, account: Account, fake: Faker):
     session.add(reminder)
 
 
+def _create_beneficiaries(
+    session,
+    *,
+    user: User,
+    candidate_accounts: list[Account],
+    fake: Faker,
+):
+    if not candidate_accounts:
+        return
+
+    available_accounts = [
+        account for account in candidate_accounts if account.user_id != user.id
+    ]
+    if not available_accounts:
+        return
+
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    sample_size = min(len(available_accounts), random.randint(1, 3))
+    for account in random.sample(available_accounts, sample_size):
+        beneficiary = Beneficiary(
+            user_id=user.id,
+            account_id=account.id,
+            display_name=fake.name(),
+            account_number=account.account_number,
+            bank_name=account.branch.name if account.branch else "Sun National Bank",
+            ifsc_code=account.branch.ifsc_code if account.branch else "SUNB0000000",
+            status=BeneficiaryStatus.ACTIVE,
+            added_at=now,
+            verified_at=now,
+        )
+        session.add(beneficiary)
+
+
 def seed_database(user_count: int = 100):
     """Entry point for seeding the database."""
 
@@ -287,6 +322,7 @@ def seed_database(user_count: int = 100):
             return
 
         branches = _ensure_branches(session)
+        account_registry: list[Account] = []
 
         for idx in range(user_count):
             branch = branches[BRANCH_DEFINITIONS[idx % len(BRANCH_DEFINITIONS)]["code"]]
@@ -319,6 +355,7 @@ def seed_database(user_count: int = 100):
             accounts = _create_accounts_for_user(
                 session, user=user, branch=branch, fake=fake, sequence_seed=idx * 10
             )
+            account_registry.extend(accounts)
 
             voice_session = _create_session_for_user(session, user=user, fake=fake)
             user.last_login_at = voice_session.started_at
@@ -330,6 +367,13 @@ def seed_database(user_count: int = 100):
                 )
                 _create_card_for_account(session, user=user, account=account, fake=fake)
                 _create_reminder(session, user=user, account=account, fake=fake)
+
+            _create_beneficiaries(
+                session,
+                user=user,
+                candidate_accounts=account_registry,
+                fake=fake,
+            )
 
         print(f"Seeded {user_count} customers successfully.")
 

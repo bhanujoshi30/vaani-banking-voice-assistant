@@ -23,17 +23,20 @@ const extractErrorInfo = (payload, fallback) => {
 export async function authenticateUser({
   userId,
   password,
+  loginMode,
   deviceIdentifier,
   deviceFingerprint,
   deviceLabel,
   platform,
   voiceSampleBlob,
   registrationMethod,
-  voiceBypass,
+  otp,
+  validateOnly,
 }) {
   const formData = new FormData();
   formData.append("userId", userId);
   formData.append("password", password);
+  if (loginMode) formData.append("loginMode", loginMode);
   if (deviceIdentifier) formData.append("deviceIdentifier", deviceIdentifier);
   if (deviceFingerprint) formData.append("deviceFingerprint", deviceFingerprint);
   if (deviceLabel) formData.append("deviceLabel", deviceLabel);
@@ -42,9 +45,8 @@ export async function authenticateUser({
   if (voiceSampleBlob) {
     formData.append("voiceSample", voiceSampleBlob, "voice-login.wav");
   }
-  if (typeof voiceBypass === "boolean") {
-    formData.append("voiceBypass", voiceBypass ? "true" : "false");
-  }
+  if (otp) formData.append("otp", otp);
+  if (validateOnly) formData.append("validateOnly", "true");
 
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
     method: "POST",
@@ -197,7 +199,7 @@ export async function fetchReminders({ accessToken }) {
   }
 
   if (!response.ok) {
-    const { message, code } = extractErrorInfo(payload, "Unable to load reminders.");
+    const { message, code } = extractErrorInfo(payload, "Unable to fetch reminders.");
     const error = new Error(message);
     if (code) error.code = code;
     throw error;
@@ -236,7 +238,7 @@ export async function createReminder({ accessToken, payload }) {
   return json?.data ?? null;
 }
 
-export async function updateReminderStatus({ accessToken, reminderId, status }) {
+export async function updateReminderStatus({ accessToken, reminderId, payload }) {
   let response;
   try {
     response = await fetch(`${API_BASE_URL}/api/v1/reminders/${reminderId}`, {
@@ -245,7 +247,7 @@ export async function updateReminderStatus({ accessToken, reminderId, status }) 
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     });
   } catch {
     throw new Error("Unable to reach reminder service. Please try again.");
@@ -260,6 +262,94 @@ export async function updateReminderStatus({ accessToken, reminderId, status }) 
 
   if (!response.ok) {
     const { message, code } = extractErrorInfo(json, "Unable to update reminder.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return json?.data ?? null;
+}
+
+export async function fetchBeneficiaries({ accessToken }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/beneficiaries`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch {
+    throw new Error("Unable to reach beneficiary service. Please try again.");
+  }
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(payload, "Unable to fetch beneficiaries.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return payload?.data ?? [];
+}
+
+export async function createBeneficiary({ accessToken, payload }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/beneficiaries`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Unable to reach beneficiary service. Please try again.");
+  }
+
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to add beneficiary.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return json?.data ?? null;
+}
+
+export async function deleteBeneficiary({ accessToken, beneficiaryId }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/beneficiaries/${beneficiaryId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch {
+    throw new Error("Unable to reach beneficiary service. Please try again.");
+  }
+
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to remove beneficiary.");
     const error = new Error(message);
     if (code) error.code = code;
     throw error;

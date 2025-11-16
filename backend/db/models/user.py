@@ -54,6 +54,9 @@ class User(Base):
     device_bindings = relationship(
         "DeviceBinding", back_populates="user", cascade="all, delete-orphan"
     )
+    beneficiaries = relationship(
+        "Beneficiary", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 __all__ = ["User"]

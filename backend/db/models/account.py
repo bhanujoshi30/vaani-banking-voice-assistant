@@ -60,6 +60,7 @@ class Account(Base):
     )
     cards = relationship("Card", back_populates="account")
     reminders = relationship("Reminder", back_populates="account")
+    beneficiaries = relationship("Beneficiary", back_populates="account")
 
 
 __all__ = ["Account"]

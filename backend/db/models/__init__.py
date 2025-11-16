@@ -11,6 +11,7 @@ from .transaction import Transaction
 from .card import Card
 from .reminder import Reminder
 from .device_binding import DeviceBinding
+from .beneficiary import Beneficiary
 
 __all__ = [
     "Branch",
@@ -21,6 +22,7 @@ __all__ = [
     "Card",
     "Reminder",
     "DeviceBinding",
+    "Beneficiary",
 ]
 
 
