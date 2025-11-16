@@ -10,6 +10,7 @@ import Reminders from "./pages/Reminders.jsx";
 import DeviceBinding from "./pages/DeviceBinding.jsx";
 import SignInHelp from "./pages/SignInHelp.jsx";
 import Beneficiaries from "./pages/Beneficiaries.jsx";
+import Chat from "./pages/Chat.jsx";
 import { authenticateUser } from "./api/client.js";
 
 const mockProfile = {
@@ -184,6 +185,16 @@ const App = () => {
         element={
           session.authenticated ? (
             <Beneficiaries session={session} onSignOut={signOut} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          session.authenticated ? (
+            <Chat session={session} onSignOut={signOut} />
           ) : (
             <Navigate to="/" replace />
           )
