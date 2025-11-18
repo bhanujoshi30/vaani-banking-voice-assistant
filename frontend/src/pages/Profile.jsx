@@ -57,6 +57,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     transactions: false,
     reminders: false,
     beneficiaries: false,
+    voice: false,
   });
 
   const [accounts, setAccounts] = useState([]);
@@ -745,6 +746,13 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                     disabled={!canPerformActions}
                   >
                     Beneficiaries
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => navigate("/voice")}
+                  >
+                    Ask with voice
                   </button>
                   <button
                     type="button"

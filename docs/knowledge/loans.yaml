@@ -1,0 +1,24 @@
+- id: personal_loan
+  title: Personal Loan
+  rate: "12.50% p.a."
+  max_amount: "₹5,00,000"
+  tenure: "Up to 5 years"
+  description: >-
+    Ideal for short term personal needs such as medical emergencies or home
+    renovations. Requires proof of income and KYC compliance.
+- id: home_loan
+  title: Home Loan
+  rate: "8.75% p.a."
+  max_amount: "₹75,00,000"
+  tenure: "Up to 25 years"
+  description: >-
+    Finance the purchase or construction of residential property. Flexible
+    repayment with part-prepayment support and balance transfer facility.
+- id: education_loan
+  title: Education Loan
+  rate: "9.90% p.a."
+  max_amount: "₹25,00,000"
+  tenure: "Up to 7 years"
+  description: >-
+    Supports higher studies in India and abroad. Moratorium available for the
+    course duration plus 6 months. Co-borrower required.

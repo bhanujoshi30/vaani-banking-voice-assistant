@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Dict
 
-from pydantic import BaseModel, Field, condecimal, constr
+from pydantic import AliasChoices, BaseModel, Field, condecimal, constr
 
 
 # --- Generic metadata envelopes -------------------------------------------------
@@ -273,7 +273,76 @@ class BeneficiaryResponse(BaseModel):
     data: BeneficiaryResource
 
 
-# --- Device Binding -------------------------------------------------------------
+# --- Voice Assistant -----------------------------------------------------------
+
+
+class VoiceInterpretRequest(BaseModel):
+    utterance: constr(min_length=1, max_length=512)
+    sessionId: Optional[str] = Field(default=None, description="Client-maintained voice session identifier")
+
+
+class VoiceInterpretData(BaseModel):
+    intent: str
+    confidence: float
+    slots: Dict[str, str]
+    source: str
+    sessionId: str
+    confirmationRequired: bool = False
+    retryCount: int = 0
+
+
+class VoiceInterpretResponse(BaseModel):
+    meta: ResponseMeta
+    data: VoiceInterpretData
+
+
+class LoanKnowledgeData(BaseModel):
+    id: str
+    title: str
+    category: Optional[str] = None
+    rate: Optional[str] = None
+    maxAmount: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("maxAmount", "max_amount"),
+        alias="maxAmount",
+    )
+    tenure: Optional[str] = None
+    description: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+    model_config = {
+        "populate_by_name": True,
+    }
+
+
+class LoanKnowledgeResponse(BaseModel):
+    meta: ResponseMeta
+    data: Optional[LoanKnowledgeData] = None
+
+
+class VoiceFeedbackRequest(BaseModel):
+    sessionId: constr(min_length=4, max_length=128)
+    intent: Optional[str] = None
+    utterance: Optional[str] = None
+    correct: bool
+    context: Optional[Dict[str, object]] = None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "sessionId": "voice-session-123",
+                "intent": "balance_check",
+                "correct": True,
+                "utterance": "what is my savings account balance",
+                "context": {
+                    "accountNumber": "91HYD001123456",
+                },
+            },
+        },
+    }
+
+
+# --- Device Binding ------------------------------------------------------------
 
 
 class DeviceBindingResource(BaseModel):
