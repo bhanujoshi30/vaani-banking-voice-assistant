@@ -87,6 +87,7 @@ class ReminderInfo(BaseModel):
 
 
 class UserProfile(BaseModel):
+    id: str  # User UUID for AI backend
     customerId: str
     fullName: str
     segment: str

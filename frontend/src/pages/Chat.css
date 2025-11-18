@@ -145,6 +145,42 @@
   border: none;
 }
 
+.chat-message__statement {
+  margin-top: 0.75rem;
+}
+
+.chat-message__download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.chat-message__download-btn:hover {
+  background: linear-gradient(135deg, #357abd, #2a5f8f);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+  transform: translateY(-1px);
+}
+
+.chat-message__download-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(74, 144, 226, 0.2);
+}
+
+.chat-message__download-btn:focus {
+  outline: 2px solid rgba(74, 144, 226, 0.4);
+  outline-offset: 2px;
+}
+
 .chat-typing-indicator {
   display: flex;
   gap: 0.4rem;

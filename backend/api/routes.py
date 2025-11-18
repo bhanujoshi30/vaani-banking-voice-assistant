@@ -181,6 +181,7 @@ async def login_v1(
                 accessToken="",
                 expiresIn=0,
                 profile=UserProfile(
+                    id=result.user_id or "",  # Use user_id from auth result
                     customerId=userId,
                     fullName="",
                     segment="",

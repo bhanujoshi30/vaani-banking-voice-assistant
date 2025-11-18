@@ -11,25 +11,31 @@ import LanguageSelector from "../components/Chat/LanguageSelector.jsx";
 import VoiceModeToggle from "../components/Chat/VoiceModeToggle.jsx";
 import useSpeechRecognition from "../hooks/useSpeechRecognition.js";
 import useTextToSpeech from "../hooks/useTextToSpeech.js";
-import { createMessage, simulateAIResponse, INITIAL_MESSAGE } from "../utils/chatUtils.js";
+import { useChatMessages } from "../hooks/useChatMessages.js";
+import { useVoiceMode } from "../hooks/useVoiceMode.js";
+import { useChatHandler } from "../hooks/useChatHandler.js";
 import { DEFAULT_LANGUAGE, getLanguageByCode } from "../config/voiceConfig.js";
 import "./Chat.css";
 import "../components/Chat/VoiceModeToggle.css";
 
 const Chat = ({ session, onSignOut }) => {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [inputText, setInputText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
-  const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const lastMessageRef = useRef(null);
 
   // Get current language info
   const currentLanguage = getLanguageByCode(language);
   const isLanguageComingSoon = currentLanguage?.comingSoon || false;
+
+  // Chat messages management
+  const {
+    messages,
+    messagesEndRef,
+    addUserMessage,
+    addAssistantMessage,
+  } = useChatMessages();
 
   // Use speech recognition hook with selected language
   const {
@@ -63,13 +69,48 @@ const Chat = ({ session, onSignOut }) => {
     volume: 1.0,
   });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Chat message handling
+  const {
+    isTyping,
+    sendMessage,
+    handleQuickAction,
+  } = useChatHandler({
+    session,
+    language,
+    isVoiceModeEnabled,
+    messages,
+    addUserMessage,
+    addAssistantMessage,
+    resetTranscript,
+    setInputText,
+    isListening,
+    isSpeaking,
+    stopListening,
+    toggleListening,
+  });
+
+  // Handle sending message from input
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    await sendMessage(inputText);
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Voice mode orchestration
+  useVoiceMode({
+    isVoiceModeEnabled,
+    isLanguageComingSoon,
+    isSpeaking,
+    isTyping,
+    isListening,
+    fullTranscript,
+    messages,
+    startListening,
+    stopListening,
+    speak,
+    resetTranscript,
+    setInputText,
+    onAutoSend: handleSendMessage,
+  });
 
   // Update input text when speech transcript changes
   useEffect(() => {
@@ -87,119 +128,16 @@ const Chat = ({ session, onSignOut }) => {
     }
   }, [speechError]);
 
-  // Voice Mode: Auto-start listening when enabled and not speaking
-  useEffect(() => {
-    if (isVoiceModeEnabled && !isLanguageComingSoon && !isSpeaking && !isTyping) {
-      if (!isListening) {
-        console.log('🎤 Voice mode: Auto-starting microphone');
-        startListening();
-      }
-    } else if (isVoiceModeEnabled && isSpeaking && isListening) {
-      // IMPORTANT: Stop listening while speaking to prevent feedback
-      console.log('🛑 Voice mode: Stopping microphone during speech');
-      stopListening();
-    }
-  }, [isVoiceModeEnabled, isSpeaking, isTyping, isListening, isLanguageComingSoon, startListening, stopListening]);
-
-  // Voice Mode: Read assistant messages aloud
-  useEffect(() => {
-    if (isVoiceModeEnabled && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      
-      // Check if this is a new assistant message
-      if (lastMessage.role === 'assistant' && lastMessage.id !== lastMessageRef.current) {
-        lastMessageRef.current = lastMessage.id;
-        
-        // Stop listening while speaking
-        if (isListening) {
-          stopListening();
-        }
-        
-        // Clear any transcript that might have been picked up
-        resetTranscript();
-        setInputText('');
-        
-        console.log('🔊 Voice mode: Reading assistant message');
-        speak(lastMessage.content, () => {
-          console.log('✅ Voice mode: Finished reading, ready for next input');
-          // Auto-restart listening after speaking (handled by useEffect above)
-        });
-      }
-    }
-  }, [messages, isVoiceModeEnabled, speak, isListening, stopListening, resetTranscript]);
-
-  // Voice Mode: Auto-send when transcript is complete
-  useEffect(() => {
-    if (isVoiceModeEnabled && fullTranscript && !isSpeaking && !isTyping) {
-      // Wait a moment to see if user continues speaking
-      const timer = setTimeout(() => {
-        if (fullTranscript.trim() && !isSpeaking) {
-          console.log('📤 Voice mode: Auto-sending message');
-          handleSendMessage(new Event('submit'));
-        }
-      }, 1500); // 1.5 second delay for natural conversation
-
-      return () => clearTimeout(timer);
-    }
-  }, [fullTranscript, isVoiceModeEnabled, isSpeaking, isTyping]);
-
-  // Cleanup: Stop speech and listening when voice mode is disabled
+  // Cleanup: Stop speech when voice mode is disabled
   useEffect(() => {
     if (!isVoiceModeEnabled) {
       stopSpeaking();
-      if (isListening) {
-        stopListening();
-      }
     }
-  }, [isVoiceModeEnabled, stopSpeaking, isListening, stopListening]);
+  }, [isVoiceModeEnabled, stopSpeaking]);
 
   if (!session.authenticated) {
     return <Navigate to="/" replace />;
   }
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    
-    if (!inputText.trim()) return;
-
-    // Don't send if speaking in voice mode
-    if (isVoiceModeEnabled && isSpeaking) {
-      console.log('⚠️ Cannot send while speaking');
-      return;
-    }
-
-    // Stop listening if currently recording (only in manual mode)
-    if (!isVoiceModeEnabled && isListening) {
-      toggleListening();
-    }
-
-    const messageContent = inputText.trim();
-
-    // Add user message
-    const userMessage = createMessage("user", messageContent);
-    setMessages((prev) => [...prev, userMessage]);
-    setInputText("");
-    resetTranscript(); // Clear the speech transcript
-    setIsTyping(true);
-
-    // Get AI response
-    try {
-      const response = await simulateAIResponse(messageContent);
-      const assistantMessage = createMessage("assistant", response);
-      setMessages((prev) => [...prev, assistantMessage]);
-      
-      // In voice mode, the message will be spoken by useEffect
-    } catch (error) {
-      console.error("Error getting AI response:", error);
-      const errorMessage = createMessage(
-        "assistant",
-        "I'm sorry, I encountered an error. Please try again."
-      );
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
 
   const handleVoiceInput = () => {
     // In voice mode, microphone is always on, so this just toggles manually
@@ -350,6 +288,7 @@ const Chat = ({ session, onSignOut }) => {
             <ChatSidebar 
               isSpeechSupported={isSpeechSupported} 
               selectedLanguage={language}
+              onQuickAction={handleQuickAction}
             />
           </main>
         </div>

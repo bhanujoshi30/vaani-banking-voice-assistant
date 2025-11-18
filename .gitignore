@@ -11,3 +11,6 @@ wheels/
 
 # Frontend build artifacts
 frontend/.vite/
+
+# AI backend environment
+ai/.env

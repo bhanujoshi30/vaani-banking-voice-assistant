@@ -38,6 +38,7 @@ class AuthResult:
     access_token: Optional[str] = None
     expires_in: Optional[int] = None
     detail: Optional[dict] = None
+    user_id: Optional[str] = None  # User UUID for AI backend
 
 
 @dataclass
@@ -291,6 +292,7 @@ class AuthService:
                     success=True,
                     reason="validated",
                     detail=detail or None,
+                    user_id=str(user_id_value),  # Include user ID for AI backend
                 )
 
             token = token_urlsafe(32)
@@ -335,6 +337,7 @@ class AuthService:
                 }
 
             profile = {
+                "id": str(user.id),  # Add UUID for AI backend
                 "customerId": customer_number_value,
                 "fullName": f"{user.first_name} {user.last_name}",
                 "segment": user.risk_segment.title(),
