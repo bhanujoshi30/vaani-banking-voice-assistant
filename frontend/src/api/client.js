@@ -238,6 +238,37 @@ export async function createReminder({ accessToken, payload }) {
   return json?.data ?? null;
 }
 
+export async function submitVoiceFeedback({ accessToken, payload }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/voice/feedback`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Unable to submit feedback right now.");
+  }
+
+  if (!response.ok) {
+    let json;
+    try {
+      json = await response.json();
+    } catch {
+      json = {};
+    }
+    const { message, code } = extractErrorInfo(json, "Unable to submit feedback.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+
+  return true;
+}
+
 export async function updateReminderStatus({ accessToken, reminderId, payload }) {
   let response;
   try {
@@ -357,6 +388,70 @@ export async function deleteBeneficiary({ accessToken, beneficiaryId }) {
   return json?.data ?? null;
 }
 
+export async function interpretVoiceUtterance({ accessToken, utterance, sessionId }) {
+  const payload = { utterance };
+  if (sessionId) payload.sessionId = sessionId;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/voice/interpret`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Unable to reach voice assistant service. Please try again.");
+  }
+
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to interpret utterance.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return json?.data ?? null;
+}
+
+export async function fetchLoanKnowledge({ accessToken, query }) {
+  const url = new URL(`${API_BASE_URL}/api/v1/knowledge/loan-info`);
+  url.searchParams.set("query", query);
+  let response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  } catch {
+    throw new Error("Unable to fetch loan information at the moment.");
+  }
+
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to fetch loan information.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return json?.data ?? null;
+}
+
 export async function listDeviceBindings({ accessToken }) {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/device-bindings`, {
     headers: {
@@ -423,6 +518,30 @@ export async function revokeDeviceBinding({ accessToken, bindingId }) {
     throw error;
   }
   return json?.data ?? null;
+}
+
+export async function translateUtterance({ text, targetLang }) {
+  const response = await fetch("https://libretranslate.de/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      q: text,
+      source: targetLang === "en" ? "auto" : "en",
+      target: targetLang,
+      format: "text",
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(payload, "Unable to translate utterance.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return payload?.translatedText ?? text;
 }
 
 export default {

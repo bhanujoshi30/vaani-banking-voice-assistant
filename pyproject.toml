@@ -15,4 +15,13 @@ dependencies = [
     "resemblyzer>=0.1.2",
     "librosa>=0.10",
     "soundfile>=0.12",
+    "transformers>=4.42",
+    "onnxruntime>=1.17",
+    "rapidfuzz>=3.6",
+    "sentence-transformers>=2.6",
+    "faiss-cpu>=1.7.4",
+    "ctransformers>=0.2.27",
+    "scikit-learn>=1.5",
+    "pyyaml>=6.0",
+    "pytest>=8.3",
 ]

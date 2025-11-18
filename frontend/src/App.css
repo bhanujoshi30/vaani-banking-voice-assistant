@@ -809,3 +809,254 @@
   font-size: 0.85rem;
   color: rgba(15, 27, 42, 0.6);
 }
+
+.voice-console {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.voice-console__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-console__form {
+  display: flex;
+  gap: 12px;
+}
+
+.voice-console__form input {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+}
+
+.voice-console__log {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(248, 250, 252, 0.9);
+  padding: 16px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.voice-console__log ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voice-console__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 14px -12px rgba(15, 27, 42, 0.45);
+}
+
+.voice-console__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-console__primary {
+  margin: 0;
+  font-size: 0.98rem;
+  color: rgba(15, 27, 42, 0.85);
+}
+
+.voice-console__item--user {
+  border-left: 4px solid rgba(255, 143, 66, 0.75);
+}
+
+.voice-console__item--assistant {
+  border-left: 4px solid rgba(59, 130, 246, 0.6);
+}
+
+.voice-console__role {
+  font-weight: 700;
+  color: rgba(15, 27, 42, 0.75);
+}
+
+.voice-console__meta {
+  font-size: 0.82rem;
+  color: rgba(15, 27, 42, 0.55);
+}
+
+.app-content--stretch {
+  align-items: stretch;
+}
+
+.voice-gradient {
+  max-width: 1040px;
+}
+
+.voice-surface {
+  gap: 1.5rem;
+}
+
+.voice-assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.voice-assistant__header h2 {
+  margin-bottom: 0.25rem;
+}
+
+.voice-assistant__controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.voice-assistant__log {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.92);
+  padding: 16px;
+  min-height: 220px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.voice-assistant__log ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voice-assistant__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  color: rgba(15, 27, 42, 0.6);
+}
+
+.voice-assistant__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.chip-btn {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.chip-btn:hover {
+  background: rgba(255, 149, 58, 0.18);
+  transform: translateY(-1px);
+}
+
+.chip-btn--success {
+  border-color: rgba(22, 163, 74, 0.45);
+  color: rgba(22, 163, 74, 0.9);
+}
+
+.chip-btn--danger {
+  border-color: rgba(220, 53, 69, 0.45);
+  color: rgba(220, 53, 69, 0.9);
+}
+
+.voice-assistant__form {
+  display: flex;
+  gap: 12px;
+}
+
+.voice-assistant__form input {
+  flex: 1;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.voice-message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 24px -18px rgba(15, 27, 42, 0.4);
+}
+
+.voice-message--user {
+  border-left: 4px solid rgba(255, 143, 66, 0.75);
+}
+
+.voice-message--assistant {
+  border-left: 4px solid rgba(59, 130, 246, 0.6);
+}
+
+.voice-message__role {
+  font-weight: 700;
+  color: rgba(15, 27, 42, 0.65);
+}
+
+.voice-message__text {
+  margin: 0;
+  font-size: 1rem;
+  color: rgba(15, 27, 42, 0.9);
+}
+
+.voice-message__meta {
+  font-size: 0.8rem;
+  color: rgba(15, 27, 42, 0.55);
+}
+
+.voice-card {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(239, 246, 255, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.transaction-list,
+.reminder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.voice-assistant__controls .form-error {
+  margin: 0;
+}

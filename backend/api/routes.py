@@ -7,15 +7,19 @@ from decimal import Decimal
 from typing import List, Optional
 
 import hashlib
+import logging
+import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status, File, UploadFile, Form
 
 from ..db.services.auth import AuthService
 from ..db.services.banking import BankingService
 from ..db.services.device_binding import DeviceBindingService
 from ..db.services.voice_verification import VoiceVerificationService
 from ..db.utils.enums import ReminderStatus, ReminderType, TransactionChannel
+from ..voice import IntentRouter
+from ..voice.knowledge import get_loan_knowledge_base
 from .dependencies import (
     AuthServiceDep,
     BankingServiceDep,
@@ -50,10 +54,18 @@ from .schemas import (
     BeneficiaryListResponse,
     BeneficiaryResource,
     BeneficiaryResponse,
+    VoiceInterpretRequest,
+    VoiceInterpretResponse,
+    VoiceInterpretData,
+    LoanKnowledgeResponse,
+    VoiceFeedbackRequest,
+    LoanKnowledgeData,
 )
 from .security import CurrentSessionDep, RequestContext, RequestContextDep
 
 router = APIRouter(prefix="/api/v1", tags=["Sun National Bank"])
+audit_logger = logging.getLogger("vaani.audit")
+VOICE_AGENT_V2_ENABLED = os.getenv("VOICE_AGENT_V2_ENABLED", "true").lower() not in {"0", "false", "no"}
 
 
 def build_meta(ctx: RequestContext) -> ResponseMeta:
@@ -99,6 +111,109 @@ def serialize_reminder(reminder) -> ReminderResource:
         accountId=str(reminder.account_id) if reminder.account_id else None,
         recurrenceRule=reminder.recurrence_rule,
     )
+
+
+@router.post(
+    "/voice/interpret",
+    response_model=VoiceInterpretResponse,
+    summary="Interpret a voice utterance into a banking intent",
+    tags=["Voice"],
+)
+def interpret_voice_intent(
+    payload: VoiceInterpretRequest,
+    ctx: RequestContext = RequestContextDep,
+):
+    router = IntentRouter()
+    result = router.interpret(payload.utterance)
+    session_id = payload.sessionId or ctx.request_id
+
+    from ..voice.session_manager import voice_session_manager  # local import to avoid circular deps
+
+    if not VOICE_AGENT_V2_ENABLED:
+        meta = build_meta(ctx)
+        data = VoiceInterpretData(
+            intent="clarify",
+            confidence=0.0,
+            slots={},
+            source="disabled",
+            sessionId=session_id,
+            confirmationRequired=False,
+            retryCount=0,
+        )
+        return VoiceInterpretResponse(meta=meta, data=data)
+
+    state = voice_session_manager.update_intent(session_id, result.intent, result.slots)
+    meta = build_meta(ctx)
+    data = VoiceInterpretData(
+        **result.as_payload(),
+        sessionId=session_id,
+        confirmationRequired=state.confirmation_required,
+        retryCount=state.retry_count,
+    )
+    audit_logger.info(
+        "voice_intent",
+        extra={
+            "session_id": session_id,
+            "intent": result.intent,
+            "confidence": result.confidence,
+            "slots": result.slots,
+            "source": result.source,
+        },
+    )
+    return VoiceInterpretResponse(meta=meta, data=data)
+
+
+@router.get(
+    "/knowledge/loan-info",
+    response_model=LoanKnowledgeResponse,
+    summary="Retrieve curated loan information",
+    tags=["Voice"],
+)
+def loan_knowledge_lookup(
+    query: str,
+    ctx: RequestContext = RequestContextDep,
+):
+    kb = get_loan_knowledge_base()
+    record = kb.query(query)
+    meta = build_meta(ctx)
+    if not record:
+        audit_logger.info(
+            "loan_knowledge_lookup",
+            extra={"query": query, "result": None},
+        )
+        return LoanKnowledgeResponse(meta=meta, data=None)
+    data = LoanKnowledgeData.model_validate(record)
+    audit_logger.info(
+        "loan_knowledge_lookup",
+        extra={"query": query, "result": data.model_dump()},
+    )
+    return LoanKnowledgeResponse(meta=meta, data=data)
+
+
+@router.post(
+    "/voice/feedback",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Capture feedback for voice assistant responses",
+    tags=["Voice"],
+)
+def voice_feedback(
+    payload: VoiceFeedbackRequest,
+    ctx: RequestContext = RequestContextDep,
+    session=CurrentSessionDep,
+):
+    audit_logger.info(
+        "voice_feedback",
+        extra={
+            "session_id": session.session_id,
+            "request_id": ctx.request_id,
+            "voice_session": payload.sessionId,
+            "intent": payload.intent,
+            "correct": payload.correct,
+            "utterance": payload.utterance,
+            "context": payload.context,
+        },
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
@@ -471,6 +586,16 @@ def create_internal_transfer(
         amount=result["debit"]["amount"],
         currency=result["debit"]["currency"],
         description=result["debit"]["description"],
+    )
+    audit_logger.info(
+        "internal_transfer",
+        extra={
+            "session_id": session.session_id,
+            "source_account": source_account["accountNumber"],
+            "destination_account": destination_account_number,
+            "amount": str(result["debit"]["amount"]),
+            "currency": result["debit"]["currency"],
+        },
     )
     meta = build_meta(ctx)
     return TransferResponse(meta=meta, data=receipt)

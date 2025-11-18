@@ -1,0 +1,54 @@
+{
+  "balance_check": {
+    "description": "Retrieve the current balance for an account.",
+    "sample_utterances": [
+      "what's my balance",
+      "check balance",
+      "show me savings balance",
+      "kitna balance hai"
+    ],
+    "required_slots": ["account"]
+  },
+  "transfer_funds": {
+    "description": "Move funds between accounts or to a beneficiary.",
+    "sample_utterances": [
+      "transfer 1000 rupees to my mom",
+      "send money from savings to checking",
+      "fund transfer",
+      "paise bhejo beneficiary ko"
+    ],
+    "required_slots": ["amount", "destination"],
+    "optional_slots": ["source", "remarks"]
+  },
+  "transaction_history": {
+    "description": "Summarise recent transactions for an account.",
+    "sample_utterances": [
+      "show latest transactions",
+      "transaction history",
+      "statement for last week",
+      "recent debits"
+    ],
+    "required_slots": ["account"],
+    "optional_slots": ["range"]
+  },
+  "loan_info": {
+    "description": "Provide information about loans, rates, or credit limits.",
+    "sample_utterances": [
+      "what are personal loan rates",
+      "loan options",
+      "credit limit information",
+      "interest rate on car loan"
+    ]
+  },
+  "set_reminder": {
+    "description": "Create a payment or savings reminder.",
+    "sample_utterances": [
+      "remind me to pay electricity bill",
+      "set a reminder for rent",
+      "payment alert",
+      "monthly reminder for sip"
+    ],
+    "required_slots": ["message", "due_date"],
+    "optional_slots": ["account"]
+  }
+}

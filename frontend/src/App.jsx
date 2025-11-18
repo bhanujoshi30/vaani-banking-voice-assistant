@@ -5,6 +5,7 @@ import "./App.css";
 
 import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
+import VoiceAssistant from "./pages/VoiceAssistant.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Reminders from "./pages/Reminders.jsx";
 import DeviceBinding from "./pages/DeviceBinding.jsx";
@@ -184,6 +185,21 @@ const App = () => {
         element={
           session.authenticated ? (
             <Beneficiaries session={session} onSignOut={signOut} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/voice"
+        element={
+          session.authenticated ? (
+            <VoiceAssistant
+              user={session.user}
+              accessToken={session.accessToken}
+              sessionDetail={session.detail}
+              onSignOut={signOut}
+            />
           ) : (
             <Navigate to="/" replace />
           )

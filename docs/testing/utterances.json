@@ -1,0 +1,8 @@
+[
+  {"text": "mera balance batao", "expected_intent": "balance_check"},
+  {"text": "transfer 7500 rupees to savings", "expected_intent": "transfer_funds"},
+  {"text": "recent transactions show karo", "expected_intent": "transaction_history"},
+  {"text": "education loan rate kya hai", "expected_intent": "loan_info"},
+  {"text": "monthly rent reminder set karo", "expected_intent": "set_reminder"},
+  {"text": "abcxyz", "expected_intent": "clarify"}
+]

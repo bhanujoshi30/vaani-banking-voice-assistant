@@ -1,0 +1,190 @@
+- id: loan_personal
+  title: Personal Loan
+  category: loan
+  rate: "Starting at 11.50% p.a."
+  maxAmount: "Up to ₹20 lakh"
+  tenure: "12 - 60 months"
+  description: >
+    Unsecured loan ideal for wedding, medical or travel expenses with flexible repayment and part-prepayment enabled.
+  tags: ["loan", "personal", "unsecured"]
+
+- id: loan_home
+  title: Home Loan
+  category: loan
+  rate: "Starting at 8.35% p.a."
+  maxAmount: "Up to 90% of property value"
+  tenure: "Up to 30 years"
+  description: >
+    Housing finance with optional top-up facility, PMAY subsidy eligibility and balance transfer support.
+  tags: ["loan", "housing", "mortgage"]
+
+- id: loan_gold
+  title: Gold Loan
+  category: loan
+  rate: "Starting at 7.99% p.a."
+  maxAmount: "Up to ₹25 lakh"
+  tenure: "3 - 24 months"
+  description: >
+    Secured loan against hallmarked gold with instant disbursal; interest payable monthly and bullet repayment allowed.
+  tags: ["loan", "gold", "secured"]
+
+- id: loan_education
+  title: Education Loan
+  category: loan
+  rate: "Starting at 9.25% p.a."
+  maxAmount: "Up to ₹40 lakh"
+  tenure: "Up to 15 years (including moratorium)"
+  description: >
+    Financing for higher studies in India or overseas with tax benefits under Section 80E and flexible repayment post grace period.
+  tags: ["loan", "education", "student"]
+
+- id: savings_fd
+  title: Fixed Deposit (Sun Secure FD)
+  category: savings
+  rate: "7.10% p.a. (senior citizens 7.60%)"
+  maxAmount: "No maximum limit"
+  tenure: "7 days - 10 years"
+  description: >
+    Assured returns with quarterly or monthly payout options, overdraft up to 90% and premature withdrawal facility.
+  tags: ["savings", "fd", "fixed deposit"]
+
+- id: savings_rd
+  title: Monthly Recurring Deposit
+  category: savings
+  rate: "6.85% p.a."
+  maxAmount: "Installments ₹500 - ₹1 lakh"
+  tenure: "6 months - 10 years"
+  description: >
+    Auto-debit saving plan suitable for disciplined investing; partial withdrawal after 12 months with nominal penalty.
+  tags: ["savings", "recurring deposit", "rd"]
+
+- id: savings_ssy
+  title: Sukanya Samriddhi Yojana
+  category: savings
+  rate: "8.20% p.a. (Government notified)"
+  maxAmount: "₹1.5 lakh per financial year"
+  tenure: "21 years from account opening"
+  description: >
+    Government-backed scheme for girl child with EEE tax benefits and partial withdrawal allowed after age 18 for education.
+  tags: ["savings", "government", "girl child", "ssy"]
+
+- id: pension_nps
+  title: National Pension System (NPS Tier I)
+  category: pension
+  rate: "Market linked (historical average 9% p.a.)"
+  maxAmount: "No maximum; minimum ₹1,000 per year"
+  tenure: "Till age 60 (voluntary extension to 70)"
+  description: >
+    Long-term retirement product with Section 80CCD(1B) tax deduction, choice of active or auto asset allocation and annuitisation at exit.
+  tags: ["pension", "retirement", "nps"]
+
+- id: invest_sgb
+  title: Sovereign Gold Bond (SGB)
+  category: investment
+  rate: "2.50% p.a. interest + gold price appreciation"
+  maxAmount: "4 kg per financial year (individual)"
+  tenure: "8 years (exit option after 5 years)"
+  description: >
+    RBI-issued digital gold with no making charges, tradable on exchanges and eligible for indexation benefits on redemption.
+  tags: ["investment", "gold", "bond", "sovereign"]
+
+- id: invest_rbi_floating
+  title: RBI Floating Rate Savings Bond 2020
+  category: investment
+  rate: "7.35% p.a. (0.35% above NSC rate)"
+  maxAmount: "No maximum limit"
+  tenure: "7 years (premature encashment for seniors)"
+  description: >
+    Government-backed bond with semi-annual interest reset, ideal for conservative investors seeking assured income.
+  tags: ["investment", "bond", "government", "income"]
+
+- id: invest_corporate_aaa
+  title: AAA Rated Corporate Bond
+  category: investment
+  rate: "8.40% p.a."
+  maxAmount: "₹1 crore per investor per tranche"
+  tenure: "5 years"
+  description: >
+    Listed non-convertible debenture with highest credit rating, quarterly coupon and secondary market liquidity.
+  tags: ["investment", "corporate bond", "fixed income"]
+
+- id: invest_equity_fund
+  title: Sun Growth Equity Fund
+  category: investment
+  rate: "15.2% CAGR (5-year)"
+  maxAmount: "No maximum limit"
+  tenure: "Recommended horizon 5+ years"
+  description: >
+    Diversified large & mid-cap mutual fund with SIP and SWP features, no exit load after 12 months.
+  tags: ["investment", "mutual fund", "equity", "sip"]
+
+- id: invest_nsC
+  title: National Savings Certificate (NSC)
+  category: investment
+  rate: "7.70% p.a. compounded annually"
+  maxAmount: "No maximum limit"
+  tenure: "5 years"
+  description: >
+    Small savings scheme with Section 80C tax benefit, automatic reinvestment on maturity and pledge facility.
+  tags: ["investment", "government", "nsc", "tax saving"]
+
+- id: savings_scss
+  title: Senior Citizen Savings Scheme (SCSS)
+  category: savings
+  rate: "8.20% p.a."
+  maxAmount: "₹30 lakh"
+  tenure: "5 years (extendable by 3 years)"
+  description: >
+    Quarterly interest payout account for individuals aged 60+, backed by Government of India with 80C eligibility.
+  tags: ["savings", "senior citizen", "scss"]
+
+- id: savings_ppf
+  title: Public Provident Fund (PPF)
+  category: savings
+  rate: "7.10% p.a. (Government notified quarterly)"
+  maxAmount: "₹1.5 lakh per financial year"
+  tenure: "15 years (extendable in blocks of 5 years)"
+  description: >
+    Long term small savings scheme with sovereign guarantee, Section 80C tax benefit, loan/withdrawal facility after year 3.
+  tags: ["savings", "government", "ppf", "tax saving"]
+
+- id: pension_apy
+  title: Atal Pension Yojana (APY)
+  category: pension
+  rate: "Pension ₹1,000 - ₹5,000 per month (Government guaranteed)"
+  maxAmount: "Contribution depends on entry age and chosen pension"
+  tenure: "Till age 60 (lifetime pension thereafter)"
+  description: >
+    Social security scheme for unorganised workers with auto-debit contributions, Government co-contribution for eligible subscribers.
+  tags: ["pension", "government", "apy", "retirement"]
+
+- id: invest_bharat_bond
+  title: Bharat Bond ETF
+  category: investment
+  rate: "Market linked (current YTM around 7.30% p.a.)"
+  maxAmount: "No maximum; lot size of 1 unit"
+  tenure: "Series with maturities in 2025, 2030, 2033, 2041"
+  description: >
+    Exchange traded fund investing in AAA-rated PSU debt; offers low expense, predictable maturity proceeds and indexation benefit on capital gains.
+  tags: ["investment", "bond", "etf", "psu"]
+
+- id: invest_post_office_mis
+  title: Post Office Monthly Income Scheme (MIS)
+  category: investment
+  rate: "7.40% p.a. (interest paid monthly)"
+  maxAmount: "₹9 lakh (single) / ₹15 lakh (joint)"
+  tenure: "5 years"
+  description: >
+    Government-backed income plan with stable monthly payouts, premature closure allowed after 1 year with nominal deduction.
+  tags: ["investment", "income", "government", "monthly"]
+
+- id: invest_kvp
+  title: Kisan Vikas Patra (KVP)
+  category: investment
+  rate: "7.50% p.a. compounded annually (amount doubles in 115 months)"
+  maxAmount: "No maximum limit"
+  tenure: "9 years 7 months"
+  description: >
+    Guaranteed return certificate with transferable ownership, loan collateral facility and no upper investment cap.
+  tags: ["investment", "government", "kvp", "guaranteed"]
+
