@@ -1,6 +1,6 @@
 """
 FAQ Agent
-Handles general banking questions and information
+Handles general banking questions and information with RAG support
 """
 from langchain_core.messages import AIMessage, HumanMessage
 from utils import logger
@@ -9,6 +9,7 @@ from utils import logger
 async def faq_agent(state):
     """
     Handle general FAQ questions about banking products, services, rates, etc.
+    Uses RAG for loan-related queries to provide accurate, document-based answers.
     
     Args:
         state: AgentState with messages, language, etc.
@@ -17,6 +18,7 @@ async def faq_agent(state):
         Updated state with AI response
     """
     from services import get_llm_service
+    from services.rag_service import get_rag_service
     
     # Get unified LLM service
     llm = get_llm_service()
@@ -26,8 +28,56 @@ async def faq_agent(state):
     user_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
     user_query = user_messages[-1].content if user_messages else "Hello"
     
-    # Build system prompt for non-banking questions
-    system_prompt = """You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
+    # Check if query is loan-related
+    loan_keywords = [
+        "loan", "interest rate", "emi", "eligibility", "documents required",
+        "home loan", "personal loan", "auto loan", "car loan", "education loan",
+        "business loan", "gold loan", "property loan", "mortgage",
+        "down payment", "processing fee", "prepayment", "tenure", "collateral"
+    ]
+    
+    is_loan_query = any(keyword in user_query.lower() for keyword in loan_keywords)
+    
+    # Initialize context for RAG
+    rag_context = ""
+    
+    if is_loan_query:
+        try:
+            # Get RAG service and retrieve relevant context
+            rag_service = get_rag_service()
+            rag_context = rag_service.get_context_for_query(user_query, k=3)
+            logger.info("rag_context_retrieved", 
+                       query_length=len(user_query),
+                       context_length=len(rag_context),
+                       is_loan_query=True)
+        except Exception as e:
+            logger.error("rag_retrieval_error", error=str(e))
+            rag_context = ""
+    
+    # Build system prompt
+    if rag_context:
+        # RAG-enhanced prompt for loan queries
+        system_prompt = f"""You are Vaani, a helpful AI assistant for Sun National Bank (an Indian bank).
+
+The user has asked a question about banking products/loans. Below is relevant information from our official product documentation:
+
+{rag_context}
+
+Based on the above information, provide a clear, accurate, and helpful answer to the user's question.
+
+IMPORTANT GUIDELINES:
+- Always use Indian Rupees (₹ or INR) for all monetary amounts
+- Base your answer primarily on the provided documentation
+- If the documentation doesn't fully answer the question, acknowledge that and provide general guidance
+- Be concise but comprehensive
+- Use bullet points for lists of features, requirements, or steps
+- If mentioning interest rates or fees, include the range (e.g., "8.50% - 11.50% p.a.")
+- For eligibility or documents, distinguish between salaried and self-employed if relevant
+
+Keep your response helpful and professional."""
+    else:
+        # Standard prompt for non-loan queries
+        system_prompt = """You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
 IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.
 
@@ -71,6 +121,9 @@ Keep responses brief (2-3 sentences), warm, and helpful."""
     state["messages"].append(ai_message)
     state["next_action"] = "end"
     
-    logger.info("faq_agent_response", response_length=len(response), query_type="non_banking")
+    logger.info("faq_agent_response", 
+               response_length=len(response),
+               query_type="loan_query" if is_loan_query else "general",
+               used_rag=bool(rag_context))
     
     return state

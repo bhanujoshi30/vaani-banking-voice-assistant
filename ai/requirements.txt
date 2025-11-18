@@ -15,7 +15,15 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 alembic>=1.13.0
 
-# Vector Database (optional - for future RAG)
+# Vector Database & RAG
+chromadb>=0.4.22
+langchain-chroma>=0.1.2
+
+# Document Processing
+pypdf>=3.17.0
+sentence-transformers>=2.2.2
+
+# Embeddings (optional - for future RAG)
 # qdrant-client>=1.11.0
 
 # Embeddings (optional - for future RAG)
