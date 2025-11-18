@@ -4,7 +4,7 @@ import { getLanguageByCode } from "../../config/voiceConfig.js";
 /**
  * ChatSidebar component - Quick actions and voice status
  */
-const ChatSidebar = ({ isSpeechSupported, selectedLanguage }) => {
+const ChatSidebar = ({ isSpeechSupported, selectedLanguage, onQuickAction }) => {
   const currentLanguage = getLanguageByCode(selectedLanguage);
   const isComingSoon = currentLanguage?.comingSoon || false;
 
@@ -13,16 +13,32 @@ const ChatSidebar = ({ isSpeechSupported, selectedLanguage }) => {
       <div className="chat-sidebar-card">
         <h3>Quick Actions</h3>
         <div className="chat-quick-actions">
-          <button type="button" className="chat-quick-action">
+          <button 
+            type="button" 
+            className="chat-quick-action"
+            onClick={() => onQuickAction("Check Balance")}
+          >
             💰 Check Balance
           </button>
-          <button type="button" className="chat-quick-action">
+          <button 
+            type="button" 
+            className="chat-quick-action"
+            onClick={() => onQuickAction("Transfer Funds")}
+          >
             💸 Transfer Funds
           </button>
-          <button type="button" className="chat-quick-action">
+          <button 
+            type="button" 
+            className="chat-quick-action"
+            onClick={() => onQuickAction("View Transactions")}
+          >
             📊 View Transactions
           </button>
-          <button type="button" className="chat-quick-action">
+          <button 
+            type="button" 
+            className="chat-quick-action"
+            onClick={() => onQuickAction("Set Reminder")}
+          >
             🔔 Set Reminder
           </button>
         </div>
@@ -71,6 +87,7 @@ const ChatSidebar = ({ isSpeechSupported, selectedLanguage }) => {
 ChatSidebar.propTypes = {
   isSpeechSupported: PropTypes.bool.isRequired,
   selectedLanguage: PropTypes.string.isRequired,
+  onQuickAction: PropTypes.func.isRequired,
 };
 
 export default ChatSidebar;

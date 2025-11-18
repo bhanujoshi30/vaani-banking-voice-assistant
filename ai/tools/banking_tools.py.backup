@@ -1,0 +1,509 @@
+"""
+LangChain tools for banking operations
+Connects to existing database and provides safe banking operations
+"""
+import sys
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+# Add parent backend directory to path to import existing models
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
+from langchain.tools import tool
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+# Import existing database functions
+from db.repositories import accounts as account_repo
+from db.repositories import transactions as transaction_repo
+from db.repositories import reminders as reminder_repo
+from db.models.transaction import TransactionType
+
+# Import AI utils
+from utils import logger, log_tool_execution, DatabaseToolError
+from utils.db_helper import get_db
+
+
+# Pydantic models for tool inputs
+class GetBalanceInput(BaseModel):
+    """Input for get_balance tool"""
+    account_number: str = Field(description="The user's account number")
+
+
+class GetTransactionsInput(BaseModel):
+    """Input for get_transactions tool"""
+    account_number: str = Field(description="The user's account number")
+    days: int = Field(default=30, description="Number of days to look back (default 30)")
+    limit: int = Field(default=10, description="Maximum number of transactions to return")
+
+
+class TransferFundsInput(BaseModel):
+    """Input for transfer_funds tool"""
+    from_account: str = Field(description="Source account number")
+    to_account: str = Field(description="Destination account number")
+    amount: float = Field(description="Amount to transfer in rupees")
+    description: Optional[str] = Field(default=None, description="Transfer description")
+
+
+class GetRemindersInput(BaseModel):
+    """Input for get_reminders tool"""
+    user_id: int = Field(description="User ID to get reminders for")
+    upcoming_only: bool = Field(default=True, description="Only show upcoming reminders")
+
+
+class SetReminderInput(BaseModel):
+    """Input for set_reminder tool"""
+    user_id: int = Field(description="User ID to set reminder for")
+    date: str = Field(description="Reminder date in YYYY-MM-DD format")
+    amount: float = Field(description="Reminder amount in rupees")
+    description: str = Field(description="Reminder description")
+
+
+# Database session dependency
+def get_db_session() -> Session:
+    """Get database session"""
+    db = next(get_db())
+    try:
+        return db
+    finally:
+        db.close()
+
+
+@tool(args_schema=GetBalanceInput)
+def get_account_balance(account_number: str) -> Dict[str, Any]:
+    """
+    Get the current balance for a bank account.
+    
+    Use this tool when user asks about account balance, available funds, or current balance.
+    
+    Args:
+        account_number: The account number to check
+        
+    Returns:
+        Dictionary with account balance information
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        db = get_db_session()
+        account_repo = AccountRepository(db)
+        
+        # Get account
+        account = account_repo.get_by_account_number(account_number)
+        
+        if not account:
+            log_tool_execution(
+                "get_account_balance",
+                success=False,
+                error="Account not found",
+                duration=time.time() - start_time
+            )
+            return {
+                "success": False,
+                "error": "Account not found",
+                "account_number": account_number
+            }
+        
+        result = {
+            "success": True,
+            "account_number": account.account_number,
+            "account_type": account.account_type,
+            "balance": float(account.balance),
+            "currency": "INR",
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        log_tool_execution(
+            "get_account_balance",
+            success=True,
+            duration=time.time() - start_time
+        )
+        
+        logger.info(
+            "balance_retrieved",
+            account_number=account_number,
+            balance=float(account.balance)
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error("get_balance_error", error=str(e))
+        log_tool_execution(
+            "get_account_balance",
+            success=False,
+            error=str(e),
+            duration=time.time() - start_time
+        )
+        raise DatabaseToolError(f"Failed to get balance: {e}")
+
+
+@tool(args_schema=GetTransactionsInput)
+def get_transaction_history(
+    account_number: str,
+    days: int = 30,
+    limit: int = 10
+) -> Dict[str, Any]:
+    """
+    Get recent transaction history for an account.
+    
+    Use this tool when user asks about recent transactions, spending, or transaction history.
+    
+    Args:
+        account_number: The account number to check
+        days: Number of days to look back (default 30)
+        limit: Maximum number of transactions (default 10)
+        
+    Returns:
+        Dictionary with transaction list
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        db = get_db_session()
+        account_repo = AccountRepository(db)
+        transaction_repo = TransactionRepository(db)
+        
+        # Verify account exists
+        account = account_repo.get_by_account_number(account_number)
+        if not account:
+            return {
+                "success": False,
+                "error": "Account not found"
+            }
+        
+        # Calculate date range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get transactions
+        transactions = transaction_repo.get_by_account_and_date_range(
+            account_id=account.id,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit
+        )
+        
+        # Format transactions
+        transaction_list = []
+        for txn in transactions:
+            transaction_list.append({
+                "date": txn.transaction_date.isoformat(),
+                "type": txn.transaction_type,
+                "amount": float(txn.amount),
+                "description": txn.description or "",
+                "balance_after": float(txn.balance_after) if txn.balance_after else None
+            })
+        
+        result = {
+            "success": True,
+            "account_number": account_number,
+            "transactions": transaction_list,
+            "count": len(transaction_list),
+            "period_days": days
+        }
+        
+        log_tool_execution(
+            "get_transaction_history",
+            success=True,
+            duration=time.time() - start_time
+        )
+        
+        logger.info(
+            "transactions_retrieved",
+            account_number=account_number,
+            count=len(transaction_list)
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error("get_transactions_error", error=str(e))
+        log_tool_execution(
+            "get_transaction_history",
+            success=False,
+            error=str(e),
+            duration=time.time() - start_time
+        )
+        raise DatabaseToolError(f"Failed to get transactions: {e}")
+
+
+@tool(args_schema=TransferFundsInput)
+def transfer_funds(
+    from_account: str,
+    to_account: str,
+    amount: float,
+    description: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Transfer funds between accounts.
+    
+    IMPORTANT: This performs actual money transfer. Always confirm with user before executing.
+    
+    Args:
+        from_account: Source account number
+        to_account: Destination account number
+        amount: Amount to transfer in INR
+        description: Optional transfer description
+        
+    Returns:
+        Dictionary with transfer result
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        db = get_db_session()
+        account_repo = AccountRepository(db)
+        transaction_repo = TransactionRepository(db)
+        
+        # Validate amount
+        if amount <= 0:
+            return {
+                "success": False,
+                "error": "Amount must be positive"
+            }
+        
+        # Validate accounts
+        source_account = account_repo.get_by_account_number(from_account)
+        dest_account = account_repo.get_by_account_number(to_account)
+        
+        if not source_account:
+            return {"success": False, "error": "Source account not found"}
+        
+        if not dest_account:
+            return {"success": False, "error": "Destination account not found"}
+        
+        # Check sufficient balance
+        if source_account.balance < Decimal(str(amount)):
+            return {
+                "success": False,
+                "error": f"Insufficient balance. Available: ₹{float(source_account.balance)}"
+            }
+        
+        # Perform transfer
+        try:
+            # Debit from source
+            source_account.balance -= Decimal(str(amount))
+            
+            # Credit to destination
+            dest_account.balance += Decimal(str(amount))
+            
+            # Create transaction records
+            debit_txn = transaction_repo.create({
+                "account_id": source_account.id,
+                "transaction_type": TransactionType.DEBIT,
+                "amount": Decimal(str(amount)),
+                "description": description or f"Transfer to {to_account}",
+                "balance_after": source_account.balance
+            })
+            
+            credit_txn = transaction_repo.create({
+                "account_id": dest_account.id,
+                "transaction_type": TransactionType.CREDIT,
+                "amount": Decimal(str(amount)),
+                "description": description or f"Transfer from {from_account}",
+                "balance_after": dest_account.balance
+            })
+            
+            db.commit()
+            
+            result = {
+                "success": True,
+                "transaction_id": debit_txn.id,
+                "from_account": from_account,
+                "to_account": to_account,
+                "amount": amount,
+                "currency": "INR",
+                "new_balance": float(source_account.balance),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            log_tool_execution(
+                "transfer_funds",
+                success=True,
+                duration=time.time() - start_time
+            )
+            
+            logger.info(
+                "transfer_completed",
+                from_account=from_account,
+                to_account=to_account,
+                amount=amount
+            )
+            
+            return result
+            
+        except Exception as e:
+            db.rollback()
+            raise e
+        
+    except Exception as e:
+        logger.error("transfer_error", error=str(e))
+        log_tool_execution(
+            "transfer_funds",
+            success=False,
+            error=str(e),
+            duration=time.time() - start_time
+        )
+        raise DatabaseToolError(f"Transfer failed: {e}")
+
+
+@tool(args_schema=GetRemindersInput)
+def get_reminders(user_id: int, upcoming_only: bool = True) -> Dict[str, Any]:
+    """
+    Get payment reminders for a user.
+    
+    Use this tool when user asks about reminders, upcoming payments, or scheduled payments.
+    
+    Args:
+        user_id: User ID to get reminders for
+        upcoming_only: If True, only return future reminders
+        
+    Returns:
+        Dictionary with reminder list
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        db = get_db_session()
+        reminder_repo = ReminderRepository(db)
+        
+        # Get reminders
+        if upcoming_only:
+            reminders = reminder_repo.get_upcoming_by_user(user_id)
+        else:
+            # Get all reminders for user (you'll need to add this method)
+            reminders = db.query(reminder_repo.model).filter_by(user_id=user_id).all()
+        
+        # Format reminders
+        reminder_list = []
+        for reminder in reminders:
+            reminder_list.append({
+                "id": reminder.id,
+                "date": reminder.reminder_date.isoformat(),
+                "amount": float(reminder.amount),
+                "description": reminder.description or "",
+                "is_past": reminder.reminder_date < datetime.now().date()
+            })
+        
+        result = {
+            "success": True,
+            "reminders": reminder_list,
+            "count": len(reminder_list)
+        }
+        
+        log_tool_execution(
+            "get_reminders",
+            success=True,
+            duration=time.time() - start_time
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error("get_reminders_error", error=str(e))
+        log_tool_execution(
+            "get_reminders",
+            success=False,
+            error=str(e),
+            duration=time.time() - start_time
+        )
+        raise DatabaseToolError(f"Failed to get reminders: {e}")
+
+
+@tool(args_schema=SetReminderInput)
+def set_reminder(
+    user_id: int,
+    date: str,
+    amount: float,
+    description: str
+) -> Dict[str, Any]:
+    """
+    Set a new payment reminder.
+    
+    Use this tool when user wants to set or create a reminder for a future payment.
+    
+    Args:
+        user_id: User ID to set reminder for
+        date: Reminder date in YYYY-MM-DD format
+        amount: Reminder amount in INR
+        description: Reminder description
+        
+    Returns:
+        Dictionary with created reminder info
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        db = get_db_session()
+        reminder_repo = ReminderRepository(db)
+        
+        # Parse and validate date
+        try:
+            reminder_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            return {
+                "success": False,
+                "error": "Invalid date format. Use YYYY-MM-DD"
+            }
+        
+        # Create reminder
+        reminder = reminder_repo.create({
+            "user_id": user_id,
+            "reminder_date": reminder_date,
+            "amount": Decimal(str(amount)),
+            "description": description
+        })
+        
+        db.commit()
+        
+        result = {
+            "success": True,
+            "reminder_id": reminder.id,
+            "date": reminder.reminder_date.isoformat(),
+            "amount": float(reminder.amount),
+            "description": reminder.description
+        }
+        
+        log_tool_execution(
+            "set_reminder",
+            success=True,
+            duration=time.time() - start_time
+        )
+        
+        logger.info(
+            "reminder_created",
+            user_id=user_id,
+            date=date,
+            amount=amount
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error("set_reminder_error", error=str(e))
+        log_tool_execution(
+            "set_reminder",
+            success=False,
+            error=str(e),
+            duration=time.time() - start_time
+        )
+        raise DatabaseToolError(f"Failed to set reminder: {e}")
+
+
+# Export all tools
+banking_tools = [
+    get_account_balance,
+    get_transaction_history,
+    transfer_funds,
+    get_reminders,
+    set_reminder,
+]

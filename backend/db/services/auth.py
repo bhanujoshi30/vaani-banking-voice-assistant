@@ -105,6 +105,7 @@ class AuthService:
                 }
 
             profile = {
+                "id": str(user.id),  # Add UUID for AI backend
                 "customerId": user.customer_number,
                 "fullName": f"{user.first_name} {user.last_name}",
                 "segment": user.risk_segment.title(),
