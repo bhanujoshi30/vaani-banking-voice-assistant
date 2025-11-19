@@ -13,6 +13,8 @@ import {
   createReminder,
   updateReminderStatus,
   fetchBeneficiaries,
+  listDeviceBindings,
+  revokeDeviceBinding,
 } from "../api/client.js";
 
 const formatDateTime = (value) => {
@@ -41,7 +43,7 @@ const parseBalanceString = (value) => {
   return Number.isNaN(amount) ? null : amount;
 };
 
-const PANEL_KEYS = ["balance", "transfer", "transactions", "reminders", "beneficiaries"];
+const PANEL_KEYS = ["balance", "transfer", "transactions", "reminders", "beneficiaries", "deviceBinding"];
 const SESSION_EXPIRY_CODES = new Set([
   "session_timeout",
   "session_expired",
@@ -58,6 +60,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     transactions: false,
     reminders: false,
     beneficiaries: false,
+    deviceBinding: false,
   });
 
   const [accounts, setAccounts] = useState([]);
@@ -102,6 +105,11 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [beneficiariesLoading, setBeneficiariesLoading] = useState(false);
   const [beneficiariesError, setBeneficiariesError] = useState("");
+
+  // device binding panel state
+  const [deviceBindings, setDeviceBindings] = useState([]);
+  const [deviceLoading, setDeviceLoading] = useState(false);
+  const [deviceError, setDeviceError] = useState("");
 
   const bindingDetail = sessionDetail ?? {};
   const deviceBindingRequired = Boolean(bindingDetail.deviceBindingRequired);
@@ -323,6 +331,34 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     }
   };
 
+  // fetch trusted device bindings when deviceBinding panel opens
+  useEffect(() => {
+    if (!panels.deviceBinding) return;
+    if (!accessToken) {
+      setDeviceError("Session expired. Please sign in again.");
+      return;
+    }
+    let mounted = true;
+    setDeviceLoading(true);
+    setDeviceError("");
+    listDeviceBindings({ accessToken })
+      .then((data) => {
+        if (!mounted) return;
+        setDeviceBindings(data);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        if (handleSessionExpiry(error, setDeviceError)) return;
+        setDeviceError(error.message);
+      })
+      .finally(() => {
+        if (mounted) setDeviceLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [panels.deviceBinding, accessToken, handleSessionExpiry]);
+
   const toggleBalanceVisibility = (accountNumber) => {
     setBalanceVisibility((prev) => ({
       ...prev,
@@ -527,6 +563,21 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     }
   };
 
+  const handleDeviceRevoke = async (bindingId) => {
+    if (!accessToken) return;
+    setDeviceLoading(true);
+    setDeviceError("");
+    try {
+      const updated = await revokeDeviceBinding({ accessToken, bindingId });
+      setDeviceBindings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (error) {
+      if (handleSessionExpiry(error, setDeviceError)) return;
+      setDeviceError(error.message);
+    } finally {
+      setDeviceLoading(false);
+    }
+  };
+
   if (!user) {
     return <Navigate to="/" replace />;
   }
@@ -569,23 +620,29 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
             type="button"
             className="floating-chat-button"
             onClick={() => navigate("/chat")}
-            title="Chat with Vaani"
+            title="Voice assistant"
+            aria-label="Open voice assistant"
           >
+            {/* Robot + rupee glyph */}
             <svg
               width="28"
               height="28"
-              viewBox="0 0 24 24"
-              fill="none"
+              viewBox="0 0 28 28"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
-              <path
-                d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="white"
-              />
+              <circle cx="14" cy="14" r="12" fill="rgba(255,255,255,0.92)" />
+              <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.4">
+                <rect x="6.5" y="9" width="7.8" height="6.4" rx="2.2" fill="none" />
+                <line x1="10.4" y1="7" x2="10.4" y2="5" />
+                <line x1="12.4" y1="7" x2="12.4" y2="4.2" />
+                <circle cx="8.9" cy="11.2" r="0.6" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="11.2" r="0.6" fill="currentColor" stroke="none" />
+                <path d="M8.9 13.9c0 1 0.9 1.8 2 1.8s2-0.8 2-1.8" />
+                <path d="M16.2 9.5h5.4" />
+                <path d="M16.2 12.1h5.1" />
+                <path d="M16.3 9.5c2.2 0 3.7 1.3 3.7 3s-1.5 3-3.7 3l3.5 4.9" />
+              </g>
             </svg>
           </button>
 
@@ -776,7 +833,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                   <button
                     type="button"
                     className="secondary-btn"
-                    onClick={() => navigate("/device-binding")}
+                    onClick={() => handlePanelToggle("deviceBinding")}
                   >
                     Trusted devices
                   </button>
@@ -956,6 +1013,55 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                       </div>
                     </>
                   )}
+                </article>
+              )}
+
+              {panels.deviceBinding && (
+                <article id="panel-device-binding" className="profile-card profile-card--span">
+                  <h2>Trusted devices</h2>
+                  {deviceLoading && <p className="profile-hint">Loading device bindings…</p>}
+                  {deviceError && <div className="form-error">{deviceError}</div>}
+                  {!deviceLoading && deviceBindings.length === 0 && (
+                    <p className="profile-hint">No trusted devices found. Use Manage device &amp; voice binding to add this device.</p>
+                  )}
+                  {!deviceLoading && deviceBindings.length > 0 && (
+                    <ul className="transactions-list">
+                      {deviceBindings.map((binding) => (
+                        <li key={binding.id} className="transaction-row">
+                          <div>
+                            <p className="profile-label">{binding.deviceLabel ?? "Unnamed device"}</p>
+                            <p className="profile-value">{binding.platform ?? "unknown"} · Trust {binding.trustLevel}</p>
+                            <p className="profile-hint">
+                              Last verified: {binding.lastVerifiedAt ? new Date(binding.lastVerifiedAt).toLocaleString("en-IN") : "Never"}
+                            </p>
+                          </div>
+                          <div className="profile-account-actions">
+                            {binding.trustLevel !== "revoked" ? (
+                              <button
+                                type="button"
+                                className="link-btn"
+                                onClick={() => handleDeviceRevoke(binding.id)}
+                                disabled={deviceLoading}
+                              >
+                                Revoke
+                              </button>
+                            ) : (
+                              <span className="profile-hint">Revoked</span>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="transactions-actions">
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => navigate("/device-binding")}
+                    >
+                      Manage device &amp; voice binding
+                    </button>
+                  </div>
                 </article>
               )}
 

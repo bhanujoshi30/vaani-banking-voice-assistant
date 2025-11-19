@@ -71,7 +71,9 @@ const convertBlobToWav = async (blob) => {
 };
 
 const MAX_RECORDING_MS = 7000;
-const VOICE_PHRASE = "Sun Bank mera saathi, har kadam surakshit banking ka vaada";
+const VOICE_PHRASE_HINDI = "सन बैंक मेरा साथी, हर कदम सुरक्षित बैंकिंग का वादा";
+const VOICE_PHRASE_ENGLISH = "Sun Bank is my companion, a promise of secure banking at every step";
+const VOICE_PHRASE = `${VOICE_PHRASE_HINDI} or ${VOICE_PHRASE_ENGLISH}`;
 const FIXED_OTP = "12345";
 
 const Login = ({ onAuthenticate, authenticated }) => {
@@ -216,7 +218,13 @@ const Login = ({ onAuthenticate, authenticated }) => {
         }
         try {
           const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          // debug: log raw blob info
+          // eslint-disable-next-line no-console
+          console.debug("recorder.onstop: rawBlob", { size: blob.size, type: blob.type });
           const { wavBlob, duration } = await convertBlobToWav(blob);
+          // debug: log wavBlob info
+          // eslint-disable-next-line no-console
+          console.debug("recorder.onstop: wavBlob", { size: wavBlob.size, type: wavBlob.type, duration });
           if (voiceCaptureStep === 1) {
             setFirstVoiceSummary(`Sample 1 ready · ${(duration ?? 0).toFixed(1)}s`);
             setRecordingStatus(
@@ -227,6 +235,13 @@ const Login = ({ onAuthenticate, authenticated }) => {
             setVoiceSummary("");
           } else {
             setVoiceBlob(wavBlob);
+            // make blob reachable from devtools for quick inspection
+            try {
+              // eslint-disable-next-line no-undef
+              window.__lastVoiceBlob = wavBlob;
+            } catch {
+              // ignore
+            }
             const label =
               isFirstVoiceLogin && voiceCaptureStep === 2
                 ? `Sample 2 ready · ${(duration ?? 0).toFixed(1)}s`
@@ -253,7 +268,7 @@ const Login = ({ onAuthenticate, authenticated }) => {
         setRecordingProgress(Math.min(elapsed / MAX_RECORDING_MS, 1));
       }, 60);
       if (voiceCaptureStep === 1) {
-        setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE}"`);
+    setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE_HINDI}" or "${VOICE_PHRASE_ENGLISH}"`);
       } else {
         setRecordingStatus("Recording… Speak naturally in your own words.");
       }
@@ -282,6 +297,9 @@ const Login = ({ onAuthenticate, authenticated }) => {
     if (isSubmitting) return;
 
     if (!awaitingOtp) {
+      // debug: show current voice state
+      // eslint-disable-next-line no-console
+      console.debug("handleSubmit: voiceBlob", { voiceBlob, voiceCaptureStep, recordingState, voiceSummary });
       if (!userId.trim()) {
         setError("Please enter your User ID to continue.");
         return;
@@ -292,7 +310,9 @@ const Login = ({ onAuthenticate, authenticated }) => {
           return;
         }
       } else if (!voiceBlob) {
-        setError("Please capture and confirm your voice sample before continuing.");
+        setError(
+          "Please capture and confirm your voice sample before continuing. (If this is your first time enrolling for voice login, record the passphrase twice.)",
+        );
         return;
       }
 
@@ -438,9 +458,9 @@ const Login = ({ onAuthenticate, authenticated }) => {
                 <div className="card-form__voice" ref={voiceSectionRef}>
                   {isFirstVoiceLogin ? (
                     <div className="info-banner">
-                      First time with voice login? We’ll capture the passphrase{" "}
-                      <strong>"{VOICE_PHRASE}"</strong> twice to enroll your voice securely. From the
-                      next login you can speak any short phrase.
+                      First time with voice login? We’ll capture the passphrase
+                      <strong> {VOICE_PHRASE_HINDI}</strong> or <strong> {VOICE_PHRASE_ENGLISH}</strong>
+                      twice to enroll your voice securely. From the next login you can speak any short phrase.
                     </div>
                   ) : (
                     <p className="profile-hint">
@@ -462,6 +482,11 @@ const Login = ({ onAuthenticate, authenticated }) => {
                     {voiceSummary && voiceBlob && (
                       <span className="profile-hint">
                         {voiceSummary}
+                      </span>
+                    )}
+                    {voiceBlob && (
+                      <span className="profile-hint">
+                        Captured {Math.round(voiceBlob.size / 1024)} KB
                       </span>
                     )}
                   </div>

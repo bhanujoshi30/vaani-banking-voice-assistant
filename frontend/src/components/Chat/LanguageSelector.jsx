@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { getEnabledLanguages } from '../../config/voiceConfig.js';
 import './LanguageSelector.css';
@@ -17,6 +17,16 @@ const LanguageSelector = ({ selectedLanguage, onLanguageChange, disabled }) => {
     setIsOpen(false);
   };
 
+  useEffect(() => {
+    if (disabled && isOpen) {
+      setIsOpen(false);
+    }
+  }, [disabled, isOpen]);
+
+  const tooltip = disabled
+    ? 'Enable Voice Mode to change the assistant language'
+    : 'Select language for voice input';
+
   return (
     <div className="language-selector">
       <button
@@ -24,7 +34,7 @@ const LanguageSelector = ({ selectedLanguage, onLanguageChange, disabled }) => {
         className={`language-selector__button ${isOpen ? 'language-selector__button--open' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        title="Select language for voice input"
+        title={tooltip}
       >
         <span className="language-selector__flag">{currentLang?.flag}</span>
         <span className="language-selector__name">{currentLang?.name}</span>

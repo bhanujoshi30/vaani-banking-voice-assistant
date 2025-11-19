@@ -205,11 +205,12 @@ const Chat = ({ session, onSignOut }) => {
                   onToggle={handleVoiceModeToggle}
                   disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
                 />
-                <LanguageSelector 
-                  selectedLanguage={language}
-                  onLanguageChange={setLanguage}
-                  disabled={isListening || isVoiceModeEnabled}
-                />
+                {isVoiceModeEnabled && (
+                  <LanguageSelector 
+                    selectedLanguage={language}
+                    onLanguageChange={setLanguage}
+                  />
+                )}
                 <button
                   type="button"
                   className="ghost-btn ghost-btn--compact"

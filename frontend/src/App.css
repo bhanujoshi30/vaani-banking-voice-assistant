@@ -181,14 +181,15 @@
   transform: translateY(-50%);
   border: none;
   background: none;
-  color: rgba(255, 255, 255, 0.75);
+  /* Use dark tint so the eye toggle is visible on light backgrounds */
+  color: rgba(15, 27, 42, 0.9);
   font-weight: 600;
   cursor: pointer;
   font-size: 0.85rem;
 }
 
 .input-with-toggle__btn:hover {
-  color: #fff;
+  color: rgba(15, 27, 42, 1);
 }
 
 .card-form__actions {
@@ -533,6 +534,42 @@
   margin: 0.35rem 0 0;
   color: rgba(15, 27, 42, 0.45);
   font-size: 0.9rem;
+}
+
+/* Voice capture block spacing tweaks */
+.profile-voice-block .profile-hint {
+  /* separate hint text from controls */
+  margin-bottom: 1.25rem;
+}
+
+.profile-voice-block .voice-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.25rem; /* larger space between controls and subsequent status/reset */
+}
+
+.profile-voice-block .link-btn {
+  margin-top: 1rem; /* ensure reset link sits below controls with breathing room */
+}
+
+/* Login page voice block uses a different wrapper — apply same spacing there */
+.card-form__voice .profile-hint {
+  /* increase spacing above the Record button */
+  margin-bottom: 1.75rem;
+}
+
+.card-form__voice .voice-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  /* reduce space below the controls so reset link sits closer */
+  margin-bottom: 0.5rem;
+}
+
+.card-form__voice .link-btn {
+  /* slightly tighter to the control area */
+  margin-top: 0.5rem;
 }
 
 .quick-actions {

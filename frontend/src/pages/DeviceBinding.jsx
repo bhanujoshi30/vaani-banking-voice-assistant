@@ -16,7 +16,9 @@ const SESSION_EXPIRY_CODES = new Set([
   "session_invalid",
 ]);
 
-const VOICE_PHRASE = "Sun Bank mera saathi, har kadam surakshit banking ka vaada";
+const VOICE_PHRASE_HINDI = "सन बैंक मेरा साथी, हर कदम सुरक्षित बैंकिंग का वादा";
+const VOICE_PHRASE_ENGLISH = "Sun Bank is my companion, a promise of secure banking at every step";
+const VOICE_PHRASE = `${VOICE_PHRASE_HINDI} or ${VOICE_PHRASE_ENGLISH}`;
 const MAX_RECORDING_MS = 7000;
 
 const hashText = async (text) => {
@@ -272,7 +274,7 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
       recorder.start();
       mediaRecorderRef.current = recorder;
       setRecordingState("recording");
-      setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE}"`);
+  setRecordingStatus(`Recording… Speak clearly: "${VOICE_PHRASE_HINDI}" or "${VOICE_PHRASE_ENGLISH}"`);
       setTimeout(() => {
         if (mediaRecorderRef.current === recorder && recorder.state === "recording") {
           stopRecording();
@@ -292,7 +294,7 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
     if (!voiceBlob) {
       setStatus({
         type: "error",
-        message: 'Please record the passphrase "Sun Bank hai mera saathi" before binding.',
+        message: `Please record the passphrase "${VOICE_PHRASE_HINDI}" or "${VOICE_PHRASE_ENGLISH}" before binding.`,
       });
       return;
     }
@@ -433,8 +435,10 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
                 <div className="form-grid--span profile-voice-block">
                   <p className="profile-label">Voice passphrase</p>
                   <p className="profile-hint">
-                    Speak this Hinglish line during verification:{" "}
-                    <strong>{VOICE_PHRASE}</strong>
+                    Speak one of the passphrases below during verification:&nbsp;
+                    <strong>{VOICE_PHRASE_HINDI}</strong>
+                    {' '}or{' '}
+                    <strong>{VOICE_PHRASE_ENGLISH}</strong>
                   </p>
                   <div className="voice-controls">
                     <button
