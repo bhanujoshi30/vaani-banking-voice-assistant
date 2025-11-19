@@ -1,0 +1,149 @@
+.transfer-receipt {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: 600px;
+}
+
+.transfer-receipt__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.transfer-receipt__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.transfer-receipt__status {
+  display: flex;
+  align-items: center;
+}
+
+.transfer-receipt__status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.transfer-receipt__status-badge--success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.transfer-receipt__content {
+  margin-top: 16px;
+}
+
+.transfer-receipt__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.transfer-receipt__table tbody tr {
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.transfer-receipt__table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.transfer-receipt__label {
+  padding: 12px 16px 12px 0;
+  font-weight: 500;
+  color: #666;
+  width: 40%;
+  vertical-align: top;
+}
+
+.transfer-receipt__value {
+  padding: 12px 0;
+  color: #1a1a1a;
+  font-weight: 400;
+  word-break: break-word;
+}
+
+.transfer-receipt__value--amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1976d2;
+}
+
+.transfer-receipt__value--reference {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #424242;
+  letter-spacing: 1px;
+}
+
+.transfer-receipt__actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.transfer-receipt__save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.transfer-receipt__save-btn:hover {
+  background-color: #1565c0;
+}
+
+.transfer-receipt__save-btn:active {
+  background-color: #0d47a1;
+}
+
+.transfer-receipt__save-btn svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .transfer-receipt {
+    padding: 16px;
+  }
+  
+  .transfer-receipt__table {
+    font-size: 14px;
+  }
+  
+  .transfer-receipt__label {
+    width: 35%;
+    padding-right: 12px;
+  }
+  
+  .transfer-receipt__value--amount {
+    font-size: 18px;
+  }
+  
+  .transfer-receipt__save-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
+

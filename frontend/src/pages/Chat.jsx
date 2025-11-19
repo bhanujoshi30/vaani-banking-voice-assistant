@@ -35,9 +35,12 @@ const Chat = ({ session, onSignOut }) => {
     messagesEndRef,
     addUserMessage,
     addAssistantMessage,
+    clearUnusedCards,
   } = useChatMessages();
 
   // Use speech recognition hook with selected language
+  // In normal mode, use non-continuous (stops after each utterance)
+  // In voice mode, use continuous (keeps listening)
   const {
     isListening,
     isSpeechSupported,
@@ -51,7 +54,7 @@ const Chat = ({ session, onSignOut }) => {
     resetTranscript,
   } = useSpeechRecognition({
     lang: language,
-    continuous: true,
+    continuous: isVoiceModeEnabled, // Only continuous in voice mode
     interimResults: true,
   });
 
@@ -82,6 +85,7 @@ const Chat = ({ session, onSignOut }) => {
     addUserMessage,
     addAssistantMessage,
     resetTranscript,
+    clearUnusedCards,
     setInputText,
     isListening,
     isSpeaking,
@@ -140,11 +144,6 @@ const Chat = ({ session, onSignOut }) => {
   }
 
   const handleVoiceInput = () => {
-    // In voice mode, microphone is always on, so this just toggles manually
-    if (isVoiceModeEnabled) {
-      return; // Do nothing in voice mode - mic is auto-managed
-    }
-
     if (!isSpeechSupported) {
       alert('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
@@ -155,8 +154,28 @@ const Chat = ({ session, onSignOut }) => {
       return;
     }
 
-    // Toggle listening state in manual mode
-    toggleListening();
+    // NORMAL MODE: Simple toggle - completely independent of voice mode
+    if (!isVoiceModeEnabled) {
+      if (isListening) {
+        console.log('🛑 Normal mode: Stopping recording');
+        stopListening();
+      } else {
+        console.log('🎤 Normal mode: Starting recording');
+        startListening();
+      }
+      return;
+    }
+
+    // VOICE MODE: Handle stop/start differently
+    if (isListening) {
+      console.log('🛑 Voice mode: User manually stopping recording');
+      stopListening();
+      return;
+    }
+
+    // In voice mode, if user clicks to start, reset and start
+    console.log('🎤 Voice mode: User manually starting recording');
+    startListening();
   };
 
   const handleVoiceModeToggle = () => {
@@ -246,6 +265,13 @@ const Chat = ({ session, onSignOut }) => {
                     key={message.id} 
                     message={message} 
                     userName={session.user.fullName}
+                    language={language}
+                    session={session}
+                    onFeedback={(feedbackData) => {
+                      console.log('Feedback received:', feedbackData);
+                      // In production, send to backend API
+                    }}
+                    onAddAssistantMessage={addAssistantMessage}
                   />
                 ))}
                 {isTyping && <TypingIndicator />}

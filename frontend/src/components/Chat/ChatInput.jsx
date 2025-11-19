@@ -17,7 +17,7 @@ const ChatInput = ({
   inputRef,
 }) => {
   const isVoiceDisabled = !isSpeechSupported || isLanguageComingSoon;
-  const isInputDisabled = isTyping || isSpeaking;
+  const isInputDisabled = isTyping || isSpeaking || isListening;
 
   return (
     <form className="chat-input-container" onSubmit={onSubmit}>
@@ -37,7 +37,7 @@ const ChatInput = ({
               ? "Stop listening"
               : "Start voice input"
           }
-          disabled={isVoiceDisabled || isSpeaking || isVoiceModeEnabled}
+          disabled={isVoiceDisabled || isSpeaking}
         >
           <svg
             width="24"
@@ -98,7 +98,7 @@ const ChatInput = ({
         <button
           type="submit"
           className="chat-send-button"
-          disabled={!inputText.trim() || isInputDisabled}
+          disabled={!inputText.trim() || isTyping || isSpeaking}
           title={isSpeaking ? "Please wait while assistant is speaking" : "Send message"}
         >
           <svg

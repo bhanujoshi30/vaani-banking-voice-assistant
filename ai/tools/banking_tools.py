@@ -71,8 +71,12 @@ def get_user_accounts(user_id: str) -> Dict[str, Any]:
             accounts_list = []
             for account in accounts:
                 accounts_list.append({
+                    "id": str(account.id),  # Include account ID for frontend matching
+                    "accountId": str(account.id),  # Also include as accountId for compatibility
                     "account_number": account.account_number,
+                    "accountNumber": account.account_number,  # Include camelCase version too
                     "account_type": account.account_type,
+                    "accountType": account.account_type.value if hasattr(account.account_type, 'value') else str(account.account_type),
                     "balance": float(account.balance),
                     "currency": "INR",
                     "status": account.status.value if hasattr(account.status, 'value') else str(account.status)

@@ -33,13 +33,16 @@ export const sendChatMessage = async ({
     console.log('📥 AI Response from backend:', {
       hasResponse: !!aiResponse.response,
       hasStatementData: !!aiResponse.statement_data,
+      hasStructuredData: !!aiResponse.structured_data,
       statementData: aiResponse.statement_data,
+      structuredData: aiResponse.structured_data,
     });
 
     // Return full response object with text and any additional data
     return {
       text: aiResponse.response,
       statementData: aiResponse.statement_data || null,
+      structuredData: aiResponse.structured_data || null,
     };
   } catch (error) {
     console.error('Error getting AI response:', error);

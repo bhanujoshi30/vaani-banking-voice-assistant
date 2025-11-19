@@ -63,10 +63,31 @@ class OllamaService:
         start_time = time.time()
         
         try:
+            # Ensure messages are in dict format (not LangChain objects)
+            messages_dict = []
+            for msg in messages:
+                if isinstance(msg, dict):
+                    messages_dict.append(msg)
+                elif hasattr(msg, 'content') and hasattr(msg, '__class__'):
+                    # Handle LangChain message objects
+                    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+                    if isinstance(msg, HumanMessage):
+                        messages_dict.append({"role": "user", "content": msg.content})
+                    elif isinstance(msg, AIMessage):
+                        messages_dict.append({"role": "assistant", "content": msg.content})
+                    elif isinstance(msg, SystemMessage):
+                        messages_dict.append({"role": "system", "content": msg.content})
+                    else:
+                        # Fallback: try to extract content
+                        messages_dict.append({"role": "user", "content": str(msg.content) if hasattr(msg, 'content') else str(msg)})
+                else:
+                    # Fallback for unknown types
+                    messages_dict.append({"role": "user", "content": str(msg)})
+            
             url = f"{self.base_url}/api/chat"
             payload = {
                 "model": model,
-                "messages": messages,
+                "messages": messages_dict,
                 "stream": False,
                 "options": {
                     "temperature": temperature,
@@ -79,7 +100,7 @@ class OllamaService:
             logger.debug(
                 "ollama_chat_request",
                 model=model,
-                num_messages=len(messages),
+                num_messages=len(messages_dict),
                 temperature=temperature,
                 url=url,
             )
@@ -96,7 +117,7 @@ class OllamaService:
             duration = time.time() - start_time
             
             # Log the call
-            prompt_text = " ".join([m["content"] for m in messages])
+            prompt_text = " ".join([m.get("content", str(m)) for m in messages_dict])
             log_llm_call(
                 model=model,
                 prompt=prompt_text,
@@ -163,10 +184,29 @@ class OllamaService:
         temperature = temperature or settings.llm_temperature
         
         try:
+            # Ensure messages are in dict format (not LangChain objects)
+            messages_dict = []
+            for msg in messages:
+                if isinstance(msg, dict):
+                    messages_dict.append(msg)
+                elif hasattr(msg, 'content') and hasattr(msg, '__class__'):
+                    # Handle LangChain message objects
+                    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+                    if isinstance(msg, HumanMessage):
+                        messages_dict.append({"role": "user", "content": msg.content})
+                    elif isinstance(msg, AIMessage):
+                        messages_dict.append({"role": "assistant", "content": msg.content})
+                    elif isinstance(msg, SystemMessage):
+                        messages_dict.append({"role": "system", "content": msg.content})
+                    else:
+                        messages_dict.append({"role": "user", "content": str(msg.content) if hasattr(msg, 'content') else str(msg)})
+                else:
+                    messages_dict.append({"role": "user", "content": str(msg)})
+            
             logger.debug(
                 "ollama_stream_request",
                 model=model,
-                num_messages=len(messages),
+                num_messages=len(messages_dict),
             )
             
             async with self.client.stream(
@@ -174,7 +214,7 @@ class OllamaService:
                 f"{self.base_url}/api/chat",
                 json={
                     "model": model,
-                    "messages": messages,
+                    "messages": messages_dict,
                     "stream": True,
                     "options": {
                         "temperature": temperature,

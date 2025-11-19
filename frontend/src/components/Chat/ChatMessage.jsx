@@ -1,17 +1,65 @@
+import { useState } from "react";
 import PropTypes from "prop-types";
+import TransactionTable from "./TransactionTable.jsx";
+import AccountBalanceCards from "./AccountBalanceCards.jsx";
+import LoanInfoCard from "./LoanInfoCard.jsx";
+import ReminderCard from "./ReminderCard.jsx";
+import TransferFlow from "./TransferFlow.jsx";
+import TransferReceipt from "./TransferReceipt.jsx";
+import StatementRequestCard from "./StatementRequestCard.jsx";
+import ReminderManagerCard from "./ReminderManagerCard.jsx";
+import "./ChatMessage.css";
 
 /**
  * ChatMessage component - Displays a single chat message
  */
-const ChatMessage = ({ message, userName }) => {
+const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedback, onAddAssistantMessage }) => {
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  
   // Debug: Log message data to console
   if (message.role === 'assistant') {
     console.log('📩 Assistant Message:', {
       content: message.content.substring(0, 50) + '...',
       hasStatementData: !!message.statementData,
+      hasStructuredData: !!message.structuredData,
       statementData: message.statementData,
+      structuredData: message.structuredData,
     });
   }
+
+  const handleFeedback = (isPositive) => {
+    if (feedbackSubmitted) return;
+    
+    setFeedbackSubmitted(true);
+    
+    // Store feedback data
+    const feedbackData = {
+      messageId: message.id,
+      role: message.role,
+      content: message.content,
+      feedback: isPositive ? 'positive' : 'negative',
+      timestamp: new Date().toISOString(),
+      structuredData: message.structuredData,
+      statementData: message.statementData,
+    };
+    
+    // Log to console (in production, send to backend)
+    console.log('📊 User Feedback:', feedbackData);
+    
+    // Call callback if provided
+    if (onFeedback) {
+      onFeedback(feedbackData);
+    }
+    
+    // Store in localStorage for later collection
+    try {
+      const existingFeedback = JSON.parse(localStorage.getItem('ai_feedback') || '[]');
+      existingFeedback.push(feedbackData);
+      localStorage.setItem('ai_feedback', JSON.stringify(existingFeedback));
+    } catch (error) {
+      console.error('Error storing feedback:', error);
+    }
+  };
 
   const formatTime = (date) => {
     return date.toLocaleTimeString("en-IN", {
@@ -155,24 +203,34 @@ const ChatMessage = ({ message, userName }) => {
 
     try {
       console.log('📊 Building CSV with data:', {
-        accountNumber: statementData.account_number,
-        accountType: statementData.account_type,
+        accountNumber: statementData.accountNumber || statementData.account_number,
+        accountType: statementData.accountType || statementData.account_type,
         transactionCount: statementData.transactions.length,
-        fromDate: statementData.from_date,
-        toDate: statementData.to_date,
+        fromDate: statementData.fromDate || statementData.from_date,
+        toDate: statementData.toDate || statementData.to_date,
       });
+
+      const accountNumber =
+        statementData.accountNumber || statementData.account_number || 'unknown';
+      const accountType =
+        statementData.accountType || statementData.account_type || 'savings';
+      const fromDate = statementData.fromDate || statementData.from_date || '—';
+      const toDate = statementData.toDate || statementData.to_date || '—';
+      const currency = statementData.currency || 'INR';
+      const closingBalance =
+        statementData.currentBalance ?? statementData.current_balance ?? 0;
 
       const csv = buildStatementCsv({
         bankName: "Sun National Bank",
         account: {
-          accountNumber: statementData.account_number,
-          accountType: statementData.account_type || "savings",
+          accountNumber,
+          accountType,
         },
         accountHolder: userName || "Account Holder",
-        fromDate: statementData.from_date,
-        toDate: statementData.to_date,
-        currency: statementData.currency || "INR",
-        closingBalance: statementData.current_balance,
+        fromDate,
+        toDate,
+        currency,
+        closingBalance,
         transactions: statementData.transactions,
       });
 
@@ -182,7 +240,10 @@ const ChatMessage = ({ message, userName }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filename = `snb_statement_${statementData.account_number}_${statementData.from_date}_to_${statementData.to_date}.csv`;
+      const suffix = accountNumber ? accountNumber.slice(-5) : "acct";
+      const sanitizedFrom = (fromDate || "").replace(/[^0-9]/g, "") || "from";
+      const sanitizedTo = (toDate || "").replace(/[^0-9]/g, "") || "to";
+      const filename = `snb_statement_${suffix}_${sanitizedFrom}_to_${sanitizedTo}.csv`;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -244,7 +305,119 @@ const ChatMessage = ({ message, userName }) => {
           </span>
           <span className="chat-message__time">{formatTime(message.timestamp)}</span>
         </div>
-        <div className="chat-message__text">{message.content}</div>
+        {/* Only show text if content exists and is not just whitespace */}
+        {message.content && message.content.trim() && (
+          <div className="chat-message__text">{message.content}</div>
+        )}
+        
+        {/* Render structured data components */}
+        {message.structuredData && (
+          <div className="chat-message__structured">
+            {message.structuredData.type === 'transactions' && message.structuredData.transactions && (
+              <TransactionTable 
+                transactions={message.structuredData.transactions} 
+                language={language}
+                accounts={message.structuredData.accounts}
+                accountTransactions={message.structuredData.accountTransactions}
+                totalCount={message.structuredData.total_count}
+              />
+            )}
+            
+            {message.structuredData.type === 'balance' && message.structuredData.accounts && (
+              <AccountBalanceCards 
+                accounts={message.structuredData.accounts} 
+                language={language}
+              />
+            )}
+            
+            {message.structuredData.type === 'loan' && message.structuredData.loanInfo && (
+              <LoanInfoCard 
+                loanInfo={message.structuredData.loanInfo} 
+                language={language}
+              />
+            )}
+            
+            {message.structuredData.type === 'reminder' && message.structuredData.reminder && (
+              <ReminderCard 
+                reminder={message.structuredData.reminder} 
+                language={language}
+              />
+            )}
+            
+            {message.structuredData.type === 'transfer' && session && (
+              <TransferFlow 
+                session={session}
+                language={language}
+                transferData={message.structuredData}
+                onTransferInitiated={(data, receiptData) => {
+                  console.log('Transfer initiated:', data, receiptData);
+                  // Add success message first
+                  if (onAddAssistantMessage) {
+                    // Use receiptData if available, otherwise use data
+                    const amount = receiptData?.amount || data?.amount || 0;
+                    const beneficiaryName = receiptData?.beneficiaryName || data?.beneficiaryName || 'beneficiary';
+                    
+                    const successMessage = language === 'hi-IN' 
+                      ? `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${beneficiaryName} को सफलतापूर्वक स्थानांतरित कर दिया गया है।`
+                      : `Successfully transferred ₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} to ${beneficiaryName}.`;
+                    
+                    onAddAssistantMessage(successMessage, null, null);
+                    
+                    // Then add receipt as assistant message
+                    if (receiptData) {
+                      onAddAssistantMessage(
+                        '', // Empty text - receipt component will display
+                        null, // No statement data
+                        { type: 'transfer_receipt', receipt: receiptData } // Structured data for receipt
+                      );
+                    }
+                  }
+                }}
+              />
+            )}
+            
+            {message.structuredData.type === 'statement_request' && session && (
+              <StatementRequestCard
+                accounts={message.structuredData.accounts || []}
+                language={language}
+                session={session}
+                detectedAccount={message.structuredData.detectedAccount}
+                detectedPeriod={message.structuredData.detectedPeriod}
+                requiresAccount={message.structuredData.requiresAccount}
+                requiresPeriod={message.structuredData.requiresPeriod}
+                onDownload={handleDownloadStatement}
+                onSuccess={(message) => {
+                  if (onAddAssistantMessage) {
+                    onAddAssistantMessage(message, null, null);
+                  }
+                }}
+              />
+            )}
+
+            {message.structuredData.type === 'reminder_manager' && session && (
+              <ReminderManagerCard
+                session={session}
+                language={language}
+                intent={message.structuredData.intent}
+                accounts={message.structuredData.accounts}
+                prefilled={message.structuredData.prefilled || {}}
+                onSuccess={(message) => {
+                  if (onAddAssistantMessage) {
+                    onAddAssistantMessage(message, null, null);
+                  }
+                }}
+              />
+            )}
+            
+            {message.structuredData?.type === 'transfer_receipt' && message.structuredData?.receipt && (
+              <TransferReceipt 
+                receipt={message.structuredData.receipt}
+                language={language}
+              />
+            )}
+          </div>
+        )}
+        
         {message.statementData && (
           <div className="chat-message__statement">
             <button
@@ -254,6 +427,35 @@ const ChatMessage = ({ message, userName }) => {
             >
               📄 Download Statement
             </button>
+          </div>
+        )}
+
+        {/* Feedback buttons for assistant messages */}
+        {message.role === 'assistant' && (
+          <div className="chat-message__feedback">
+            <span className="chat-message__feedback-label">
+              {language === 'hi-IN' ? 'यह उत्तर कैसा था?' : 'Was this helpful?'}
+            </span>
+            <div className="chat-message__feedback-buttons">
+              <button
+                type="button"
+                className={`chat-message__feedback-btn chat-message__feedback-btn--positive ${feedbackSubmitted ? 'chat-message__feedback-btn--submitted' : ''}`}
+                onClick={() => handleFeedback(true)}
+                disabled={feedbackSubmitted}
+                title={language === 'hi-IN' ? 'अच्छा' : 'Good response'}
+              >
+                👍
+              </button>
+              <button
+                type="button"
+                className={`chat-message__feedback-btn chat-message__feedback-btn--negative ${feedbackSubmitted ? 'chat-message__feedback-btn--submitted' : ''}`}
+                onClick={() => handleFeedback(false)}
+                disabled={feedbackSubmitted}
+                title={language === 'hi-IN' ? 'बुरा' : 'Bad response'}
+              >
+                👎
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -278,8 +480,28 @@ ChatMessage.propTypes = {
       transaction_count: PropTypes.number,
       transactions: PropTypes.arrayOf(PropTypes.object),
     }),
+    structuredData: PropTypes.shape({
+      type: PropTypes.oneOf([
+        'transactions',
+        'balance',
+        'loan',
+        'reminder',
+        'transfer',
+        'transfer_receipt',
+        'statement_request',
+        'reminder_manager',
+      ]),
+      transactions: PropTypes.arrayOf(PropTypes.object),
+      accounts: PropTypes.arrayOf(PropTypes.object),
+      loanInfo: PropTypes.object,
+      reminder: PropTypes.object,
+      intent: PropTypes.string,
+    }),
   }).isRequired,
   userName: PropTypes.string.isRequired,
+  language: PropTypes.string,
+  session: PropTypes.object,
+  onFeedback: PropTypes.func,
 };
 
 export default ChatMessage;

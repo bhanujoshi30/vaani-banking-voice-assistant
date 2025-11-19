@@ -22,6 +22,7 @@ export const useChatHandler = ({
   isSpeaking,
   stopListening,
   toggleListening,
+  clearUnusedCards,
 }) => {
   const [isTyping, setIsTyping] = useState(false);
 
@@ -48,6 +49,12 @@ export const useChatHandler = ({
       }
     }
 
+    // Clear unused cards from previous messages before adding new user message
+    // This ensures old cards don't remain when user moves to a different operation
+    if (clearUnusedCards && messages && messages.length > 0) {
+      clearUnusedCards(messageText);
+    }
+
     // Add user message
     addUserMessage(messageText);
     
@@ -70,8 +77,8 @@ export const useChatHandler = ({
         voiceMode: isVoiceModeEnabled,
       });
 
-      // Add assistant message with optional statement data
-      addAssistantMessage(response.text, response.statementData);
+      // Add assistant message with optional statement data and structured data
+      addAssistantMessage(response.text, response.statementData, response.structuredData);
     } catch (error) {
       console.error('Error in chat handler:', error);
       addAssistantMessage('Sorry, I encountered an error. Please try again.');

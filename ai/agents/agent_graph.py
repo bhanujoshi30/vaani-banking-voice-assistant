@@ -29,6 +29,7 @@ class AgentState(TypedDict):
     authenticated: bool
     next_action: str
     statement_data: Dict[str, Any]  # Account statement data for download
+    structured_data: Dict[str, Any]  # Structured data for UI components (transactions, balances, etc.)
 
 
 # Build the graph
@@ -116,7 +117,8 @@ async def process_message(
             current_intent="",
             authenticated=bool(user_id),
             next_action="",
-            statement_data={}
+            statement_data={},
+            structured_data={}
         )
         
         logger.info(
@@ -145,6 +147,10 @@ async def process_message(
         # Add statement data if present
         if "statement_data" in final_state and final_state["statement_data"]:
             response_dict["statement_data"] = final_state["statement_data"]
+        
+        # Add structured data if present
+        if "structured_data" in final_state and final_state["structured_data"]:
+            response_dict["structured_data"] = final_state["structured_data"]
         
         return response_dict
         

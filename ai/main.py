@@ -53,6 +53,7 @@ class ChatResponse(BaseModel):
     language: str
     timestamp: str
     statement_data: Optional[Dict[str, Any]] = None  # Account statement data for download
+    structured_data: Optional[Dict[str, Any]] = None  # Structured data for UI components
 
 
 class TTSRequest(BaseModel):

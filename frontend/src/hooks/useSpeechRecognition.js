@@ -29,6 +29,49 @@ export const useSpeechRecognition = (options = {}) => {
 
   const recognitionRef = useRef(null);
   const isManualStopRef = useRef(false);
+  const isManuallyStoppedRef = useRef(false); // Track if user manually stopped (prevents auto-restart)
+  const maxRecordingTimeoutRef = useRef(null); // Maximum recording time (30 seconds)
+  const inactivityTimeoutRef = useRef(null); // Inactivity timeout (5 seconds)
+  
+  // Maximum recording duration: 30 seconds
+  const MAX_RECORDING_DURATION_MS = 30000;
+  // Inactivity threshold: 5 seconds (stop if no speech detected)
+  const INACTIVITY_THRESHOLD_MS = 5000;
+
+  // Helper function to reset inactivity timer
+  const resetInactivityTimer = useCallback(() => {
+    // Clear existing inactivity timeout
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+    }
+    
+    // Set new inactivity timeout (5 seconds)
+    inactivityTimeoutRef.current = setTimeout(() => {
+      console.log('⏱️ Inactivity threshold (5s) reached - no speech detected, auto-stopping...');
+      if (recognitionRef.current) {
+        // Check if still listening using a closure-safe check
+        const currentRecognition = recognitionRef.current;
+        isManualStopRef.current = true;
+        try {
+          currentRecognition.stop();
+        } catch (err) {
+          console.log('Error auto-stopping due to inactivity:', err);
+        }
+      }
+    }, INACTIVITY_THRESHOLD_MS);
+  }, []);
+  
+  // Helper function to clear all timeouts
+  const clearAllTimeouts = useCallback(() => {
+    if (maxRecordingTimeoutRef.current) {
+      clearTimeout(maxRecordingTimeoutRef.current);
+      maxRecordingTimeoutRef.current = null;
+    }
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+      inactivityTimeoutRef.current = null;
+    }
+  }, []);
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -78,6 +121,9 @@ export const useSpeechRecognition = (options = {}) => {
         console.log('Interim transcript:', interimText);
         setInterimTranscript(interimText);
       }
+      
+      // Reset inactivity timer when speech is detected
+      resetInactivityTimer();
     };
 
     // Handle errors
@@ -122,16 +168,26 @@ export const useSpeechRecognition = (options = {}) => {
       console.log('Speech recognition ended');
       setIsListening(false);
       
-      // Auto-restart if continuous and not manually stopped
-      if (continuous && !isManualStopRef.current && recognitionRef.current) {
+      // Clear all timeouts
+      clearAllTimeouts();
+      
+      // Auto-restart ONLY if:
+      // 1. Continuous mode is enabled
+      // 2. It wasn't manually stopped by user
+      // 3. Recognition object still exists
+      // Note: Auto-restart is mainly for voice mode, but we check manual stop to prevent unwanted restarts
+      if (continuous && !isManualStopRef.current && !isManuallyStoppedRef.current && recognitionRef.current) {
         try {
-          console.log('Auto-restarting recognition...');
+          console.log('Auto-restarting recognition (continuous mode)...');
           recognition.start();
         } catch (err) {
           console.log('Could not auto-restart:', err);
         }
+      } else if (isManualStopRef.current || isManuallyStoppedRef.current) {
+        console.log('🛑 Recording was manually stopped - preventing auto-restart');
       }
       
+      // Reset manual stop flag (but keep isManuallyStoppedRef for voice mode)
       isManualStopRef.current = false;
     };
 
@@ -140,16 +196,39 @@ export const useSpeechRecognition = (options = {}) => {
       console.log('Speech recognition started');
       setIsListening(true);
       setError(null);
+      
+      // Clear any existing timeouts
+      clearAllTimeouts();
+      
+      // Set maximum recording timeout (30 seconds)
+      maxRecordingTimeoutRef.current = setTimeout(() => {
+        console.log('⏱️ Maximum recording duration (30s) reached, auto-stopping...');
+        if (recognitionRef.current) {
+          isManualStopRef.current = true;
+          try {
+            recognitionRef.current.stop();
+          } catch (err) {
+            console.log('Error auto-stopping due to max duration:', err);
+          }
+        }
+      }, MAX_RECORDING_DURATION_MS);
+      
+      // Start inactivity timer
+      resetInactivityTimer();
     };
 
     // Handle speech start (when user starts speaking)
     recognition.onspeechstart = () => {
       console.log('🎤 User started speaking');
+      // Reset inactivity timer when speech starts
+      resetInactivityTimer();
     };
 
     // Handle speech end (when user stops speaking)
     recognition.onspeechend = () => {
       console.log('🎤 User stopped speaking');
+      // Start inactivity timer when speech ends
+      resetInactivityTimer();
     };
 
     // Handle audio start (when audio capture begins)
@@ -165,6 +244,8 @@ export const useSpeechRecognition = (options = {}) => {
     // Handle sound start
     recognition.onsoundstart = () => {
       console.log('🔉 Sound detected');
+      // Reset inactivity timer when sound is detected
+      resetInactivityTimer();
     };
 
     // Handle sound end
@@ -175,6 +256,16 @@ export const useSpeechRecognition = (options = {}) => {
     recognitionRef.current = recognition;
 
     return () => {
+      // Clear all timeouts on cleanup
+      if (maxRecordingTimeoutRef.current) {
+        clearTimeout(maxRecordingTimeoutRef.current);
+        maxRecordingTimeoutRef.current = null;
+      }
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+        inactivityTimeoutRef.current = null;
+      }
+      
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -183,7 +274,7 @@ export const useSpeechRecognition = (options = {}) => {
         }
       }
     };
-  }, [lang, continuous, interimResults]);
+  }, [lang, continuous, interimResults, resetInactivityTimer, clearAllTimeouts]);
 
   // Start listening
   const startListening = useCallback(() => {
@@ -204,6 +295,7 @@ export const useSpeechRecognition = (options = {}) => {
 
     try {
       isManualStopRef.current = false;
+      isManuallyStoppedRef.current = false; // Reset manual stop flag when starting
       setTranscript('');
       setInterimTranscript('');
       setError(null);
@@ -219,11 +311,25 @@ export const useSpeechRecognition = (options = {}) => {
   // Stop listening
   const stopListening = useCallback(() => {
     if (!recognitionRef.current || !isListening) {
+      console.log('Cannot stop: not listening or recognition not initialized');
       return;
     }
 
     try {
+      console.log('🛑 Manually stopping speech recognition...');
       isManualStopRef.current = true;
+      isManuallyStoppedRef.current = true; // Mark as manually stopped to prevent auto-restart
+      
+      // Clear all timeouts
+      if (maxRecordingTimeoutRef.current) {
+        clearTimeout(maxRecordingTimeoutRef.current);
+        maxRecordingTimeoutRef.current = null;
+      }
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+        inactivityTimeoutRef.current = null;
+      }
+      
       recognitionRef.current.stop();
     } catch (err) {
       console.error('Error stopping speech recognition:', err);

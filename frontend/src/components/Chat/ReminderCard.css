@@ -1,0 +1,159 @@
+/* Reminder Card Styles */
+.reminder-card {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 27, 42, 0.1);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 27, 42, 0.04);
+  transition: all 0.2s ease;
+}
+
+.reminder-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 27, 42, 0.08);
+  transform: translateY(-2px);
+}
+
+.reminder-card--due-soon {
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(to right, rgba(251, 191, 36, 0.05), white);
+}
+
+.reminder-card--overdue {
+  border-left: 4px solid #dc2626;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.05), white);
+}
+
+.reminder-card__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(249, 251, 255, 0.8);
+  border-bottom: 1px solid rgba(15, 27, 42, 0.08);
+}
+
+.reminder-card__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.reminder-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+}
+
+.reminder-card__content {
+  padding: 1.25rem 1.5rem;
+}
+
+.reminder-card__message {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(15, 27, 42, 0.9);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.reminder-card__amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid rgba(15, 27, 42, 0.06);
+}
+
+.reminder-card__amount-label {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  font-weight: 500;
+}
+
+.reminder-card__amount-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(15, 27, 42, 0.9);
+}
+
+.reminder-card__date {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid rgba(15, 27, 42, 0.06);
+}
+
+.reminder-card__date-label {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  font-weight: 500;
+}
+
+.reminder-card__date-value {
+  font-size: 0.95rem;
+  color: rgba(15, 27, 42, 0.9);
+  font-weight: 500;
+}
+
+.reminder-card__days-until {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+  width: fit-content;
+}
+
+.reminder-card__days-until--soon {
+  background: rgba(251, 191, 36, 0.1);
+  color: #d97706;
+}
+
+.reminder-card__days-until--overdue {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.reminder-card__account {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.875rem;
+}
+
+.reminder-card__account-label {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  font-weight: 500;
+}
+
+.reminder-card__account-value {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.8);
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reminder-card__header {
+    padding: 1rem 1.25rem;
+  }
+  
+  .reminder-card__content {
+    padding: 1rem 1.25rem;
+  }
+  
+  .reminder-card__amount {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+  
+  .reminder-card__amount-value {
+    font-size: 1.125rem;
+  }
+}
+

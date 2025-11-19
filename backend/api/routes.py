@@ -45,6 +45,10 @@ from .schemas import (
     TransferReceipt,
     TransferRequest,
     TransferResponse,
+    StatementDownloadRequest,
+    StatementDownloadResponse,
+    StatementTransaction,
+    StatementData,
     UserProfile,
     BeneficiaryCreateRequest,
     BeneficiaryListResponse,
@@ -413,13 +417,62 @@ def create_internal_transfer(
     session=CurrentSessionDep,
     banking_service: BankingService = BankingServiceDep,
 ):
-    source_account = banking_service.get_account_for_user(
-        user_id=session.user_id, account_id=payload.sourceAccountId
-    )
+    # Check if sourceAccountId is a UUID or account number
+    import uuid as uuid_lib
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # First, try to get all user accounts for debugging
+    all_user_accounts = banking_service.list_accounts(user_id=session.user_id)
+    logger.info(f"User {session.user_id} has {len(all_user_accounts)} accounts")
+    logger.info(f"Requested account: {payload.sourceAccountId}")
+    if all_user_accounts:
+        logger.info(f"Available accounts: {[acc.get('accountNumber') for acc in all_user_accounts]}")
+    
+    try:
+        # Try to parse as UUID first
+        uuid_lib.UUID(payload.sourceAccountId)
+        # It's a UUID, use get_account_for_user
+        source_account = banking_service.get_account_for_user(
+            user_id=session.user_id, account_id=payload.sourceAccountId
+        )
+    except ValueError:
+        # It's not a UUID, treat it as account number
+        # Try exact match first
+        source_account = banking_service.get_account_by_number_for_user(
+            user_id=session.user_id, account_number=payload.sourceAccountId
+        )
+        
+        # If not found, try to find in user's accounts list
+        if source_account is None and all_user_accounts:
+            matching_account = next(
+                (acc for acc in all_user_accounts 
+                 if acc.get('accountNumber') == payload.sourceAccountId or 
+                    acc.get('accountNumber', '').endswith(payload.sourceAccountId) or
+                    payload.sourceAccountId in acc.get('accountNumber', '')),
+                None
+            )
+            if matching_account:
+                # Use the account ID if available, otherwise use account number
+                account_id_to_use = matching_account.get('id') or matching_account.get('accountNumber')
+                if account_id_to_use:
+                    try:
+                        uuid_lib.UUID(account_id_to_use)
+                        source_account = banking_service.get_account_for_user(
+                            user_id=session.user_id, account_id=account_id_to_use
+                        )
+                    except ValueError:
+                        source_account = banking_service.get_account_by_number_for_user(
+                            user_id=session.user_id, account_number=matching_account.get('accountNumber')
+                        )
+    
     if source_account is None:
+        logger.error(f"Account not found: account_number={payload.sourceAccountId}, user_id={session.user_id}")
+        logger.error(f"User's available accounts: {[acc.get('accountNumber') for acc in all_user_accounts]}")
+        
         raise_http_error(
             ctx,
-            message="Source account not found.",
+            message=f"Source account not found. Please select a valid account from your account list.",
             code="account_not_found",
             status_code=status.HTTP_404_NOT_FOUND,
         )
@@ -440,6 +493,11 @@ def create_internal_transfer(
             )
 
         reference_id = payload.referenceId or uuid.uuid4().hex[:12].upper()
+        
+        # Log reference_id for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Transfer reference_id: {reference_id}")
 
         result = banking_service.transfer_between_accounts(
             source_account_number=source_account["accountNumber"],
@@ -452,6 +510,15 @@ def create_internal_transfer(
             session_id=session.session_id,
             reference_id=reference_id,
         )
+        
+        # Ensure reference_id is in result - always set it from the one we generated/passed
+        # This ensures consistency even if the banking service doesn't return it
+        result["reference_id"] = reference_id
+        logger.info(f"Setting reference_id in result: {reference_id}")
+        
+        # Also log what the banking service returned
+        service_ref = result.get("reference_id") or result.get("referenceId")
+        logger.info(f"Reference ID from banking service: {service_ref}, using: {reference_id}")
     except ValueError as exc:
         message = str(exc)
         error_code = "transfer_failed"
@@ -466,15 +533,114 @@ def create_internal_transfer(
             status_code=status_code_value,
         )
 
+    # Convert snake_case keys to camelCase for Pydantic model
+    # Get reference_id from result - we set it above, so it should be there
+    reference_id_value = result.get("reference_id") or result.get("referenceId")
+    
+    # Log for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Creating receipt - result keys: {list(result.keys())}")
+    logger.info(f"Reference ID from result: {reference_id_value}")
+    logger.info(f"Result reference_id value: {result.get('reference_id')}")
+    logger.info(f"Result referenceId value: {result.get('referenceId')}")
+    
+    # If reference_id is still None or empty, this is a critical error
+    if not reference_id_value:
+        logger.error(f"CRITICAL: reference_id is None/empty when creating receipt! Result: {result}")
+        # Don't create receipt with None reference_id - this should not happen
+    
     receipt = TransferReceipt(
         debitTransactionId=result["debit"]["id"],
         creditTransactionId=result["credit"]["id"],
         amount=result["debit"]["amount"],
         currency=result["debit"]["currency"],
         description=result["debit"]["description"],
+        referenceId=reference_id_value if reference_id_value else "UNKNOWN",  # Use the extracted value, fallback to UNKNOWN if missing
+        timestamp=result.get("timestamp"),
+        sourceAccountNumber=result.get("source_account_number") or result.get("sourceAccountNumber"),
+        destinationAccountNumber=result.get("destination_account_number") or result.get("destinationAccountNumber"),
+        beneficiaryName=result.get("beneficiary_name") or result.get("beneficiaryName"),
     )
+    
+    logger.info(f"Transfer receipt created: amount={receipt.amount}, source={receipt.sourceAccountNumber}, dest={receipt.destinationAccountNumber}, beneficiary={receipt.beneficiaryName}, ref={receipt.referenceId}")
     meta = build_meta(ctx)
     return TransferResponse(meta=meta, data=receipt)
+
+
+@router.post(
+    "/statements/download",
+    response_model=StatementDownloadResponse,
+    tags=["Statements"],
+    summary="Prepare account statement for download",
+)
+def download_statement_v1(
+    payload: StatementDownloadRequest,
+    ctx: RequestContext = RequestContextDep,
+    session=CurrentSessionDep,
+    banking_service: BankingService = BankingServiceDep,
+):
+    from datetime import datetime
+
+    try:
+        from_date = datetime.strptime(payload.fromDate, "%Y-%m-%d")
+        to_date = datetime.strptime(payload.toDate, "%Y-%m-%d")
+    except ValueError:
+        raise_http_error(
+            ctx,
+            message="Invalid date format. Use YYYY-MM-DD.",
+            code="invalid_date_format",
+        )
+
+    if from_date > to_date:
+        raise_http_error(
+            ctx,
+            message="Start date must be before end date.",
+            code="invalid_date_range",
+        )
+
+    try:
+        statement = banking_service.generate_account_statement(
+            user_id=session.user_id,
+            account_number=payload.accountNumber,
+            from_date=from_date,
+            to_date=to_date,
+            period_type=payload.periodType or "custom",
+        )
+    except ValueError as exc:
+        raise_http_error(
+            ctx,
+            message=str(exc),
+            code="statement_error",
+        )
+
+    transactions = [
+        StatementTransaction(
+            date=txn["date"],
+            type=txn["type"],
+            amount=Decimal(str(txn["amount"])),
+            currency=txn["currency"],
+            description=txn.get("description"),
+            status=txn.get("status"),
+            counterparty=txn.get("counterparty"),
+            reference_id=txn.get("reference_id"),
+        )
+        for txn in statement["transactions"]
+    ]
+
+    data = StatementData(
+        accountNumber=statement["account_number"],
+        accountType=statement["account_type"],
+        fromDate=statement["from_date"],
+        toDate=statement["to_date"],
+        periodType=statement["period_type"],
+        transactionCount=statement["transaction_count"],
+        transactions=transactions,
+        currentBalance=Decimal(str(statement["current_balance"])),
+        currency=statement["currency"],
+    )
+    meta = build_meta(ctx)
+    return StatementDownloadResponse(meta=meta, data=data)
 
 
 @router.get(

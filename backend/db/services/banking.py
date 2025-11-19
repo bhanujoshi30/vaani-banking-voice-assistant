@@ -14,6 +14,7 @@ from ..repositories import (
     fetch_due_reminders,
     get_account_balance,
     get_account_by_id,
+    get_account_by_number,
     get_transaction_history,
     list_accounts_for_user,
     list_reminders_for_user,
@@ -142,6 +143,47 @@ class BankingService:
                 return None
             return _serialize_account(account)
 
+    def get_account_by_number_for_user(self, *, user_id, account_number: str) -> Optional[dict]:
+        """Get account by account number for a specific user"""
+        with session_scope(self._session_factory) as session:
+            # First try direct lookup
+            account = get_account_by_number(session, account_number)
+            if account is None:
+                # Fallback: list all user accounts and find matching account number
+                user_accounts = list_accounts_for_user(session, user_id)
+                account = next(
+                    (acc for acc in user_accounts if acc.account_number == account_number),
+                    None
+                )
+                if account is None:
+                    return None
+            
+            # Verify user ownership - convert both to strings for comparison
+            import uuid as uuid_lib
+            try:
+                if isinstance(account.user_id, uuid_lib.UUID):
+                    account_user_id = str(account.user_id)
+                else:
+                    account_user_id = str(account.user_id) if account.user_id else None
+                
+                if isinstance(user_id, uuid_lib.UUID):
+                    user_id_str = str(user_id)
+                else:
+                    user_id_str = str(user_id) if user_id else None
+                
+                if account_user_id != user_id_str:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Account {account_number} belongs to different user: account_user_id={account_user_id}, requested_user_id={user_id_str}")
+                    return None
+            except Exception as e:
+                # If comparison fails, log and return None
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error comparing user_id: {e}, account_user_id={account.user_id}, user_id={user_id}")
+                return None
+            return _serialize_account(account)
+
     def lookup_account_balance(self, *, account_id) -> dict:
         with session_scope(self._session_factory) as session:
             account = get_account_by_id(session, account_id)
@@ -192,10 +234,42 @@ class BankingService:
                     mark_beneficiary_used(session, beneficiary=beneficiary)
 
             session.flush()
+            
+            # Refresh the transactions to ensure all fields are loaded
+            session.refresh(result.debit_transaction)
+            session.refresh(result.credit_transaction)
 
             debit_txn = result.debit_transaction
             credit_txn = result.credit_transaction
+            
+            # Get source and destination account details
+            source_account = get_account_by_number(session, source_account_number)
+            destination_account = get_account_by_number(session, destination_account_number)
+            
+            beneficiary_name = None
+            if user_id:
+                beneficiary = get_beneficiary_by_account_number(
+                    session,
+                    user_id=user_id,
+                    account_number=destination_account_number,
+                )
+                if beneficiary:
+                    beneficiary_name = getattr(beneficiary, "display_name", None)
 
+            # Ensure reference_id is available
+            # Priority: 1) passed reference_id parameter, 2) transaction's reference_id
+            # The passed reference_id is the source of truth since we just created the transaction with it
+            reference_id_value = reference_id if reference_id else (debit_txn.reference_id if debit_txn.reference_id else None)
+            
+            # Log for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Transfer result - passed reference_id: {reference_id}, debit_txn.reference_id: {debit_txn.reference_id}, final reference_id_value: {reference_id_value}")
+            
+            # If still None, this is an error condition
+            if not reference_id_value:
+                logger.error(f"WARNING: reference_id is None! Transaction ID: {debit_txn.id}")
+            
             return {
                 "debit": {
                     "id": str(debit_txn.id),
@@ -209,6 +283,11 @@ class BankingService:
                     "currency": credit_txn.currency_code,
                     "description": credit_txn.description,
                 },
+                "reference_id": reference_id_value,
+                "timestamp": debit_txn.occurred_at.isoformat() if debit_txn.occurred_at else datetime.now().isoformat(),
+                "source_account_number": source_account.account_number if source_account else None,
+                "destination_account_number": destination_account.account_number if destination_account else None,
+                "beneficiary_name": beneficiary_name or (destination_account.user.first_name + " " + destination_account.user.last_name if destination_account else None),
             }
 
     def fetch_transaction_history(
@@ -246,6 +325,59 @@ class BankingService:
                 }
                 for txn in transactions
             ]
+
+    def generate_account_statement(
+        self,
+        *,
+        user_id,
+        account_number: str,
+        from_date: datetime,
+        to_date: datetime,
+        period_type: str = "custom",
+    ) -> dict:
+        if (to_date - from_date).days > 365:
+            raise ValueError("statement_period_too_long")
+
+        with session_scope(self._session_factory) as session:
+            account = get_account_by_number(session, account_number)
+            if account is None or str(account.user_id) != str(user_id):
+                raise ValueError("account_not_found")
+
+            transactions = get_transaction_history(
+                session,
+                account_id=account.id,
+                start_date=from_date,
+                end_date=to_date,
+                limit=500,
+            )
+
+            transactions_list = [
+                {
+                    "date": txn.occurred_at.strftime("%Y-%m-%d %H:%M"),
+                    "type": txn.transaction_type.value,
+                    "amount": float(txn.amount),
+                    "currency": txn.currency_code,
+                    "description": txn.description or "",
+                    "status": txn.status.value,
+                    "counterparty": txn.counterparty_name or "",
+                    "reference_id": txn.reference_id or "",
+                }
+                for txn in transactions
+            ]
+
+            return {
+                "account_number": account.account_number,
+                "account_type": account.account_type.value
+                if hasattr(account.account_type, "value")
+                else str(account.account_type),
+                "from_date": from_date.strftime("%Y-%m-%d"),
+                "to_date": to_date.strftime("%Y-%m-%d"),
+                "period_type": period_type,
+                "transaction_count": len(transactions_list),
+                "transactions": transactions_list,
+                "current_balance": float(account.balance),
+                "currency": account.currency_code,
+            }
 
     def schedule_reminder(
         self,

@@ -1,0 +1,126 @@
+.statement-request {
+  border: 1px solid #f0f0f0;
+  border-radius: 16px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  margin-top: 12px;
+}
+
+.statement-request__header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.statement-request__header p {
+  margin: 4px 0 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.statement-request__control {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statement-request__control label {
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statement-request__control select,
+.statement-request__control input[type='date'] {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.statement-request__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.statement-request__preset-btn {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.statement-request__preset-btn--active {
+  background: linear-gradient(135deg, #ff944d, #ff5e62);
+  color: #fff;
+  border-color: transparent;
+}
+
+.statement-request__dates {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statement-request__dates label {
+  flex: 1;
+}
+
+.statement-request__hint {
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.statement-request__error {
+  margin-top: 12px;
+  color: #b91c1c;
+  background: #fee2e2;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.statement-request__success {
+  margin-top: 12px;
+  color: #166534;
+  background: #dcfce7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.statement-request__actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.statement-request__submit {
+  background: linear-gradient(135deg, #ff944d, #ff5e62);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.statement-request__submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .statement-request__dates {
+    flex-direction: column;
+  }
+}
+

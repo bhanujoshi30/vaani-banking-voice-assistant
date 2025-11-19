@@ -179,6 +179,32 @@ export async function createInternalTransfer({ accessToken, payload }) {
   return json?.data ?? null;
 }
 
+export async function requestStatementDownload({ accessToken, payload }) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/statements/download`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Unable to reach statements service. Please try again.");
+  }
+
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to prepare statement.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+
+  return json?.data ?? null;
+}
+
 export async function fetchReminders({ accessToken }) {
   let response;
   try {

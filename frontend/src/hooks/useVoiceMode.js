@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 /**
  * Hook for orchestrating voice mode behavior
@@ -21,17 +21,61 @@ export const useVoiceMode = ({
 }) => {
   const lastMessageRef = useRef(null);
 
+  // Track if user manually stopped (to prevent auto-restart) - ONLY for voice mode
+  const manualStopRef = useRef(false);
+  const lastListeningStateRef = useRef(isListening);
+  
   // Voice Mode: Auto-start listening when enabled and not speaking
+  // IMPORTANT: This effect ONLY runs when voice mode is enabled
+  // Normal mode is completely isolated and independent
   useEffect(() => {
-    if (isVoiceModeEnabled && !isLanguageComingSoon && !isSpeaking && !isTyping) {
-      if (!isListening) {
+    // Early return if voice mode is not enabled - don't interfere with normal mode
+    if (!isVoiceModeEnabled) {
+      // Reset manual stop flag when voice mode is disabled
+      manualStopRef.current = false;
+      return;
+    }
+    
+    // Detect if listening was manually stopped (transition from true to false)
+    const wasListening = lastListeningStateRef.current;
+    const isNowListening = isListening;
+    
+    // If we transitioned from listening to not listening, and it wasn't due to speaking/typing,
+    // it might be a manual stop
+    if (wasListening && !isNowListening && !isSpeaking && !isTyping) {
+      // Check if this looks like a manual stop (user clicked mic button)
+      // We'll use a short delay to detect this
+      const checkManualStop = setTimeout(() => {
+        if (!isListening && isVoiceModeEnabled && !isSpeaking && !isTyping) {
+          // Still not listening after a moment - likely manual stop
+          console.log('🛑 Voice mode: Detected manual stop - preventing auto-restart');
+          manualStopRef.current = true;
+        }
+      }, 200);
+      
+      return () => clearTimeout(checkManualStop);
+    }
+    
+    // Reset manual stop flag when we successfully start listening
+    if (!wasListening && isNowListening) {
+      manualStopRef.current = false;
+    }
+    
+    lastListeningStateRef.current = isListening;
+    
+    // Auto-start logic - ONLY when voice mode is enabled
+    if (!isLanguageComingSoon && !isSpeaking && !isTyping) {
+      if (!isListening && !manualStopRef.current) {
         console.log('🎤 Voice mode: Auto-starting microphone');
         startListening();
+      } else if (!isListening && manualStopRef.current) {
+        console.log('⏸️ Voice mode: Skipping auto-start (manual stop detected)');
       }
-    } else if (isVoiceModeEnabled && isSpeaking && isListening) {
+    } else if (isSpeaking && isListening) {
       // Stop listening while speaking to prevent feedback
       console.log('🛑 Voice mode: Stopping microphone during speech');
       stopListening();
+      manualStopRef.current = false; // Don't treat this as manual stop
     }
   }, [
     isVoiceModeEnabled,

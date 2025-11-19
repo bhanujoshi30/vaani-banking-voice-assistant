@@ -145,6 +145,10 @@
   border: none;
 }
 
+.chat-message__structured {
+  margin-top: 1rem;
+}
+
 .chat-message__statement {
   margin-top: 0.75rem;
 }

@@ -197,11 +197,54 @@ class TransferReceipt(BaseModel):
     amount: Decimal
     currency: str
     description: Optional[str] = None
+    referenceId: Optional[str] = None
+    timestamp: Optional[str] = None
+    sourceAccountNumber: Optional[str] = None
+    destinationAccountNumber: Optional[str] = None
+    beneficiaryName: Optional[str] = None
 
 
 class TransferResponse(BaseModel):
     meta: ResponseMeta
     data: TransferReceipt
+
+
+# --- Statements ----------------------------------------------------------------
+
+
+class StatementTransaction(BaseModel):
+    date: str
+    type: str
+    amount: Decimal
+    currency: str
+    description: Optional[str] = None
+    status: Optional[str] = None
+    counterparty: Optional[str] = None
+    reference_id: Optional[str] = None
+
+
+class StatementData(BaseModel):
+    accountNumber: str
+    accountType: str
+    fromDate: str
+    toDate: str
+    periodType: str
+    transactionCount: int
+    transactions: List[StatementTransaction]
+    currentBalance: Decimal
+    currency: str
+
+
+class StatementDownloadRequest(BaseModel):
+    accountNumber: str = Field(min_length=6, max_length=20)
+    fromDate: str = Field(description="Start date in YYYY-MM-DD format")
+    toDate: str = Field(description="End date in YYYY-MM-DD format")
+    periodType: Optional[str] = Field(default="custom")
+
+
+class StatementDownloadResponse(BaseModel):
+    meta: ResponseMeta
+    data: StatementData
 
 
 # --- Reminders ------------------------------------------------------------------
