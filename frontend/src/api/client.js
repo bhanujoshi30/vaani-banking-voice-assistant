@@ -451,6 +451,41 @@ export async function revokeDeviceBinding({ accessToken, bindingId }) {
   return json?.data ?? null;
 }
 
+const AI_API_BASE_URL = import.meta.env.VITE_AI_API_BASE_URL ?? "http://localhost:8001";
+
+export async function processQRCode({ imageBase64, language = "en-IN" }) {
+  let response;
+  try {
+    response = await fetch(`${AI_API_BASE_URL}/api/qr-code/process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_base64: imageBase64,
+        language,
+      }),
+    });
+  } catch {
+    throw new Error("Unable to reach QR code processing service. Please try again.");
+  }
+
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
+  if (!response.ok) {
+    const { message, code } = extractErrorInfo(json, "Unable to process QR code.");
+    const error = new Error(message);
+    if (code) error.code = code;
+    throw error;
+  }
+  return json ?? null;
+}
+
 export default {
   authenticateUser,
   fetchAccounts,
@@ -463,6 +498,7 @@ export default {
   listDeviceBindings,
   registerDeviceBinding,
   revokeDeviceBinding,
+  processQRCode,
 };
 
 

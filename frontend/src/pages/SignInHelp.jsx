@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
-import LanguageToggle from "../components/LanguageToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import { usePageLanguage } from "../hooks/usePageLanguage.js";
 
 const SignInHelp = ({ onBack }) => {
@@ -15,7 +15,7 @@ const SignInHelp = ({ onBack }) => {
       <div className="app-gradient">
         <SunHeader 
           subtitle="Voice-first banking, made human."
-          actionSlot={<LanguageToggle />}
+          actionSlot={<LanguageDropdown />}
         />
         <main className="card-surface">
           <div className="card-hero">

@@ -353,6 +353,24 @@ class DeviceBindingListResponse(BaseModel):
     data: List[DeviceBindingResource]
 
 
+# --- UPI PIN Verification -------------------------------------------------
+
+
+class UPIPinVerifyRequest(BaseModel):
+    pin: constr(min_length=6, max_length=6) = Field(
+        description="6-digit UPI PIN"
+    )
+    paymentDetails: Optional[dict] = Field(
+        default=None,
+        description="Payment details for verification context"
+    )
+
+
+class UPIPinVerifyResponse(BaseModel):
+    meta: ResponseMeta
+    data: dict  # Contains success status and transaction details if successful
+
+
 __all__ = [
     "ResponseMeta",
     "ErrorDetail",
@@ -378,4 +396,10 @@ __all__ = [
     "DeviceBindingResponse",
     "DeviceBindingListResponse",
     "DeviceBindingResource",
+    "BeneficiaryCreateRequest",
+    "BeneficiaryListResponse",
+    "BeneficiaryResource",
+    "BeneficiaryResponse",
+    "UPIPinVerifyRequest",
+    "UPIPinVerifyResponse",
 ]

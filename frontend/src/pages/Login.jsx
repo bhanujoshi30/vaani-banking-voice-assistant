@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { Link, Navigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import { getLoginStrings, getVoicePhrase } from "../config/loginStrings.js";
 import { getPreferredLanguage, setPreferredLanguage } from "../utils/preferences.js";
 
@@ -114,10 +115,11 @@ const Login = ({ onAuthenticate, authenticated }) => {
   const isFirstVoiceLogin = authMode === "voice" && userId.trim() && !isVoiceEnrolled;
   
   // Toggle language between Hindi and English
-  const toggleLanguage = () => {
-    const newLanguage = loginLanguage === "en-IN" ? "hi-IN" : "en-IN";
+  const handleLanguageChange = (newLanguage) => {
     setLoginLanguage(newLanguage);
     setPreferredLanguage(newLanguage);
+    // Dispatch event to notify other components
+    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLanguage } }));
   };
 
   useEffect(
@@ -413,23 +415,10 @@ const Login = ({ onAuthenticate, authenticated }) => {
             <div className="card-hero">
               <div className="card-hero__header">
                 <h1>{strings.general.welcomeTitle}</h1>
-                <div className="login-language-toggle">
-                  <button
-                    type="button"
-                    className="language-toggle-btn"
-                    onClick={toggleLanguage}
-                    disabled={credentialInputsDisabled || recordingState === "recording"}
-                    aria-label={strings.languageToggle.ariaLabel}
-                  >
-                    <span className="language-toggle-btn__flag">
-                      {loginLanguage === "en-IN" ? "🇮🇳" : "🇮🇳"}
-                    </span>
-                    <span className="language-toggle-btn__text">
-                      {strings.languageToggle.targetLanguage}
-                    </span>
-                    <span className="language-toggle-btn__arrow">⇄</span>
-                  </button>
-                </div>
+                <LanguageDropdown
+                  disabled={credentialInputsDisabled || recordingState === "recording"}
+                  onSelect={handleLanguageChange}
+                />
               </div>
               <p>{strings.general.welcomeSubtitle}</p>
             </div>

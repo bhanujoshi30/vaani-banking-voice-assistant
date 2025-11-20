@@ -6,12 +6,13 @@ import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import base64
 
 # Add backend to path for database access
 backend_path = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from fastapi.exceptions import RequestValidationError
@@ -43,6 +44,7 @@ class ChatRequest(BaseModel):
     user_context: Optional[Dict[str, Any]] = Field(default=None, description="User context")
     message_history: Optional[List[ChatMessage]] = Field(default=None, description="Conversation history")
     voice_mode: bool = Field(default=False, description="Whether in voice mode (use fast model)")
+    upi_mode: Optional[bool] = Field(default=None, description="Whether UPI mode is active (from frontend state)")
 
 
 class ChatResponse(BaseModel):
@@ -69,6 +71,22 @@ class VoiceVerificationRequest(BaseModel):
     threshold: float = Field(..., description="Base threshold value")
     user_context: Dict[str, Any] = Field(default_factory=dict, description="User context for analysis")
     analysis_prompt: Optional[str] = Field(default=None, description="Optional custom analysis prompt")
+
+
+class QRCodeProcessRequest(BaseModel):
+    """Request for QR code processing"""
+    image_base64: str = Field(..., description="Base64 encoded image of QR code")
+    language: str = Field(default="en-IN", description="Language code")
+
+
+class QRCodeProcessResponse(BaseModel):
+    """Response from QR code processing"""
+    success: bool
+    upi_address: Optional[str] = None
+    amount: Optional[float] = None
+    merchant_name: Optional[str] = None
+    message: str
+    error: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -168,7 +186,8 @@ async def chat(request: ChatRequest):
             user_id=request.user_id,
             session_id=request.session_id,
             language=request.language,
-            voice_mode=request.voice_mode
+            voice_mode=request.voice_mode,
+            upi_mode=request.upi_mode  # Log UPI mode from request
         )
         
         # Convert message history
@@ -186,7 +205,8 @@ async def chat(request: ChatRequest):
             session_id=request.session_id,
             language=request.language,
             user_context=request.user_context,
-            message_history=history
+            message_history=history,
+            upi_mode=request.upi_mode  # Pass UPI mode from frontend
         )
         
         return ChatResponse(**result)
@@ -194,6 +214,152 @@ async def chat(request: ChatRequest):
     except Exception as e:
         logger.error("chat_endpoint_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/qr-code/process", response_model=QRCodeProcessResponse)
+async def process_qr_code(request: QRCodeProcessRequest):
+    """
+    Process QR code image to extract UPI payment details
+    
+    Uses AI service to extract UPI address and payment details from QR code image
+    """
+    try:
+        import io
+        from PIL import Image
+        
+        # Decode base64 image
+        try:
+            image_data = base64.b64decode(request.image_base64.split(',')[-1])
+            image = Image.open(io.BytesIO(image_data))
+        except Exception as e:
+            logger.error("qr_decode_error", error=str(e))
+            return QRCodeProcessResponse(
+                success=False,
+                message="Failed to decode image" if request.language != "hi-IN" else "छवि डिकोड करने में विफल",
+                error=str(e)
+            )
+        
+        # Try to decode QR code using pyzbar or jsQR (via frontend)
+        try:
+            # Try pyzbar first (backend library)
+            try:
+                from pyzbar.pyzbar import decode
+                decoded_objects = decode(image)
+            except ImportError:
+                # pyzbar not available, try using jsQR via frontend or AI service
+                decoded_objects = []
+            
+            if not decoded_objects:
+                # If pyzbar fails, try using AI service to extract UPI details
+                llm = get_llm_service()
+                
+                # Convert image to base64 for AI processing
+                buffered = io.BytesIO()
+                image.save(buffered, format="PNG")
+                img_base64 = base64.b64encode(buffered.getvalue()).decode()
+                
+                # Use AI to extract UPI details from QR code
+                prompt = f"""Analyze this QR code image and extract UPI payment details.
+
+The image is provided as base64. Extract:
+- UPI address (format: username@payee)
+- Amount (if present)
+- Merchant name (if present)
+
+Return JSON with:
+{{
+  "upi_address": "upi_address_or_null",
+  "amount": amount_or_null,
+  "merchant_name": "merchant_name_or_null"
+}}
+
+Return ONLY valid JSON, nothing else."""
+
+                # For now, return a message asking user to provide details
+                # In production, you would use vision-capable models
+                return QRCodeProcessResponse(
+                    success=False,
+                    message="QR code scanning requires vision model. Please enter UPI details manually." if request.language != "hi-IN" else "QR कोड स्कैनिंग के लिए विज़न मॉडल की आवश्यकता है। कृपया UPI विवरण मैन्युअल रूप से दर्ज करें।",
+                    error="Vision model not configured"
+                )
+            
+            # Extract data from QR code
+            qr_data = decoded_objects[0].data.decode('utf-8')
+            
+            # Parse UPI QR code format
+            # UPI QR codes typically contain: upi://pay?pa=<upi_id>&pn=<name>&am=<amount>&cu=INR
+            upi_address = None
+            amount = None
+            merchant_name = None
+            
+            if 'upi://' in qr_data or 'UPI://' in qr_data:
+                # Parse UPI QR code
+                import urllib.parse
+                parsed = urllib.parse.urlparse(qr_data)
+                params = urllib.parse.parse_qs(parsed.query)
+                
+                upi_address = params.get('pa', [None])[0]
+                merchant_name = params.get('pn', [None])[0]
+                amount_str = params.get('am', [None])[0]
+                
+                if amount_str:
+                    try:
+                        amount = float(amount_str)
+                    except:
+                        amount = None
+            
+            if not upi_address:
+                # Try to extract UPI ID from QR data directly
+                if '@' in qr_data:
+                    # Look for UPI ID pattern
+                    import re
+                    upi_match = re.search(r'([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)', qr_data)
+                    if upi_match:
+                        upi_address = upi_match.group(1)
+            
+            if upi_address:
+                return QRCodeProcessResponse(
+                    success=True,
+                    upi_address=upi_address,
+                    amount=amount,
+                    merchant_name=merchant_name,
+                    message="QR code processed successfully" if request.language != "hi-IN" else "QR कोड सफलतापूर्वक संसाधित"
+                )
+            else:
+                return QRCodeProcessResponse(
+                    success=False,
+                    message="Could not extract UPI address from QR code" if request.language != "hi-IN" else "QR कोड से UPI पता निकाला नहीं जा सका",
+                    error="No UPI address found"
+                )
+                
+        except ImportError:
+            # pyzbar not available, use AI service
+            logger.warning("pyzbar_not_available", message="Using AI service for QR code processing")
+            
+            # Use AI service to process QR code
+            llm = get_llm_service()
+            
+            # For now, return error asking to install pyzbar or use manual entry
+            return QRCodeProcessResponse(
+                success=False,
+                message="QR code library not available. Please enter UPI details manually." if request.language != "hi-IN" else "QR कोड लाइब्रेरी उपलब्ध नहीं है। कृपया UPI विवरण मैन्युअल रूप से दर्ज करें।",
+                error="QR code library not installed"
+            )
+        except Exception as e:
+            logger.error("qr_processing_error", error=str(e))
+            return QRCodeProcessResponse(
+                success=False,
+                message=f"Failed to process QR code: {str(e)}" if request.language != "hi-IN" else f"QR कोड प्रसंस्करण विफल: {str(e)}",
+                error=str(e)
+            )
+            
+    except Exception as e:
+        logger.error("qr_endpoint_error", error=str(e))
+        return QRCodeProcessResponse(
+            success=False,
+            message=f"Error processing QR code: {str(e)}" if request.language != "hi-IN" else f"QR कोड प्रसंस्करण में त्रुटि: {str(e)}",
+            error=str(e)
+        )
 
 
 @app.post("/api/chat/stream")
@@ -298,136 +464,38 @@ async def text_to_speech(request: TTSRequest):
 @app.post("/api/voice-verification")
 async def voice_verification(request: VoiceVerificationRequest):
     """
-    AI-enhanced voice verification analysis
+    AI-enhanced voice verification endpoint
     
-    Uses LLM to analyze voice authentication attempts and provide
-    confidence scores, risk assessment, and recommendations.
+    Uses LLM to analyze voice verification context and provide enhanced decision
     """
     try:
-        llm = get_llm_service()
+        from services.ai_voice_verification import AIVoiceVerificationService
         
-        # Build analysis prompt
-        if request.analysis_prompt:
-            prompt = request.analysis_prompt
-        else:
-            prompt = f"""Analyze this voice authentication attempt:
-
-Similarity Score: {request.similarity_score:.4f}
-Threshold: {request.threshold:.4f}
-Status: {'ABOVE' if request.similarity_score >= request.threshold else 'BELOW'} threshold
-
-User Context: {request.user_context}
-
-Provide analysis in JSON format:
-{{
-    "confidence": 0.0-1.0,
-    "risk_level": "LOW|MEDIUM|HIGH",
-    "recommendation": "ACCEPT|REJECT|REVIEW",
-    "reasoning": "brief explanation"
-}}"""
-
-        # Get AI analysis
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a voice authentication security analyst. Analyze voice similarity scores and provide security recommendations. Always respond with valid JSON only."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-        
-        response_text = await llm.chat(
-            messages,
-            use_fast_model=True,  # Use fast model for quick response
-            temperature=0.3,  # Lower temperature for more deterministic analysis
-            max_tokens=200
+        service = AIVoiceVerificationService()
+        result = await service.analyze_verification(
+            similarity_score=request.similarity_score,
+            threshold=request.threshold,
+            user_context=request.user_context,
+            analysis_prompt=request.analysis_prompt
         )
         
-        # Parse JSON response
-        import json
-        import re
-        
-        # Extract JSON from response (handle cases where LLM adds extra text)
-        json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
-        if json_match:
-            analysis = json.loads(json_match.group())
-        else:
-            # Fallback: create basic analysis
-            analysis = {
-                "confidence": request.similarity_score,
-                "risk_level": "MEDIUM" if request.similarity_score >= request.threshold else "HIGH",
-                "recommendation": "ACCEPT" if request.similarity_score >= request.threshold else "REVIEW",
-                "reasoning": "Unable to parse AI response, using similarity score"
-            }
-        
-        # Ensure all required fields
-        analysis.setdefault("confidence", request.similarity_score)
-        analysis.setdefault("risk_level", "MEDIUM")
-        analysis.setdefault("recommendation", "REVIEW")
-        analysis.setdefault("reasoning", "AI analysis completed")
-        
-        return analysis
-        
-    except Exception as e:
-        # Return fallback analysis on error
         return {
-            "confidence": request.similarity_score,
-            "risk_level": "MEDIUM",
-            "recommendation": "REVIEW",
-            "reasoning": f"AI analysis unavailable: {str(e)}"
+            "success": result.accept,
+            "confidence": result.confidence,
+            "reasoning": result.reasoning,
+            "fallback_to_basic": result.fallback_to_basic
         }
-
-
-@app.get("/api/models")
-async def list_models():
-    """List available Ollama models"""
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{settings.ollama_base_url}/api/tags")
-            return response.json()
+        
     except Exception as e:
-        logger.error("list_models_error", error=str(e))
+        logger.error("voice_verification_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Run on application startup"""
-    logger.info(
-        "application_startup",
-        app_name=settings.app_name,
-        version=settings.app_version,
-        environment=settings.environment
-    )
-    
-    # Check LLM connection
-    llm = get_llm_service()
-    provider_name = llm.get_provider_name()
-    if await llm.health_check():
-        logger.info("llm_connected", provider=provider_name, config=f"LLM_PROVIDER={settings.llm_provider}")
-    else:
-        logger.warning("llm_not_available", provider=provider_name)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Run on application shutdown"""
-    logger.info("application_shutdown")
-    
-    # Close connections
-    llm = get_llm_service()
-    await llm.close()
-
-
 if __name__ == "__main__":
-    # Run the application
     uvicorn.run(
         "main:app",
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.api_reload,
-        log_level=settings.log_level.lower()
+        log_level="info"
     )

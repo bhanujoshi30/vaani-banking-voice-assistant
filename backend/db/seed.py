@@ -109,6 +109,32 @@ def _generate_account_number(branch_code: str, sequence: int) -> str:
     return f"91{branch_code[-3:]}{sequence:03d}{core_digits}"
 
 
+def _generate_upi_id(phone_number: str, first_name: str, last_name: str, existing_upi_ids: set) -> str:
+    """Generate a unique UPI ID for a user."""
+    # Clean phone number (remove spaces, dashes, etc.)
+    clean_phone = ''.join(filter(str.isdigit, phone_number))
+    if len(clean_phone) >= 10:
+        clean_phone = clean_phone[-10:]  # Take last 10 digits
+    
+    # Try phone number format first
+    phone_upi = f"{clean_phone}@sunbank"
+    if phone_upi not in existing_upi_ids:
+        return phone_upi
+    
+    # Fallback to name-based format
+    name_upi = f"{first_name.lower()}.{last_name.lower()}@sunbank"
+    if name_upi not in existing_upi_ids:
+        return name_upi
+    
+    # If both exist, add a number
+    counter = 1
+    while True:
+        name_upi = f"{first_name.lower()}.{last_name.lower()}{counter}@sunbank"
+        if name_upi not in existing_upi_ids:
+            return name_upi
+        counter += 1
+
+
 def _create_accounts_for_user(
     session,
     *,
@@ -318,11 +344,23 @@ def seed_database(user_count: int = 100):
     with session_scope(session_factory) as session:
         existing_users = session.execute(select(func.count()).select_from(User)).scalar()
         if existing_users and existing_users >= user_count:
-            print("Seed data already present, skipping.")
+            print("Seed data already present, updating UPI PINs for existing users...")
+            # Update existing users with UPI PIN if not set
+            from sqlalchemy import update
+            upi_pin_hash = hash_password("123456")
+            stmt = (
+                update(User)
+                .where(User.upi_pin_hash.is_(None))
+                .values(upi_pin_hash=upi_pin_hash)
+            )
+            result = session.execute(stmt)
+            session.commit()
+            print(f"Updated {result.rowcount} existing users with UPI PIN 123456")
             return
 
         branches = _ensure_branches(session)
         account_registry: list[Account] = []
+        existing_upi_ids: set = set()
 
         for idx in range(user_count):
             branch = branches[BRANCH_DEFINITIONS[idx % len(BRANCH_DEFINITIONS)]["code"]]
@@ -332,6 +370,11 @@ def seed_database(user_count: int = 100):
 
             customer_number = _generate_customer_number(idx)
             password_plain = f"Sun@{customer_number[-4:]}"
+            phone_number = fake.phone_number()
+            
+            # Generate unique UPI ID
+            upi_id = _generate_upi_id(phone_number, first_name, last_name, existing_upi_ids)
+            existing_upi_ids.add(upi_id)
 
             user = User(
                 customer_number=customer_number,
@@ -341,7 +384,9 @@ def seed_database(user_count: int = 100):
                 date_of_birth=date_of_birth,
                 gender=random.choice(["male", "female", "other"]),
                 email=f"{first_name.lower()}.{last_name.lower()}@example.com",
-                phone_number=fake.phone_number(),
+                phone_number=phone_number,
+                upi_id=upi_id,
+                upi_pin_hash=hash_password("123456"),  # Set UPI PIN to 123456 for all users
                 aadhaar_last4=f"{random.randint(1000, 9999)}",
                 pan_number=fake.bothify(text="?????####", letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
                 kyc_status=random.choice(["verified", "pending_review", "reverify"]),

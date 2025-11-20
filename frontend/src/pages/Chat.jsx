@@ -8,6 +8,9 @@ import TypingIndicator from "../components/Chat/TypingIndicator.jsx";
 import ChatInput from "../components/Chat/ChatInput.jsx";
 import ChatSidebar from "../components/Chat/ChatSidebar.jsx";
 import VoiceModeToggle from "../components/Chat/VoiceModeToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
+import UPIPinModal from "../components/UPIPinModal.jsx";
+import UPIConsentModal from "../components/UPIConsentModal.jsx";
 import useSpeechRecognition from "../hooks/useSpeechRecognition.js";
 import useTextToSpeech from "../hooks/useTextToSpeech.js";
 import { useChatMessages } from "../hooks/useChatMessages.js";
@@ -15,18 +18,36 @@ import { useVoiceMode } from "../hooks/useVoiceMode.js";
 import { useChatHandler } from "../hooks/useChatHandler.js";
 import { DEFAULT_LANGUAGE, getLanguageByCode } from "../config/voiceConfig.js";
 import { getChatCopy } from "../config/chatCopy.js";
-import { getPreferredLanguage, PREFERRED_LANGUAGE_KEY } from "../utils/preferences.js";
+import { getUPIStrings } from "../config/upiStrings.js";
+import { getPreferredLanguage, setPreferredLanguage, PREFERRED_LANGUAGE_KEY } from "../utils/preferences.js";
 import "./Chat.css";
 import "../components/Chat/VoiceModeToggle.css";
+import "../App.css";
 
 const Chat = ({ session, onSignOut }) => {
   const navigate = useNavigate();
   const [inputText, setInputText] = useState("");
   const [language, setLanguage] = useState(() => getPreferredLanguage());
   const [isVoiceModeEnabled, setIsVoiceModeEnabled] = useState(false);
+  const [upiMode, setUpiMode] = useState(false);
+  const [showUPIPinModal, setShowUPIPinModal] = useState(false);
+  // Track if modal was opened via button click (not via pending message)
+  const [upiConsentModalOpenedByButton, setUpiConsentModalOpenedByButton] = useState(false);
+  const [showUPIConsentModal, setShowUPIConsentModal] = useState(false);
+  const [upiPaymentDetails, setUpiPaymentDetails] = useState(null);
+  // Initialize UPI consent - always start as false to ensure consent modal shows on first activation
+  // We'll track consent in sessionStorage to persist within the session
+  const [upiConsentGiven, setUpiConsentGiven] = useState(() => {
+    // Always start as false - consent must be explicitly given in this session
+    // Don't check localStorage or sessionStorage on initialization to ensure modal shows first time
+    console.log('📋 UPI consent initialized as false - will show consent modal on first activation');
+    return false;
+  });
+  const [pendingUPIMessage, setPendingUPIMessage] = useState(null); // Store pending message waiting for consent
   const inputRef = useRef(null);
 
   const chatCopy = useMemo(() => getChatCopy(language), [language]);
+  const upiStrings = useMemo(() => getUPIStrings(language), [language]);
 
   // Get current language info
   const currentLanguage = getLanguageByCode(language);
@@ -35,6 +56,7 @@ const Chat = ({ session, onSignOut }) => {
   // Chat messages management
   const {
     messages,
+    setMessages,
     messagesEndRef,
     addUserMessage,
     addAssistantMessage,
@@ -76,6 +98,13 @@ const Chat = ({ session, onSignOut }) => {
   });
 
   // Chat message handling
+  // DEBUG: Log UPI mode state on every render
+  console.log('🔍 Chat.jsx - UPI mode state:', {
+    upiMode,
+    type: typeof upiMode,
+    timestamp: new Date().toISOString()
+  });
+  
   const {
     isTyping,
     sendMessage,
@@ -94,6 +123,9 @@ const Chat = ({ session, onSignOut }) => {
     isSpeaking,
     stopListening,
     toggleListening,
+    upiConsentGiven, // Pass consent status to handler
+    upiMode, // Pass UPI mode state to handler
+    setPendingUPIMessage, // Pass setter for pending messages
   });
 
   // Handle sending message from input
@@ -119,6 +151,9 @@ const Chat = ({ session, onSignOut }) => {
     onAutoSend: handleSendMessage,
   });
 
+  // Note: UPI mode activation is now handled by backend response via structured_data
+  // We don't activate UPI mode from transcript detection to avoid premature activation
+
   // Update input text when speech transcript changes
   useEffect(() => {
     if (fullTranscript && !isSpeaking) {
@@ -126,6 +161,150 @@ const Chat = ({ session, onSignOut }) => {
       setInputText(fullTranscript);
     }
   }, [fullTranscript, isSpeaking]);
+
+  // Handle UPI mode activation and payment structured data
+  // This now only handles messages that are already in chat (after consent)
+  useEffect(() => {
+    // Check the last assistant message for structured data
+    const lastAssistantMessage = [...messages].reverse().find(msg => msg.role === 'assistant');
+    if (!lastAssistantMessage) return;
+    
+    // Handle UPI mode activation (wake-up phrase)
+    if (lastAssistantMessage?.structuredData?.type === 'upi_mode_activation') {
+      console.log('🔍 UPI mode activation detected in messages:', { 
+        upiConsentGiven, 
+        upiMode, 
+        hasPendingMessage: !!pendingUPIMessage 
+      });
+      
+      // If consent already given, activate UPI mode
+      if (upiConsentGiven && !upiMode) {
+        console.log('✅ Consent already given, activating UPI mode');
+        setUpiMode(true);
+      } else if (!upiConsentGiven && !pendingUPIMessage) {
+        // If consent not given and no pending message, this shouldn't happen
+        // but if it does, ensure the message is in pendingUPIMessage
+        console.warn('⚠️ UPI mode activation detected but no pending message and no consent - this should not happen');
+      }
+      // Note: If consent not given, the message should be in pendingUPIMessage
+      // and the consent modal should be shown by the other useEffect
+      return;
+    }
+    
+    // Handle UPI payment card - show card for entering UPI ID and amount
+    // BUT: Only if consent has been given (consent check happens in useChatHandler)
+    if (lastAssistantMessage?.structuredData?.type === 'upi_payment_card') {
+      // Only activate UPI mode if consent has been given
+      // If consent not given, the message should be pending and not reach here
+      if (!upiMode && upiConsentGiven) {
+        setUpiMode(true);
+      }
+      
+      // Card will be displayed by ChatMessage component - no PIN modal needed here
+      // PIN modal will be shown when user clicks "Proceed" in the card
+      // Make sure PIN modal is closed if it was open from previous state
+      if (showUPIPinModal) {
+        setShowUPIPinModal(false);
+        setUpiPaymentDetails(null);
+      }
+      return;
+    }
+    
+    // Handle UPI payment request - only if consent already given
+    if (lastAssistantMessage?.structuredData?.type === 'upi_payment') {
+      const paymentData = lastAssistantMessage.structuredData;
+      
+      // Set UPI mode if not already set
+      if (!upiMode) {
+        setUpiMode(true);
+      }
+      
+      // Show PIN modal if amount and recipient are available AND UPI ID is validated
+      if (paymentData.amount && paymentData.recipient_identifier && paymentData.upi_id_validated !== false) {
+        // Validate UPI ID format before showing PIN modal
+        const validateUPIId = (upiId) => {
+          if (!upiId || !upiId.trim()) return false;
+          const trimmed = upiId.trim();
+          if (trimmed.length < 5 || trimmed.length > 100) return false;
+          if (!trimmed.includes('@')) return false;
+          const parts = trimmed.split('@');
+          if (parts.length !== 2) return false;
+          const [username, payee] = parts;
+          if (username.length < 3 || username.length > 99) return false;
+          if (payee.length < 2 || payee.length > 20) return false;
+          if (!/^[a-zA-Z0-9._-]+$/.test(username)) return false;
+          if (!/^[a-zA-Z0-9]+$/.test(payee)) return false;
+          return true;
+        };
+        
+        // Only show PIN modal if UPI ID is valid (or if it's a beneficiary selector)
+        if (paymentData.recipient_identifier === "first" || 
+            paymentData.recipient_identifier === "last" ||
+            validateUPIId(paymentData.recipient_identifier)) {
+          setUpiPaymentDetails({
+            amount: paymentData.amount,
+            recipient: paymentData.recipient_identifier,
+            sourceAccount: paymentData.source_account_number,
+            remarks: paymentData.remarks,
+          });
+          setShowUPIPinModal(true);
+        } else {
+          // Invalid UPI ID - error message should already be in the assistant response
+          console.log('Invalid UPI ID - not showing PIN modal');
+        }
+      }
+    }
+    
+    // Handle UPI balance check request - only if consent already given
+    if (lastAssistantMessage?.structuredData?.type === 'upi_balance_check') {
+      const balanceData = lastAssistantMessage.structuredData;
+      
+      // Set UPI mode if not already set
+      if (!upiMode) {
+        setUpiMode(true);
+      }
+      
+      // If account selection is pending, don't show PIN modal yet
+      if (balanceData.pending_account_selection) {
+        // User needs to specify which account - message already sent
+        return;
+      }
+      
+      // Show PIN modal if account is selected
+      if (balanceData.source_account_id && balanceData.source_account_number) {
+        setUpiPaymentDetails({
+          operation: 'balance_check',
+          sourceAccount: balanceData.source_account_number,
+          sourceAccountId: balanceData.source_account_id,
+        });
+        setShowUPIPinModal(true);
+      }
+    }
+  }, [messages, upiConsentGiven, upiMode]);
+
+  // Handle pending UPI message - show consent modal when pending message exists
+  useEffect(() => {
+    console.log('🔍 Checking pending UPI message:', { 
+      hasPendingMessage: !!pendingUPIMessage, 
+      upiConsentGiven, 
+      pendingMessageType: pendingUPIMessage?.structuredData?.type,
+      showModal: showUPIConsentModal,
+      openedByButton: upiConsentModalOpenedByButton
+    });
+    
+    if (pendingUPIMessage && !upiConsentGiven) {
+      console.log('📋 Pending UPI message detected - showing consent modal', pendingUPIMessage);
+      // Mark that modal was opened by pending message (not button)
+      setUpiConsentModalOpenedByButton(false);
+      // Force show the consent modal
+      setShowUPIConsentModal(true);
+    } else if (pendingUPIMessage && upiConsentGiven) {
+      // Consent was given, clear pending message (it should have been added to chat in handleUPIConsentAccept)
+      console.log('✅ Consent given, clearing pending UPI message');
+      setPendingUPIMessage(null);
+    }
+    // Don't close modal if it's opened via button click - only handle pending messages
+  }, [pendingUPIMessage, upiConsentGiven, upiConsentModalOpenedByButton]);
 
   // Show speech errors
   useEffect(() => {
@@ -149,9 +328,20 @@ const Chat = ({ session, onSignOut }) => {
       }
     };
 
+    const handleLanguageChange = (event) => {
+      const { language: newLang } = event.detail;
+      if (newLang && newLang !== language) {
+        setLanguage(newLang);
+      }
+    };
+
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+    window.addEventListener("languageChanged", handleLanguageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("languageChanged", handleLanguageChange);
+    };
+  }, [language]);
 
   if (!session.authenticated) {
     return <Navigate to="/" replace />;
@@ -206,6 +396,249 @@ const Chat = ({ session, onSignOut }) => {
     setIsVoiceModeEnabled((prev) => !prev);
   };
 
+  // Handle UPI PIN confirmation
+  const handleUPIPinConfirm = async (pin) => {
+    console.log('handleUPIPinConfirm called with pin:', pin);
+    console.log('upiPaymentDetails:', upiPaymentDetails);
+    
+    if (!upiPaymentDetails) {
+      console.error('No payment details found');
+      return;
+    }
+    
+    try {
+      // Verify PIN with backend - use API_BASE_URL from client.js
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/api/v1/upi/verify-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({
+          pin,
+          paymentDetails: upiPaymentDetails,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('UPI PIN verification failed:', response.status, errorText);
+        throw new Error(`UPI PIN verification failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log('UPI PIN verification response:', data);
+      console.log('Payment details:', upiPaymentDetails);
+      
+      if (!response.ok || !data.data?.success) {
+        // PIN verification failed - modal stays open, error shown in modal
+        console.error('PIN verification failed:', data);
+        // Don't close modal on error - let the modal show the error
+        return;
+      }
+      
+      // Store payment details before clearing (needed for both balance check and payment)
+      const paymentDetails = { ...upiPaymentDetails };
+      
+      // Close PIN modal immediately on success
+      setShowUPIPinModal(false);
+      setUpiPaymentDetails(null); // Clear payment details
+      
+      // Handle balance check operation FIRST (before payment handling)
+      if (paymentDetails.operation === 'balance_check') {
+        console.log('Balance check operation detected, response data:', data.data);
+        
+        if (data.data?.balance) {
+          const balanceInfo = data.data.balance;
+          const balanceMessage = language === 'hi-IN'
+            ? `आपके खाते की शेष राशि: ₹${parseFloat(balanceInfo.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            : `Your account balance: ₹${parseFloat(balanceInfo.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+          
+          console.log('Adding balance message:', balanceMessage);
+          
+          // Add balance message
+          addAssistantMessage(balanceMessage, null, {
+            type: 'balance',
+            accounts: [{
+              accountNumber: balanceInfo.account_number,
+              accountType: balanceInfo.account_type,
+              balance: balanceInfo.balance,
+              currency: balanceInfo.currency || 'INR'
+            }]
+          });
+          return; // Exit early after handling balance check
+        } else {
+          console.error('Balance data not found in response:', data.data);
+          // Fallback: show error message
+          addAssistantMessage(
+            language === 'hi-IN' 
+              ? 'शेष राशि प्राप्त करने में त्रुटि हुई। कृपया पुनः प्रयास करें।'
+              : 'Error fetching balance. Please try again.',
+            null,
+            null
+          );
+          return; // Exit early after error
+        }
+      }
+      
+      // Handle payment operations (only if not balance check)
+      // Check if receipt is returned (for payments)
+      if (data.data?.receipt) {
+        // Payment successful - show receipt
+        const receipt = data.data.receipt;
+        const successMessage = language === 'hi-IN'
+          ? `₹${parseFloat(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${receipt.beneficiaryName || paymentDetails?.recipient} को सफलतापूर्वक भेज दिया गया है।`
+          : `Successfully sent ₹${parseFloat(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} to ${receipt.beneficiaryName || paymentDetails?.recipient}.`;
+        
+        // Add success message
+        addAssistantMessage(successMessage, null, null);
+        
+        // Add receipt as structured data
+        addAssistantMessage(
+          '', // Empty text - receipt component will display
+          null,
+          { type: 'transfer_receipt', receipt: receipt }
+        );
+      } else if (paymentDetails && !paymentDetails.operation) {
+        // Fallback: send message to trigger payment processing (only if not a balance check)
+        const paymentMessage = `Confirm UPI payment: ₹${paymentDetails.amount} to ${paymentDetails.recipient}${paymentDetails.remarks ? ` for ${paymentDetails.remarks}` : ''}`;
+        await sendMessage(paymentMessage);
+      }
+    } catch (error) {
+      console.error('UPI PIN verification error:', error);
+      alert(upiStrings.paymentFailed || 'Payment failed. Please try again.');
+    }
+  };
+
+  // Handle UPI consent
+  const handleUPIConsentAccept = () => {
+    console.log('✅ UPI consent accepted');
+    // User accepted consent - now activate UPI mode
+    setUpiConsentGiven(true);
+    localStorage.setItem('upi_consent_given', 'true');
+    sessionStorage.setItem('upi_consent_given_session', 'true'); // Track in session storage too
+    setShowUPIConsentModal(false);
+    setUpiConsentModalOpenedByButton(false); // Reset button flag
+    setUpiMode(true); // Activate UPI mode after consent is accepted
+    
+    // If there's a pending UPI message, add it to chat now
+    if (pendingUPIMessage) {
+      console.log('✅ Consent accepted - adding pending UPI message', pendingUPIMessage);
+      addAssistantMessage(
+        pendingUPIMessage.text || pendingUPIMessage.content,
+        pendingUPIMessage.statementData,
+        pendingUPIMessage.structuredData
+      );
+      
+      // Handle UPI mode activation
+      if (pendingUPIMessage.structuredData?.type === 'upi_mode_activation') {
+        // UPI mode is already activated above, just ensure it's set
+        console.log('✅ UPI mode activated after consent');
+      }
+      
+      // Handle balance check if present
+      if (pendingUPIMessage.structuredData?.type === 'upi_balance_check') {
+        const balanceData = pendingUPIMessage.structuredData;
+        // If account selection is pending, don't show PIN modal yet
+        if (!balanceData.pending_account_selection && balanceData.source_account_id) {
+          setUpiPaymentDetails({
+            operation: 'balance_check',
+            sourceAccount: balanceData.source_account_number,
+            sourceAccountId: balanceData.source_account_id,
+          });
+          setShowUPIPinModal(true);
+        }
+      }
+      
+      // Handle payment details if present
+      if (pendingUPIMessage.structuredData?.type === 'upi_payment') {
+        const paymentData = pendingUPIMessage.structuredData;
+        if (paymentData.amount && paymentData.recipient_identifier) {
+          setUpiPaymentDetails({
+            amount: paymentData.amount,
+            recipient: paymentData.recipient_identifier,
+            sourceAccount: paymentData.source_account_number,
+            remarks: paymentData.remarks,
+          });
+          setShowUPIPinModal(true);
+        }
+      }
+      
+      // Clear pending message
+      setPendingUPIMessage(null);
+    } else {
+      // No pending message but consent accepted - just activate UPI mode
+      console.log('✅ UPI consent accepted, no pending message');
+    }
+  };
+
+  // Handle UPI consent decline
+  const handleUPIConsentDecline = () => {
+    // User declined consent - do NOT activate UPI mode
+    setShowUPIConsentModal(false);
+    setUpiConsentModalOpenedByButton(false); // Reset button flag
+    
+    // Remove pending message and add a decline message instead
+    if (pendingUPIMessage) {
+      console.log('❌ Consent declined - removing pending message and adding decline message');
+      const declineMessage = language === 'hi-IN' 
+        ? 'आपने UPI मोड को अस्वीकार कर दिया है। UPI भुगतान सुविधा उपलब्ध नहीं होगी।'
+        : 'You have denied UPI mode. UPI payment feature will not be available.';
+      addAssistantMessage(declineMessage, null, null);
+      setPendingUPIMessage(null);
+    } else {
+      // If no pending message, just add a general denial message
+      addAssistantMessage(upiStrings.upiConsentDenied || "You have denied UPI mode. UPI payment feature will not be available.", null, null);
+    }
+    
+    // Ensure UPI mode is inactive and consent is not given
+    setUpiMode(false);
+    setUpiConsentGiven(false);
+    localStorage.removeItem('upi_consent_given');
+    sessionStorage.removeItem('upi_consent_given_session'); // Also remove from session storage
+  };
+
+  const handleLanguageChange = (newLang) => {
+    const langStrings = chatCopy.languageChange;
+
+    // Show confirmation alert in current language
+    const confirmed = window.confirm(
+      `${langStrings.title}\n\n${langStrings.message}`
+    );
+
+    if (confirmed) {
+      // Stop any ongoing speech/listening first
+      if (isListening) {
+        stopListening();
+      }
+      if (isSpeaking) {
+        stopSpeaking();
+      }
+      
+      // Set the new language preference
+      setPreferredLanguage(newLang);
+      // Update local language state
+      setLanguage(newLang);
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
+      
+      // Reset chat messages with new language greeting
+      // Get the new chat copy directly
+      const newChatCopy = getChatCopy(newLang);
+      setMessages([{
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: newChatCopy.initialGreeting,
+        timestamp: new Date(),
+      }]);
+      
+      // Reset input text
+      setInputText("");
+    }
+  };
+
   return (
     <div className="app-shell">
       <div className="app-content app-content--fullwidth">
@@ -219,6 +652,82 @@ const Chat = ({ session, onSignOut }) => {
                   onToggle={handleVoiceModeToggle}
                   disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
                 />
+                {/* UPI Mode Indicator - Always show, inactive (yellow) by default, active (green) when UPI mode is on */}
+                <div 
+                  className={`profile-pill ${upiMode ? 'profile-pill--secured' : 'profile-pill--unsecured'}`} 
+                  style={{ marginLeft: '0.5rem', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent any event bubbling
+                    if (upiMode) {
+                      // Deactivate UPI mode - just deactivate, don't show consent
+                      console.log('🔄 Deactivating UPI mode');
+                      setUpiMode(false);
+                      // Clear consent if user deactivates
+                      setUpiConsentGiven(false);
+                      localStorage.removeItem('upi_consent_given');
+                      sessionStorage.removeItem('upi_consent_given_session'); // Also clear session storage
+                      // Make sure consent modal is closed
+                      setShowUPIConsentModal(false);
+                      // Clear PIN modal and payment details when deactivating
+                      setShowUPIPinModal(false);
+                      setUpiPaymentDetails(null);
+                    } else {
+                      // Activate UPI mode - show consent modal FIRST if not given
+                      console.log('🔄 Attempting to activate UPI mode', { upiConsentGiven, showUPIConsentModal });
+                      if (!upiConsentGiven) {
+                        // Show consent modal first, don't activate yet
+                        console.log('📋 Showing consent modal before activation - consent not given');
+                        // Mark that modal was opened by button click
+                        setUpiConsentModalOpenedByButton(true);
+                        // Use setTimeout to ensure state update happens
+                        setTimeout(() => {
+                          setShowUPIConsentModal(true);
+                        }, 0);
+                        // Don't set UPI mode to true yet - wait for consent
+                      } else {
+                        // Consent already given, safe to activate
+                        console.log('✅ Consent already given, activating UPI mode');
+                        setUpiMode(true);
+                      }
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (upiMode) {
+                      setUpiMode(false);
+                      setUpiConsentGiven(false);
+                      localStorage.removeItem('upi_consent_given');
+                      sessionStorage.removeItem('upi_consent_given_session'); // Also clear session storage
+                      setShowUPIConsentModal(false);
+                      // Clear PIN modal and payment details when deactivating
+                      setShowUPIPinModal(false);
+                      setUpiPaymentDetails(null);
+                      } else {
+                        if (!upiConsentGiven) {
+                          // Show consent modal first, don't activate yet
+                          console.log('📋 Showing consent modal before activation (keyboard) - consent not given');
+                          // Use setTimeout to ensure state update happens
+                          setTimeout(() => {
+                            setShowUPIConsentModal(true);
+                          }, 0);
+                          // Don't set UPI mode to true yet - wait for consent
+                        } else {
+                          // Consent already given, safe to activate
+                          console.log('✅ Consent already given, activating UPI mode (keyboard)');
+                          setUpiMode(true);
+                        }
+                      }
+                    }
+                  }}
+                >
+                  <span className={`status-dot ${upiMode ? 'status-dot--online' : 'status-dot--warning'}`} />
+                  {upiMode ? upiStrings.upiModeActive : upiStrings.upiModeInactive}
+                </div>
+                <LanguageDropdown onSelect={handleLanguageChange} />
                 <button
                   type="button"
                   className="ghost-btn ghost-btn--compact"
@@ -281,11 +790,302 @@ const Chat = ({ session, onSignOut }) => {
                       // In production, send to backend API
                     }}
                     onAddAssistantMessage={addAssistantMessage}
+                    onSendMessage={sendMessage}
+                    onShowUPIPinModal={setShowUPIPinModal}
+                    onSetUpiPaymentDetails={setUpiPaymentDetails}
                   />
                 ))}
                 {isTyping && <TypingIndicator />}
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* QR Code Upload Button - Show when UPI mode is active */}
+              {upiMode && (
+                <div style={{ 
+                  padding: '0.75rem 1rem', 
+                  background: 'rgba(255, 154, 60, 0.1)', 
+                  borderTop: '1px solid rgba(255, 154, 60, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}>
+                  <label 
+                    htmlFor="upi-qr-upload"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      padding: '0.5rem 1rem',
+                      background: 'white',
+                      border: '1px solid rgba(255, 154, 60, 0.3)',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: '#ff7a59',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fff5f0';
+                      e.currentTarget.style.borderColor = '#ff7a59';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = 'rgba(255, 154, 60, 0.3)';
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="3" y="3" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="2"/>
+                      <rect x="16" y="3" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="2"/>
+                      <rect x="3" y="16" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M11 11H13V13H11V11Z" fill="currentColor"/>
+                      <path d="M11 15H13V17H11V15Z" fill="currentColor"/>
+                      <path d="M15 11H17V13H15V11Z" fill="currentColor"/>
+                      <path d="M15 15H17V17H15V15Z" fill="currentColor"/>
+                      <path d="M19 11H21V13H19V11Z" fill="currentColor"/>
+                    </svg>
+                    {language === 'hi-IN' ? 'QR कोड अपलोड करें' : 'Upload QR Code'}
+                  </label>
+                  <input
+                    id="upi-qr-upload"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      try {
+                        // Convert file to base64 and process QR code
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          const imageBase64 = event.target.result;
+                          
+                          try {
+                            // Try to process QR code using jsQR (client-side)
+                            const jsQR = (await import('jsqr')).default;
+                            
+                            // Create image element to decode QR code
+                            const img = new Image();
+                            img.onload = async () => {
+                              // Create canvas to get image data
+                              const canvas = document.createElement('canvas');
+                              const ctx = canvas.getContext('2d');
+                              canvas.width = img.width;
+                              canvas.height = img.height;
+                              ctx.drawImage(img, 0, 0);
+                              
+                              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                              const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+                              
+                              if (qrCode) {
+                                // QR code decoded successfully
+                                const qrData = qrCode.data;
+                                
+                                // Parse UPI QR code format
+                                // UPI QR codes typically contain: upi://pay?pa=<upi_id>&pn=<name>&am=<amount>&cu=INR
+                                let upiAddress = null;
+                                let amount = null;
+                                let merchantName = null;
+                                
+                                if (qrData.includes('upi://') || qrData.includes('UPI://')) {
+                                  // Parse UPI QR code
+                                  const url = new URL(qrData);
+                                  const params = new URLSearchParams(url.search);
+                                  
+                                  upiAddress = params.get('pa');
+                                  merchantName = params.get('pn');
+                                  const amountStr = params.get('am');
+                                  
+                                  if (amountStr) {
+                                    amount = parseFloat(amountStr);
+                                  }
+                                } else if (qrData.includes('@')) {
+                                  // Try to extract UPI ID directly
+                                  const upiMatch = qrData.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)/);
+                                  if (upiMatch) {
+                                    upiAddress = upiMatch[1];
+                                  }
+                                }
+                                
+                                if (upiAddress) {
+                                  // QR code processed successfully
+                                  const result = {
+                                    success: true,
+                                    upi_address: upiAddress,
+                                    amount: amount,
+                                    merchant_name: merchantName,
+                                  };
+                                  
+                                  // Check if we already have amount or recipient
+                                  const hasAmount = upiPaymentDetails?.amount;
+                                  const hasRecipient = upiPaymentDetails?.recipient;
+                                  
+                                  if (hasAmount && !hasRecipient) {
+                                    // We have amount, use QR address as recipient
+                                    const paymentMessage = language === 'hi-IN'
+                                      ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
+                                      : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
+                                    await sendMessage(paymentMessage);
+                                  } else if (hasRecipient && !hasAmount && result.amount) {
+                                    // We have recipient, use QR amount
+                                    const paymentMessage = language === 'hi-IN'
+                                      ? `₹${result.amount} ${upiPaymentDetails.recipient} को भेजें`
+                                      : `Send ₹${result.amount} to ${upiPaymentDetails.recipient}`;
+                                    await sendMessage(paymentMessage);
+                                  } else if (!hasAmount && !hasRecipient) {
+                                    // No amount or recipient, use QR data
+                                    if (result.amount) {
+                                      // We have both amount and address from QR
+                                      const paymentMessage = language === 'hi-IN'
+                                        ? `₹${result.amount} ${result.upi_address} को भेजें`
+                                        : `Send ₹${result.amount} to ${result.upi_address}`;
+                                      await sendMessage(paymentMessage);
+                                    } else {
+                                      // Only address extracted - show it to user and ask if they want to send money
+                                      const qrMessage = language === 'hi-IN'
+                                        ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}. क्या आप इस UPI ID पर पैसा भेजना चाहते हैं? कृपया राशि बताएं।`
+                                        : `UPI address extracted from QR code: ${result.upi_address}. Do you want to send money to this UPI ID? Please specify the amount.`;
+                                      addAssistantMessage(qrMessage);
+                                      // Don't add duplicate message - we already showed the QR extraction above
+                                    }
+                                  } else {
+                                    // Both amount and recipient exist, just use QR address
+                                    const paymentMessage = language === 'hi-IN'
+                                      ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
+                                      : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
+                                    await sendMessage(paymentMessage);
+                                  }
+                                  
+                                  // Only show success message if we didn't already show a message above
+                                  // (i.e., only if we have amount or if we're using existing payment details)
+                                  if (result.amount || (hasAmount || hasRecipient)) {
+                                    addAssistantMessage(
+                                      language === 'hi-IN'
+                                        ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}${result.amount ? `, राशि: ₹${result.amount}` : ''}`
+                                        : `UPI address extracted from QR code: ${result.upi_address}${result.amount ? `, Amount: ₹${result.amount}` : ''}`
+                                    );
+                                  }
+                                } else {
+                                  // Could not extract UPI address
+                                  addAssistantMessage(
+                                    language === 'hi-IN'
+                                      ? 'QR कोड से UPI पता निकाला नहीं जा सका। कृपया पुनः प्रयास करें।'
+                                      : 'Could not extract UPI address from QR code. Please try again.'
+                                  );
+                                }
+                              } else {
+                                // QR code not found in image, try backend processing
+                                try {
+                                  const { processQRCode } = await import('../api/client.js');
+                                  const result = await processQRCode({
+                                    imageBase64,
+                                    language,
+                                  });
+                                  
+                                  if (result?.success && result?.upi_address) {
+                                    // QR code processed successfully
+                                    // Check if we already have amount or recipient
+                                    const hasAmount = upiPaymentDetails?.amount;
+                                    const hasRecipient = upiPaymentDetails?.recipient;
+                                    
+                                    if (hasAmount && !hasRecipient) {
+                                      // We have amount, use QR address as recipient
+                                      const paymentMessage = language === 'hi-IN'
+                                        ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
+                                        : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
+                                      await sendMessage(paymentMessage);
+                                    } else if (hasRecipient && !hasAmount && result.amount) {
+                                      // We have recipient, use QR amount
+                                      const paymentMessage = language === 'hi-IN'
+                                        ? `₹${result.amount} ${upiPaymentDetails.recipient} को भेजें`
+                                        : `Send ₹${result.amount} to ${upiPaymentDetails.recipient}`;
+                                      await sendMessage(paymentMessage);
+                                    } else if (!hasAmount && !hasRecipient) {
+                                      // No amount or recipient, use QR data
+                                      if (result.amount) {
+                                        const paymentMessage = language === 'hi-IN'
+                                          ? `₹${result.amount} ${result.upi_address} को भेजें`
+                                          : `Send ₹${result.amount} to ${result.upi_address}`;
+                                        await sendMessage(paymentMessage);
+                                      } else {
+                                        // Only address extracted - show it to user and ask if they want to send money
+                                        const qrMessage = language === 'hi-IN'
+                                          ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}. क्या आप इस UPI ID पर पैसा भेजना चाहते हैं? कृपया राशि बताएं।`
+                                          : `UPI address extracted from QR code: ${result.upi_address}. Do you want to send money to this UPI ID? Please specify the amount.`;
+                                        addAssistantMessage(qrMessage);
+                                        // Don't add duplicate message - we already showed the QR extraction above
+                                      }
+                                    } else {
+                                      // Both amount and recipient exist, just use QR address
+                                      const paymentMessage = language === 'hi-IN'
+                                        ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
+                                        : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
+                                      await sendMessage(paymentMessage);
+                                    }
+                                    
+                                    // Only show success message if we didn't already show a message above
+                                    // (i.e., only if we have amount or if we're using existing payment details)
+                                    if (result.amount || (hasAmount || hasRecipient)) {
+                                      addAssistantMessage(
+                                        language === 'hi-IN'
+                                          ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}${result.amount ? `, राशि: ₹${result.amount}` : ''}`
+                                          : `UPI address extracted from QR code: ${result.upi_address}${result.amount ? `, Amount: ₹${result.amount}` : ''}`
+                                      );
+                                    }
+                                  } else {
+                                    // QR code processing failed
+                                    addAssistantMessage(
+                                      result?.message || (language === 'hi-IN'
+                                        ? 'QR कोड से UPI पता निकाला नहीं जा सका। कृपया पुनः प्रयास करें।'
+                                        : 'Could not extract UPI address from QR code. Please try again.')
+                                    );
+                                  }
+                                } catch (backendError) {
+                                  console.error('Backend QR processing error:', backendError);
+                                  addAssistantMessage(
+                                    language === 'hi-IN'
+                                      ? 'QR कोड प्रसंस्करण में त्रुटि। कृपया पुनः प्रयास करें।'
+                                      : 'Error processing QR code. Please try again.'
+                                  );
+                                }
+                              }
+                            };
+                            img.src = imageBase64;
+                          } catch (error) {
+                            console.error('QR code processing error:', error);
+                            addAssistantMessage(
+                              language === 'hi-IN'
+                                ? 'QR कोड प्रसंस्करण में त्रुटि। कृपया पुनः प्रयास करें।'
+                                : 'Error processing QR code. Please try again.'
+                            );
+                          }
+                        };
+                        
+                        reader.onerror = () => {
+                          addAssistantMessage(
+                            language === 'hi-IN'
+                              ? 'छवि पढ़ने में त्रुटि।'
+                              : 'Error reading image.'
+                          );
+                        };
+                        
+                        reader.readAsDataURL(file);
+                      } catch (error) {
+                        console.error('QR code upload error:', error);
+                        addAssistantMessage(
+                          language === 'hi-IN'
+                            ? 'QR कोड अपलोड करने में त्रुटि।'
+                            : 'Error uploading QR code.'
+                        );
+                      }
+                      
+                      // Reset input
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              )}
 
               <ChatInput
                 inputText={inputText}
@@ -330,6 +1130,31 @@ const Chat = ({ session, onSignOut }) => {
           </main>
         </div>
       </div>
+
+      {/* UPI Consent Modal */}
+      <UPIConsentModal
+        isOpen={showUPIConsentModal}
+        onClose={handleUPIConsentDecline}
+        onAccept={handleUPIConsentAccept}
+        strings={upiStrings}
+        language={language}
+      />
+
+      {/* UPI PIN Modal */}
+      <UPIPinModal
+        isOpen={showUPIPinModal}
+        onClose={() => {
+          setShowUPIPinModal(false);
+          setUpiPaymentDetails(null);
+        }}
+        onConfirm={handleUPIPinConfirm}
+        paymentDetails={upiPaymentDetails}
+        strings={upiStrings}
+        language={language}
+        onPaymentDetailsChange={(updatedDetails) => {
+          setUpiPaymentDetails(updatedDetails);
+        }}
+      />
     </div>
   );
 };

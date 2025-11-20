@@ -8,13 +8,16 @@ import TransferFlow from "./TransferFlow.jsx";
 import TransferReceipt from "./TransferReceipt.jsx";
 import StatementRequestCard from "./StatementRequestCard.jsx";
 import ReminderManagerCard from "./ReminderManagerCard.jsx";
+import UPIBalanceCheckFlow from "./UPIBalanceCheckFlow.jsx";
+import UPIPaymentFlow from "./UPIPaymentFlow.jsx";
+import AIAssistantLogo from "../AIAssistantLogo.jsx";
 import { getChatCopy } from "../../config/chatCopy.js";
 import "./ChatMessage.css";
 
 /**
  * ChatMessage component - Displays a single chat message
  */
-const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedback, onAddAssistantMessage }) => {
+const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedback, onAddAssistantMessage, onSendMessage, onShowUPIPinModal, onSetUpiPaymentDetails }) => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const chatCopy = useMemo(() => getChatCopy(language), [language]);
   const cardIntroMessages = chatCopy?.cardIntros || {};
@@ -273,23 +276,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
     <div className={`chat-message chat-message--${message.role}`}>
       <div className="chat-message__avatar">
         {message.role === "assistant" ? (
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="12" cy="12" r="10" fill="#FF8F42" />
-            <path
-              d="M8 14C8 14 9.5 16 12 16C14.5 16 16 14 16 14"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="9" cy="9" r="1.5" fill="white" />
-            <circle cx="15" cy="9" r="1.5" fill="white" />
-          </svg>
+          <AIAssistantLogo size={40} />
         ) : (
           <svg
             width="32"
@@ -355,6 +342,25 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
               />
             )}
             
+            {message.structuredData.type === 'upi_balance_check' && message.structuredData.pending_account_selection && session && (
+              <UPIBalanceCheckFlow
+                session={session}
+                language={language}
+                balanceData={message.structuredData}
+                onAccountSelected={(accountData) => {
+                  // Directly show PIN modal when account is selected (no message sent)
+                  if (onSetUpiPaymentDetails && onShowUPIPinModal) {
+                    onSetUpiPaymentDetails({
+                      operation: 'balance_check',
+                      sourceAccount: accountData.source_account_number,
+                      sourceAccountId: accountData.source_account_id,
+                    });
+                    onShowUPIPinModal(true);
+                  }
+                }}
+              />
+            )}
+            
             {message.structuredData.type === 'transfer' && session && (
               <TransferFlow 
                 session={session}
@@ -382,6 +388,27 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
                         { type: 'transfer_receipt', receipt: receiptData } // Structured data for receipt
                       );
                     }
+                  }
+                }}
+              />
+            )}
+            
+            {message.structuredData.type === 'upi_payment_card' && session && (
+              <UPIPaymentFlow 
+                session={session}
+                language={language}
+                paymentData={message.structuredData}
+                onPaymentReady={(paymentDetails) => {
+                  // Validate UPI ID and show PIN modal directly (no message to backend)
+                  // UPI ID validation is done in the component, so if we reach here, it's valid
+                  if (onSetUpiPaymentDetails && onShowUPIPinModal) {
+                    onSetUpiPaymentDetails({
+                      amount: paymentDetails.amount,
+                      recipient: paymentDetails.recipient_identifier,
+                      sourceAccount: paymentDetails.source_account_number,
+                      remarks: paymentDetails.remarks,
+                    });
+                    onShowUPIPinModal(true);
                   }
                 }}
               />

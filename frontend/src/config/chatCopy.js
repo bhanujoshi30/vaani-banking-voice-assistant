@@ -28,6 +28,7 @@ const CHAT_COPY = {
     quickActions: [
       { id: "balance", icon: "💰", label: "Check Balance", prompt: "Please share my latest account balance.", command: "Please share my latest account balance." },
       { id: "transfer", icon: "💸", label: "Transfer Funds", prompt: "Help me transfer funds to another account.", command: "Help me transfer funds to another account." },
+      { id: "upi", icon: "📱", label: "Transfer money using UPI", prompt: "Help me transfer money using UPI", command: "Help me transfer money using UPI" },
       { id: "transactions", icon: "📊", label: "View Transactions", prompt: "Show my recent transactions.", command: "Show my recent transactions." },
       { id: "reminder", icon: "🔔", label: "Set Reminder", prompt: "I want to set a payment reminder.", command: "I want to set a payment reminder." },
     ],
@@ -92,6 +93,12 @@ const CHAT_COPY = {
       loan: "Here's a quick summary of the loan details you asked about.",
       transfer_receipt: "Here's the receipt for the transfer you just completed.",
     },
+    languageChange: {
+      title: "Change Language",
+      message: "Changing the language will refresh the chat. All messages will be cleared and you'll start a new conversation. Do you want to continue?",
+      confirm: "Yes, change language",
+      cancel: "Cancel",
+    },
   },
   "hi-IN": {
     initialGreeting: "नमस्ते! मैं वाणी हूँ, आपकी वॉइस बैंकिंग सहायक। आज मैं आपकी कैसे मदद कर सकती हूँ?",
@@ -103,7 +110,14 @@ const CHAT_COPY = {
         icon: "💰",
         label: "खाता बैलेंस देखें",
         prompt: "कृपया मेरा ताज़ा खाता बैलेंस बताएं।",
-        command: "Please share my latest account balance.",
+        command: "कृपया मेरा ताज़ा खाता बैलेंस बताएं।",
+      },
+      {
+        id: "upi",
+        icon: "📱",
+        label: "UPI से पैसा ट्रांसफर करें",
+        prompt: "UPI से पैसा ट्रांसफर करने में मेरी मदद करें",
+        command: "UPI से पैसा ट्रांसफर करने में मेरी मदद करें",
       },
       {
         id: "transfer",
@@ -187,6 +201,12 @@ const CHAT_COPY = {
       reminder: "यह वह अनुस्मारक विवरण है जो आपने माँगा था।",
       loan: "यहाँ आपके अनुरोधित ऋण विवरण का सारांश है।",
       transfer_receipt: "यह आपके हाल के ट्रांसफ़र की रसीद है।",
+    },
+    languageChange: {
+      title: "भाषा बदलें",
+      message: "भाषा बदलने से चैट रीफ़्रेश होगी। सभी संदेश हटा दिए जाएंगे और आप एक नई बातचीत शुरू करेंगे। क्या आप जारी रखना चाहते हैं?",
+      confirm: "हाँ, भाषा बदलें",
+      cancel: "रद्द करें",
     },
   },
 };

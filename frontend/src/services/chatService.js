@@ -8,6 +8,7 @@ import { simulateAIResponse } from '../utils/chatUtils.js';
 /**
  * Send a message to the AI backend and get response
  * @param {Object} params - Message parameters
+ * @param {boolean} params.upiMode - Whether UPI mode is active
  * @returns {Promise<Object>} - AI response object with text and optional data
  */
 export const sendChatMessage = async ({
@@ -18,8 +19,16 @@ export const sendChatMessage = async ({
   userContext,
   messageHistory,
   voiceMode,
+  upiMode = false, // CRITICAL: Accept and pass through upiMode
 }) => {
   try {
+    // CRITICAL: Check UPI mode state before sending
+    console.log('🔍 chatService.js - Checking UPI mode:', {
+      upiMode_received: upiMode,
+      upiMode_type: typeof upiMode,
+      timestamp: new Date().toISOString()
+    });
+    
     const aiResponse = await sendChatMessageAPI({
       message,
       userId,
@@ -28,6 +37,7 @@ export const sendChatMessage = async ({
       userContext,
       messageHistory,
       voiceMode,
+      upiMode, // CRITICAL: Pass upiMode to API client
     });
 
     console.log('📥 AI Response from backend:', {

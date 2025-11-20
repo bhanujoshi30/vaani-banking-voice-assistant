@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
-import LanguageToggle from "../components/LanguageToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import { fetchAccounts, fetchTransactions } from "../api/client.js";
 import { usePageLanguage } from "../hooks/usePageLanguage.js";
 
@@ -364,7 +364,7 @@ const TransactionsPage = ({ session, onSignOut }) => {
             subtitle={s.title}
             actionSlot={
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <LanguageToggle />
+                <LanguageDropdown />
                 <button type="button" className="ghost-btn" onClick={() => navigate(-1)}>
                   {s.back}
                 </button>

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
-import LanguageToggle from "../components/LanguageToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
+import AIAssistantLogo from "../components/AIAssistantLogo.jsx";
 import "./Chat.css";
 import { usePageLanguage } from "../hooks/usePageLanguage.js";
 import { getVoicePhrase } from "../config/loginStrings.js";
@@ -19,10 +20,9 @@ import {
   listDeviceBindings,
   revokeDeviceBinding,
 } from "../api/client.js";
-import LanguagePreferenceModal from "../components/LanguagePreferenceModal.jsx";
 import VoiceEnrollmentModal from "../components/VoiceEnrollmentModal.jsx";
 import ForceLogoutModal from "../components/ForceLogoutModal.jsx";
-import { getPreferredLanguage, setPreferredLanguage } from "../utils/preferences.js";
+import { setPreferredLanguage } from "../utils/preferences.js";
 
 const formatDateTime = (value) => {
   if (!value) return null;
@@ -63,9 +63,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
   const location = useLocation();
   const { strings, language } = usePageLanguage();
   const s = strings.profile;
-  const [preferredLanguage, setPreferredLanguageState] = useState(() => getPreferredLanguage());
-  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
-  const [modalLanguage, setModalLanguage] = useState(() => getPreferredLanguage());
   const [isVoiceEnrollmentModalOpen, setIsVoiceEnrollmentModalOpen] = useState(false);
   const [isForceLogoutModalOpen, setIsForceLogoutModalOpen] = useState(false);
   const [hasVoiceBinding, setHasVoiceBinding] = useState(false);
@@ -749,7 +746,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
             subtitle={`${branch.name} · ${branch.city}`}
             actionSlot={
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <LanguageToggle />
+                <LanguageDropdown />
                 <button type="button" className="ghost-btn" onClick={onSignOut}>
                   {s.logOut}
                 </button>
@@ -762,48 +759,15 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
             type="button"
             className="floating-chat-button"
             onClick={() => {
-              setModalLanguage(preferredLanguage);
-              setIsLanguageModalOpen(true);
+              // Use the current page language from the toggle
+              setPreferredLanguage(language);
+              navigate("/chat");
             }}
             title="Voice assistant"
             aria-label="Open voice assistant"
           >
-            {/* Robot + rupee glyph */}
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 28 28"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="14" cy="14" r="12" fill="rgba(255,255,255,0.92)" />
-              <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.4">
-                <rect x="6.5" y="9" width="7.8" height="6.4" rx="2.2" fill="none" />
-                <line x1="10.4" y1="7" x2="10.4" y2="5" />
-                <line x1="12.4" y1="7" x2="12.4" y2="4.2" />
-                <circle cx="8.9" cy="11.2" r="0.6" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="11.2" r="0.6" fill="currentColor" stroke="none" />
-                <path d="M8.9 13.9c0 1 0.9 1.8 2 1.8s2-0.8 2-1.8" />
-                <path d="M16.2 9.5h5.4" />
-                <path d="M16.2 12.1h5.1" />
-                <path d="M16.3 9.5c2.2 0 3.7 1.3 3.7 3s-1.5 3-3.7 3l3.5 4.9" />
-              </g>
-            </svg>
+            <AIAssistantLogo size={166} showAssistant={true} />
           </button>
-
-          <LanguagePreferenceModal
-            isOpen={isLanguageModalOpen}
-            selectedLanguage={modalLanguage}
-            onSelect={setModalLanguage}
-            onClose={() => setIsLanguageModalOpen(false)}
-            onConfirm={() => {
-              if (!modalLanguage) return;
-              setPreferredLanguage(modalLanguage);
-              setPreferredLanguageState(modalLanguage);
-              setIsLanguageModalOpen(false);
-              navigate("/chat");
-            }}
-          />
 
           <VoiceEnrollmentModal
             isOpen={isVoiceEnrollmentModalOpen}

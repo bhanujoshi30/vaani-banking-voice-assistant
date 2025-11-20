@@ -25,22 +25,35 @@ export const sendChatMessage = async ({
   userContext = {},
   messageHistory = [],
   voiceMode = false,
+  upiMode = false,
 }) => {
   try {
+    const requestBody = {
+      message,
+      user_id: userId,
+      session_id: sessionId,
+      language,
+      user_context: userContext,
+      message_history: messageHistory,
+      voice_mode: voiceMode,
+      upi_mode: upiMode,
+    };
+    
+    // DEBUG: Log what we're actually sending
+    console.log('📤 API Request - UPI Mode:', {
+      upi_mode_in_body: requestBody.upi_mode,
+      upiMode_parameter: upiMode,
+      upiMode_type: typeof upiMode,
+      message: message?.substring(0, 50),
+      timestamp: new Date().toISOString()
+    });
+    
     const response = await fetch(`${AI_BACKEND_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        message,
-        user_id: userId,
-        session_id: sessionId,
-        language,
-        user_context: userContext,
-        message_history: messageHistory,
-        voice_mode: voiceMode,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

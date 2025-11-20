@@ -60,6 +60,11 @@ async def banking_agent(state):
         response_content = await handle_transaction_query(state, user_context, language)
     
     elif any(word in msg_lower for word in ["transfer", "send", "pay", "ट्रांसफर", "भेजें", "भुगतान"]):
+        # Check if UPI mode is active - redirect to UPI agent
+        if state.get("upi_mode", False):
+            # Route to UPI agent instead of handling as normal transfer
+            from .upi_agent import upi_agent
+            return await upi_agent(state)
         response_content = await handle_transfer_request(state, user_context, language, last_user_message)
     
     else:

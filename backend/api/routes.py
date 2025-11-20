@@ -54,6 +54,8 @@ from .schemas import (
     BeneficiaryListResponse,
     BeneficiaryResource,
     BeneficiaryResponse,
+    UPIPinVerifyRequest,
+    UPIPinVerifyResponse,
 )
 from .security import CurrentSessionDep, RequestContext, RequestContextDep
 
@@ -821,6 +823,263 @@ def update_reminder(
     resource = serialize_reminder(reminder)
     meta = build_meta(ctx)
     return ReminderResponse(meta=meta, data=resource)
+
+
+@router.post(
+    "/upi/verify-pin",
+    response_model=UPIPinVerifyResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Verify UPI PIN",
+    description="Mock UPI PIN verification endpoint. Validates 6-digit PIN format.",
+)
+def verify_upi_pin(
+    payload: UPIPinVerifyRequest,
+    ctx: RequestContext = RequestContextDep,
+    session=CurrentSessionDep,
+    banking_service: BankingService = BankingServiceDep,
+):
+    """
+    Verify UPI PIN against stored hash.
+    """
+    from ..db.utils.security import verify_password
+    from ..db.models import User
+    
+    # Validate PIN format
+    if not payload.pin or len(payload.pin) != 6 or not payload.pin.isdigit():
+        raise_http_error(
+            ctx,
+            message="Invalid UPI PIN format. PIN must be 6 digits.",
+            code="invalid_pin_format",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Get user from session
+    user_id = session.user_id
+    
+    # Get user from database using banking service
+    from sqlalchemy import select
+    from ..db.models import User
+    from ..db.engine import get_session_factory
+    from ..db.config import load_database_config
+    from ..db.engine import create_db_engine
+    
+    config = load_database_config()
+    engine = create_db_engine(config)
+    session_factory = get_session_factory(engine)
+    
+    with session_factory() as db:
+        stmt = select(User).where(User.id == user_id)
+        user = db.execute(stmt).scalars().first()
+        
+        if not user:
+            raise_http_error(
+                ctx,
+                message="User not found.",
+                code="user_not_found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        
+        # Check if user has UPI PIN set
+        if not user.upi_pin_hash:
+            raise_http_error(
+                ctx,
+                message="UPI PIN not set. Please set your UPI PIN first.",
+                code="upi_pin_not_set",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Verify PIN
+        if not verify_password(payload.pin, user.upi_pin_hash):
+            raise_http_error(
+                ctx,
+                message="Invalid UPI PIN. Please try again.",
+                code="invalid_upi_pin",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+    
+    # PIN verified - now process the UPI operation (payment or balance check)
+    payment_details = payload.paymentDetails or {}
+    operation = payment_details.get("operation")
+    source_account_number = payment_details.get("sourceAccount")
+    
+    # Handle balance check operation
+    if operation == "balance_check":
+        if not source_account_number:
+            raise_http_error(
+                ctx,
+                message="Missing account details for balance check.",
+                code="missing_account_details",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get account balance
+        try:
+            from ..db.repositories import accounts as account_repo
+            from sqlalchemy import select
+            from ..db.models import Account
+            
+            with session_factory() as db:
+                account = account_repo.get_account_by_number(db, source_account_number)
+                if not account:
+                    raise_http_error(
+                        ctx,
+                        message="Account not found.",
+                        code="account_not_found",
+                        status_code=status.HTTP_404_NOT_FOUND,
+                    )
+                
+                balance_data = {
+                    "success": True,
+                    "balance": {
+                        "account_number": account.account_number,
+                        "account_type": account.account_type.value if hasattr(account.account_type, 'value') else str(account.account_type),
+                        "balance": float(account.balance),
+                        "currency": "INR"
+                    }
+                }
+                
+                from .schemas import ResponseMeta
+                # Use build_meta helper function for consistent meta creation
+                meta = build_meta(ctx)
+                
+                return UPIPinVerifyResponse(meta=meta, data=balance_data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching balance: {str(e)}")
+            raise_http_error(
+                ctx,
+                message=f"Error fetching balance: {str(e)}",
+                code="balance_check_error",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+    
+    # Handle payment operation (existing logic)
+    recipient_identifier = payment_details.get("recipient")
+    amount = payment_details.get("amount")
+    remarks = payment_details.get("remarks")
+    
+    if not all([source_account_number, recipient_identifier, amount]):
+        raise_http_error(
+            ctx,
+            message="Missing payment details. Please provide amount, recipient, and source account.",
+            code="missing_payment_details",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Process UPI payment using banking service
+    try:
+        # Resolve recipient UPI ID to account number
+        import logging
+        logger = logging.getLogger(__name__)
+        from ..db.repositories import beneficiaries as beneficiary_repo
+        from ..db.repositories import accounts as account_repo
+        from ..db.models import User, Account
+        from sqlalchemy import select
+        
+        destination_account_number = None
+        beneficiary_name = None
+        
+        # Try to resolve recipient
+        with session_factory() as db:
+            # Check if recipient is a UPI ID
+            if "@" in recipient_identifier:
+                stmt = select(User).where(User.upi_id == recipient_identifier)
+                recipient_user = db.execute(stmt).scalars().first()
+                if recipient_user:
+                    accounts = account_repo.list_accounts_for_user(db, recipient_user.id)
+                    primary_account = next(iter(accounts), None)
+                    if primary_account:
+                        destination_account_number = primary_account.account_number
+                        beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
+            
+            # If not found, try phone number
+            if not destination_account_number:
+                clean_phone = ''.join(filter(str.isdigit, recipient_identifier))
+                if len(clean_phone) >= 10:
+                    clean_phone = clean_phone[-10:]
+                    stmt = select(User).where(User.phone_number.like(f"%{clean_phone}%"))
+                    recipient_user = db.execute(stmt).scalars().first()
+                    if recipient_user:
+                        accounts = account_repo.list_accounts_for_user(db, recipient_user.id)
+                        primary_account = next(iter(accounts), None)
+                        if primary_account:
+                            destination_account_number = primary_account.account_number
+                            beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
+            
+            # If still not found, try beneficiary lookup
+            if not destination_account_number:
+                beneficiaries = beneficiary_repo.list_beneficiaries(db, user_id=user_id, include_blocked=False)
+                beneficiaries_list = list(beneficiaries)
+                if beneficiaries_list:
+                    # Try to match by name
+                    for beneficiary in beneficiaries_list:
+                        if recipient_identifier.lower() in beneficiary.name.lower() or beneficiary.name.lower() in recipient_identifier.lower():
+                            destination_account_number = beneficiary.account_number
+                            beneficiary_name = beneficiary.name
+                            break
+        
+        if not destination_account_number:
+            raise_http_error(
+                ctx,
+                message=f"Recipient not found: {recipient_identifier}",
+                code="recipient_not_found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        
+        # Generate UPI reference ID
+        from datetime import datetime
+        upi_ref_id = f"UPI-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
+        
+        # Process the transfer with UPI channel
+        from ..db.utils.enums import TransactionChannel
+        result = banking_service.transfer_between_accounts(
+            source_account_number=source_account_number,
+            destination_account_number=destination_account_number,
+            amount=float(amount),
+            currency_code="INR",
+            description=remarks or f"UPI Payment to {beneficiary_name or recipient_identifier}",
+            channel=TransactionChannel.UPI,
+            user_id=user_id,
+            session_id=session.session_id,
+            reference_id=upi_ref_id
+        )
+        
+        # Create receipt data
+        from .schemas import TransferReceipt
+        receipt = TransferReceipt(
+            debitTransactionId=result.get("debit", {}).get("id", ""),
+            creditTransactionId=result.get("credit", {}).get("id", ""),
+            amount=float(amount),
+            currency="INR",
+            description=remarks or f"UPI Payment to {beneficiary_name or recipient_identifier}",
+            referenceId=upi_ref_id,
+            timestamp=result.get("timestamp"),
+            sourceAccountNumber=source_account_number,
+            destinationAccountNumber=destination_account_number,
+            beneficiaryName=beneficiary_name or recipient_identifier,
+        )
+        
+        meta = build_meta(ctx)
+        return UPIPinVerifyResponse(
+            meta=meta,
+            data={
+                "success": True,
+                "message": "UPI payment processed successfully",
+                "receipt": receipt.model_dump(mode="json"),
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"UPI payment processing error: {str(e)}")
+        raise_http_error(
+            ctx,
+            message=f"Failed to process UPI payment: {str(e)}",
+            code="payment_processing_failed",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 __all__ = ["router"]

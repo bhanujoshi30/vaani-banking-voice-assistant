@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
-import LanguageToggle from "../components/LanguageToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import {
   listDeviceBindings,
   registerDeviceBinding,
@@ -363,7 +363,7 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
             subtitle={s.title}
             actionSlot={
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <LanguageToggle />
+                <LanguageDropdown />
                 <button type="button" className="ghost-btn" onClick={() => navigate(-1)}>
                   {s.back}
                 </button>

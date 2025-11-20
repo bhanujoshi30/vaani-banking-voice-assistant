@@ -9,8 +9,12 @@ const SUPPORTED_LANGUAGES = ["en-IN", "hi-IN"];
  * LanguageToggle Component
  * A reusable language toggle button that switches between Hindi and English
  * Similar to the one used on the login page
+ * 
+ * @param {boolean} disabled - Whether the toggle is disabled
+ * @param {string} className - Optional CSS class name
+ * @param {function} onToggle - Optional callback function that overrides default toggle behavior
  */
-const LanguageToggle = ({ disabled, className }) => {
+const LanguageToggle = ({ disabled, className, onToggle }) => {
   const [currentLanguage, setCurrentLanguage] = useState(() => {
     const preferred = getPreferredLanguage();
     return SUPPORTED_LANGUAGES.includes(preferred) ? preferred : "en-IN";
@@ -22,6 +26,14 @@ const LanguageToggle = ({ disabled, className }) => {
   // Toggle language between Hindi and English
   const toggleLanguage = () => {
     const newLanguage = currentLanguage === "en-IN" ? "hi-IN" : "en-IN";
+    
+    // If custom onToggle handler is provided, use it instead
+    if (onToggle) {
+      onToggle(newLanguage);
+      return;
+    }
+    
+    // Default behavior: update state and localStorage
     setCurrentLanguage(newLanguage);
     setPreferredLanguage(newLanguage);
     // Dispatch custom event to notify other components
@@ -79,11 +91,13 @@ const LanguageToggle = ({ disabled, className }) => {
 LanguageToggle.propTypes = {
   disabled: PropTypes.bool,
   className: PropTypes.string,
+  onToggle: PropTypes.func,
 };
 
 LanguageToggle.defaultProps = {
   disabled: false,
   className: null,
+  onToggle: null,
 };
 
 export default LanguageToggle;

@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
-import LanguageToggle from "../components/LanguageToggle.jsx";
+import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import {
   fetchBeneficiaries,
   createBeneficiary,
@@ -143,7 +143,7 @@ const Beneficiaries = ({ session, onSignOut }) => {
             subtitle={`${user?.branch?.name ?? "Sun National Bank"} · RBI compliant`}
             actionSlot={
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <LanguageToggle />
+                <LanguageDropdown />
                 <button type="button" className="ghost-btn" onClick={onSignOut}>
                   {s.logOut}
                 </button>

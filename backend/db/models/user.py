@@ -21,6 +21,7 @@ class User(Base):
         UniqueConstraint("customer_number", name="uq_users_customer_number"),
         UniqueConstraint("email", name="uq_users_email"),
         UniqueConstraint("phone_number", name="uq_users_phone"),
+        UniqueConstraint("upi_id", name="uq_users_upi_id"),
     )
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4, nullable=False)
@@ -32,6 +33,8 @@ class User(Base):
     gender = Column(String(20), nullable=True)
     email = Column(String(120), nullable=False)
     phone_number = Column(String(20), nullable=False)
+    upi_id = Column(String(100), nullable=True)
+    upi_pin_hash = Column(String(256), nullable=True)  # Encrypted UPI PIN
     aadhaar_last4 = Column(String(4), nullable=True)
     pan_number = Column(String(10), nullable=True)
     kyc_status = Column(String(20), nullable=False, default="verified")
