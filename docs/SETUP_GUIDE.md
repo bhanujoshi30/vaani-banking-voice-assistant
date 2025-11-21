@@ -141,7 +141,7 @@ OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_FAST_MODEL=llama3.2:3b
 
 # Database (use existing backend database)
-DATABASE_URL=sqlite:///../backend/vaani_banking.db
+DATABASE_URL=sqlite:///../backend/vaani.db
 
 # LangSmith (optional but recommended)
 LANGCHAIN_TRACING_V2=true

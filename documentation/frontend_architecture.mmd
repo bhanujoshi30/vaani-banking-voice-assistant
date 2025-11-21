@@ -1,0 +1,66 @@
+graph TD
+    subgraph App_Entry [Application Entry]
+        Main[main.jsx] --> App[App.jsx]
+        App --> Router[React Router]
+    end
+
+    subgraph Pages [Page Layer]
+        Router --> Login[Login.jsx]
+        Router --> Chat[Chat.jsx]
+        Router --> Profile[Profile.jsx]
+        Router --> Transactions[Transactions.jsx]
+        Router --> Reminders[Reminders.jsx]
+    end
+
+    subgraph Chat_Module [Chat Interface Module]
+        Chat --> ChatLayout[Layout Structure]
+        
+        subgraph State_Logic [Custom Hooks / Logic]
+            Chat --> UseChat[useChatHandler]
+            Chat --> UseVoice[useVoiceMode]
+            UseChat --> UseMsgs[useChatMessages]
+            UseVoice --> UseSTT[useSpeechRecognition]
+            UseVoice --> UseTTS[useTextToSpeech]
+        end
+
+        subgraph UI_Components [UI Components]
+            ChatLayout --> Sidebar[ChatSidebar]
+            ChatLayout --> MsgList[Message List]
+            ChatLayout --> InputArea[ChatInput]
+            
+            MsgList --> MsgItem[ChatMessage]
+            InputArea --> VoiceToggle[VoiceModeToggle]
+        end
+
+        subgraph Interactive_Cards [Structured Response Cards]
+            MsgItem -.-> |Render based on type| Balance[AccountBalanceCards]
+            MsgItem -.-> |Render based on type| Transfer[TransferFlow]
+            MsgItem -.-> |Render based on type| UPI[UPIPaymentFlow]
+            MsgItem -.-> |Render based on type| TransTable[TransactionTable]
+            MsgItem -.-> |Render based on type| LoanInfo[LoanInfoCard]
+        end
+    end
+
+    subgraph Service_Layer [Data & API Services]
+        UseChat --> ChatSvc[chatService.js]
+        ChatSvc --> AIClient[aiClient.js]
+        AIClient --> Axios[client.js / Axios]
+        Login --> AuthSvc[Auth API]
+    end
+
+    subgraph External [External Systems]
+        Axios --> Backend[Python Backend API]
+        UseSTT --> BrowserSTT[Web Speech API - STT]
+        UseTTS --> BrowserTTS[Web Speech API - TTS]
+    end
+
+    %% Styling connections
+    classDef page fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef component fill:#f3e5f5,stroke:#4a148c,stroke-width:1px;
+    classDef hook fill:#fff3e0,stroke:#e65100,stroke-width:1px;
+    classDef service fill:#e8f5e9,stroke:#1b5e20,stroke-width:1px;
+    
+    class Login,Chat,Profile,Transactions,Reminders page;
+    class Sidebar,MsgList,InputArea,MsgItem,VoiceToggle,Balance,Transfer,UPI,TransTable,LoanInfo component;
+    class UseChat,UseVoice,UseMsgs,UseSTT,UseTTS hook;
+    class ChatSvc,AIClient,Axios service;

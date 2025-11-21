@@ -1,0 +1,113 @@
+graph TD
+    %% Backend Architecture for Sun National Bank (FastAPI)
+
+    %% Application
+    subgraph App [Application]
+        A01["backend/app.py<br/>create_app() returns FastAPI"]
+        A02[CORS Middleware]
+        A03[Include Router]
+        A01 --> A02 --> A03
+    end
+
+    %% API Layer
+    subgraph API [API Layer]
+        R01["api/routes.py<br/>APIRouter /api/v1"]
+        R02["api/dependencies.py<br/>FastAPI Depends"]
+        R03["api/security.py<br/>RequestContext + Auth"]
+        R04["api/schemas.py<br/>Pydantic Models"]
+        A03 --> R01
+        R01 --> R02
+        R01 --> R03
+        R01 -. data models .-> R04
+    end
+
+    %% Services
+    subgraph Services [Domain Services]
+        S01[AuthService]
+        S02[BankingService]
+        S03[DeviceBindingService]
+        S04["VoiceVerificationService<br/>(+ AI-enhanced verifier)"]
+        R02 -->|Depends...| S01
+        R02 -->|Depends...| S02
+        R02 -->|Depends...| S03
+        R02 -->|Depends...| S04
+        R03 -->|validate_token| S01
+    end
+
+    %% Repositories
+    subgraph Repos [Repositories]
+        P01[auth.py]
+        P02[accounts.py]
+        P03[transactions.py]
+        P04[reminders.py]
+        P05[beneficiaries.py]
+        P06[device_bindings.py]
+        S01 --> P01
+        S02 --> P02
+        S02 --> P03
+        S02 --> P04
+        S02 --> P05
+        S03 --> P06
+    end
+
+    %% Data & Persistence
+    subgraph Persistence [Persistence]
+        D01["db/config.py<br/>DatabaseConfig"]
+        D02["db/engine.py<br/>create_db_engine<br/>get_session_factory<br/>session_scope"]
+        D03["db/base.py<br/>SQLAlchemy Base"]
+        D04["db/models/*.py"]
+        D05[db/seed.py]
+        D06[(Database)]
+        R02 -->|load_database_config| D01
+        D01 --> D02 --> D06
+        D03 --> D04
+        P01 --> D04
+        P02 --> D04
+        P03 --> D04
+        P04 --> D04
+        P05 --> D04
+        P06 --> D04
+        S01 -. session_scope .-> D02
+        S02 -. session_scope .-> D02
+        S03 -. session_scope .-> D02
+    end
+
+    %% Utilities
+    subgraph Utils [Utilities]
+        U01[db/utils/enums.py]
+        U02["db/utils/security.py<br/>password hashing<br/>PIN verify"]
+        U03[db/utils/types.py]
+        R01 -. uses .-> U01
+        S01 -. uses .-> U02
+        S02 -. uses .-> U01
+        R01 -. uses .-> U02
+    end
+
+    %% External
+    subgraph External [External Interfaces]
+        X01[Frontend SPA]
+        X02["AI Service (optional)<br/>AIVoiceVerification"]
+        X01 -->|HTTP/JSON| R01
+        S04 -. optional .-> X02
+    end
+
+    %% Selected Flows
+    %% Login
+    X01 --> R01
+    R01 -->|/auth/login| S01
+    S01 -->|repos + session| P01
+    P01 --> D04 --> D06
+
+    %% Account Balance
+    R01 -->|"/accounts/{id}/balance"| S02
+    S02 --> P02 --> D04 --> D06
+
+    %% Transfer
+    R01 -->|/transfers/internal| S02
+    S02 --> P02
+    S02 --> P03
+
+    %% UPI PIN Verify
+    R01 -->|/upi/verify-pin| S02
+    R01 -->|pin check| U02
+    S02 --> P02
