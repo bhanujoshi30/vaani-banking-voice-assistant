@@ -1,10 +1,50 @@
 """Specialist investment agent invoked by the RAG supervisor."""
 from __future__ import annotations
+import re
 
 from typing import Any, Dict, Optional
 
 from langchain_core.messages import AIMessage
 from utils import logger
+
+
+def _clean_english_text(text: str) -> str:
+    """Remove Hindi Devanagari characters and convert Hindi numerals/words to English."""
+    if not text or not isinstance(text, str):
+        return text
+    
+    cleaned = text
+    
+    # First, replace common Hindi phrases/words with English equivalents BEFORE removing Devanagari
+    hindi_to_english = {
+        'प्रति वर्ष': 'p.a.',
+        'प्रति': 'per',
+        'लाख': 'lakhs',
+        'करोड़': 'crores',
+        'वर्ष': 'years',
+        'महीने': 'months',
+        'महीना': 'month',
+    }
+    
+    for hindi_word, english_word in hindi_to_english.items():
+        cleaned = cleaned.replace(hindi_word, english_word)
+    
+    # Convert Hindi numerals (०-९) to English (0-9)
+    hindi_to_english_numerals = {
+        '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+        '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+    }
+    
+    for hindi_num, english_num in hindi_to_english_numerals.items():
+        cleaned = cleaned.replace(hindi_num, english_num)
+    
+    # Remove any remaining Devanagari script characters (Unicode range \u0900-\u097F)
+    cleaned = re.sub(r'[\u0900-\u097F]+', '', cleaned)
+    
+    # Clean up extra spaces
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned
 
 
 def create_fallback_investment_info(investment_type: str) -> Optional[Dict[str, Any]]:
@@ -140,7 +180,8 @@ def handle_general_investment_query(state: Dict[str, Any], language: str) -> Dic
     ]
 
     if language == "hi-IN":
-        response = "यहाँ उपलब्ध निवेश योजनाएं हैं। विस्तृत जानकारी के लिए किसी भी योजना पर क्लिक करें या बोलें:"
+        # Use simple North Indian Hindi with female gender
+        response = "यहाँ उपलब्ध निवेश योजनाएं हैं। किसी भी योजना पर क्लिक करें या बोलें:"
     else:
         response = "Here are the available investment schemes. Click or speak any scheme for detailed information:"
 
@@ -169,7 +210,7 @@ async def handle_investment_query(
 
     rag_context = ""
     try:
-        rag_service = get_rag_service(documents_type="investment")
+        rag_service = get_rag_service(documents_type="investment", language=language)
         rag_filter = None
         if detected_investment_type:
             rag_filter = {"scheme_type": detected_investment_type}
@@ -187,7 +228,11 @@ async def handle_investment_query(
     except Exception as exc:
         logger.error("rag_investment_retrieval_error", error=str(exc))
 
-    system_prompt = _build_rag_system_prompt(rag_context)
+    # Get user context for name
+    user_context = state.get("user_context", {})
+    user_name = user_context.get("name")
+    
+    system_prompt = _build_rag_system_prompt(rag_context, user_name=user_name)
     investment_info_extracted: Optional[Dict[str, Any]] = None
 
     if detected_investment_type and not rag_context:
@@ -199,6 +244,7 @@ async def handle_investment_query(
             llm,
             rag_context,
             detected_investment_type,
+            language=language,
         )
 
     if detected_investment_type and not investment_info_extracted:
@@ -219,6 +265,10 @@ async def handle_investment_query(
         {"role": "user", "content": user_query},
     ]
     response = await llm.chat(llm_messages, use_fast_model=False)
+    
+    # Clean response text if language is English to remove any Hindi characters
+    if language == "en-IN":
+        response = _clean_english_text(response)
 
     state["messages"].append(AIMessage(content=response))
     state["next_action"] = "end"
@@ -239,7 +289,7 @@ def _build_detected_investment_context(investment_type: str) -> str:
     return scheme_contexts.get(investment_type, f"{investment_type.replace('_', ' ').upper()} investment scheme information.")
 
 
-async def _extract_investment_card(state, llm, rag_context: str, investment_type: str) -> Optional[Dict[str, Any]]:
+async def _extract_investment_card(state, llm, rag_context: str, investment_type: str, language: str = "en-IN") -> Optional[Dict[str, Any]]:
     import json
 
     investment_type_hint = ""
@@ -251,22 +301,27 @@ async def _extract_investment_card(state, llm, rag_context: str, investment_type
 {investment_type_hint}
 
 Extract the following fields:
-- name: Investment scheme name (e.g., \"PPF\", \"NPS\", \"Sukanya Samriddhi Yojana\") - REQUIRED
-- interest_rate: Interest rate or returns as string (e.g., \"7.1% p.a.\" or \"8-12% market-linked\")
-- min_amount: Minimum investment amount with \"Rs.\" prefix (e.g., \"Rs. 500\" or \"Rs. 250\")
+- name: Investment scheme name (e.g., \"PPF\", \"NPS\", \"Sukanya Samriddhi Yojana\", \"Fixed Deposit\") - REQUIRED
+- interest_rate: Interest rate or returns as string (e.g., \"7.1% per annum\" or \"6-8% per annum\" or \"8-12% market-linked\") - DO NOT add extra % symbol
+- min_amount: Minimum investment amount with \"Rs.\" prefix (e.g., \"Rs. 500\", \"Rs. 1,000\", \"Rs. 250\")
 - max_amount: Maximum investment amount with \"Rs.\" prefix (e.g., \"Rs. 1.5 lakhs\" or \"No limit\")
-- investment_amount: Alternative single string with range (e.g., \"Rs. 500 to Rs. 1.5 lakhs per year\")
-- tenure: Investment tenure/duration (e.g., \"15 years\" or \"Until 60 years\")
-- eligibility: Key eligibility criteria (concise, 1-2 sentences)
-- tax_benefits: Tax benefits description (e.g., \"Section 80C: Up to Rs. 1.5 lakhs deduction\")
+- investment_amount: ONLY use this for schemes with annual limits like PPF/SSY (e.g., \"Rs. 500 to Rs. 1.5 lakhs per year\"). For FD/RD, use min_amount and max_amount instead.
+- tenure: Investment tenure/duration (e.g., \"15 years\", \"7 days to 10 years\", \"Until 60 years\")
+- eligibility: Key eligibility criteria - who can invest (e.g., \"Any individual can open FD account\", \"Girl child below 10 years\")
+- tax_benefits: Tax benefits description (e.g., \"Section 80C: Up to Rs. 1.5 lakhs deduction\" or \"TDS applicable on interest\")
 - description: Brief one-sentence description of the scheme
 - features: Array of 3-5 key features as strings
 
 IMPORTANT RULES:
 1. All amounts MUST include \"Rs.\" prefix (e.g., \"Rs. 10,000\", \"Rs. 1.5 lakhs\")
 2. Extract actual values from the context, don't make up values
-3. If a field is not found, omit it (don't include null or empty values)
-4. Return ONLY valid JSON object, no markdown, no code blocks
+3. For Fixed Deposit (FD): min_amount should be \"Rs. 1,000\", max_amount should be \"No limit\", tenure should be \"7 days to 10 years\", eligibility should be \"Any individual can open FD account\"
+4. For Recurring Deposit (RD): min_amount should be \"Rs. 100 per month\", max_amount should be \"No limit\"
+5. DO NOT use investment_amount for FD or RD - use min_amount and max_amount instead
+6. If a field is not found, omit it (don't include null or empty values)
+7. Return ONLY valid JSON object, no markdown, no code blocks
+8. CRITICAL: ALL text MUST be in English ONLY. Use English words: \"lakhs\" (not \"लाख\"), \"crores\" (not \"करोड़\"), \"years\" (not \"वर्ष\"), \"months\" (not \"महीने\"). Convert any Hindi text from context to English.
+9. For numbers: Use English format like \"7.1\" (not \"७.१\"), \"1.5 lakhs\" (not \"1.5 लाख\"), \"8.2\" (not \"८.२\")
 """
 
     try:
@@ -282,6 +337,42 @@ IMPORTANT RULES:
 
         investment_info = json.loads(_extract_json_block(extracted_json))
         if investment_info and isinstance(investment_info, dict):
+            # Clean all text fields if language is English
+            if language == "en-IN":
+                for key, value in investment_info.items():
+                    if isinstance(value, str):
+                        investment_info[key] = _clean_english_text(value)
+                    elif isinstance(value, list):
+                        investment_info[key] = [_clean_english_text(str(v)) if isinstance(v, str) else v for v in value]
+            
+            # Validate that extracted data matches the detected investment type
+            # This prevents FD from showing PPF data or vice versa
+            if investment_type:
+                extracted_name = investment_info.get("name", "").lower()
+                type_mapping = {
+                    "fd": ["fixed deposit", "fd"],
+                    "ppf": ["ppf", "public provident fund"],
+                    "nps": ["nps", "national pension"],
+                    "ssy": ["ssy", "sukanya", "sukanya samriddhi"],
+                    "elss": ["elss", "equity linked"],
+                    "rd": ["rd", "recurring deposit"],
+                    "nsc": ["nsc", "national savings"],
+                }
+                expected_names = type_mapping.get(investment_type.lower(), [])
+                # Check if extracted name matches expected type
+                name_matches = any(
+                    expected in extracted_name for expected in expected_names
+                ) if expected_names else True
+                
+                if not name_matches:
+                    logger.warning(
+                        "investment_extraction_mismatch",
+                        detected_type=investment_type,
+                        extracted_name=investment_info.get("name"),
+                    )
+                    # Return None to trigger fallback
+                    return None
+            
             state["structured_data"] = {"type": "investment", "investmentInfo": investment_info}
             logger.info(
                 "investment_info_extracted",
@@ -318,33 +409,88 @@ def _extract_json_block(raw_response: str) -> str:
 
 
 def _build_investment_response_text(investment_info: Dict[str, Any], language: str) -> str:
+    """Build descriptive text before investment card with key details."""
     investment_name = investment_info.get("name") or "investment scheme"
-    if isinstance(investment_name, str):
-        investment_name = investment_name.replace("_", " ").replace("-", " ").title()
-
+    interest_rate = investment_info.get("interest_rate", "")
+    investment_amount = investment_info.get("investment_amount") or (
+        f"{investment_info.get('min_amount', '')} - {investment_info.get('max_amount', '')}" 
+        if investment_info.get("min_amount") or investment_info.get("max_amount") 
+        else ""
+    )
+    tenure = investment_info.get("tenure", "")
+    tax_benefits = investment_info.get("tax_benefits", "")
+    features = investment_info.get("features", [])
+    
     if language == "hi-IN":
-        investment_name_hi = {
-            "Ppf": "पीपीएफ",
-            "Nps": "एनपीएस",
-            "Sukanya Samriddhi Yojana": "सुकन्या समृद्धि योजना",
-            "Ssy": "सुकन्या समृद्धि योजना",
-            "Elss": "ईएलएसएस",
-            "Fixed Deposit": "फिक्स्ड डिपॉजिट",
-            "Recurring Deposit": "रिकरिंग डिपॉजिट",
-            "Nsc": "नेशनल सेविंग्स सर्टिफिकेट",
-        }.get(investment_name, investment_name)
-        return f"यहाँ {investment_name_hi} की विस्तृत जानकारी है।"
+        investment_name_hi = investment_name  # Already in Hindi from extraction/fallback
+        
+        # Build descriptive text with key details
+        parts = [f"यहाँ {investment_name_hi} की जानकारी है:"]
+        
+        if interest_rate:
+            parts.append(f"ब्याज दर: {interest_rate}")
+        
+        if investment_amount:
+            parts.append(f"निवेश राशि: {investment_amount}")
+        
+        if tenure:
+            parts.append(f"अवधि: {tenure}")
+        
+        if tax_benefits:
+            # Extract key part of tax benefits
+            tax_short = tax_benefits.split(".")[0] if "." in tax_benefits else tax_benefits[:50]
+            parts.append(f"कर लाभ: {tax_short}")
+        
+        if features and isinstance(features, list) and len(features) > 0:
+            # Mention first 2-3 key features
+            key_features = features[:3]
+            features_text = ", ".join(key_features)
+            parts.append(f"मुख्य विशेषताएं: {features_text}")
+        
+        return " ".join(parts) + " नीचे दिए गए कार्ड में विस्तृत जानकारी देखें।"
 
-    return f"Here are the details for {investment_name}."
+    # English version - clean all values to ensure no Hindi characters
+    investment_name = _clean_english_text(str(investment_name))
+    interest_rate = _clean_english_text(str(interest_rate)) if interest_rate else ""
+    investment_amount = _clean_english_text(str(investment_amount)) if investment_amount else ""
+    tenure = _clean_english_text(str(tenure)) if tenure else ""
+    tax_benefits = _clean_english_text(str(tax_benefits)) if tax_benefits else ""
+    
+    parts = [f"Here are the details for {investment_name}:"]
+    
+    if interest_rate:
+        parts.append(f"Interest Rate: {interest_rate}")
+    
+    if investment_amount:
+        parts.append(f"Investment Amount: {investment_amount}")
+    
+    if tenure:
+        parts.append(f"Tenure: {tenure}")
+    
+    if tax_benefits:
+        tax_short = tax_benefits.split(".")[0] if "." in tax_benefits else tax_benefits[:50]
+        parts.append(f"Tax Benefits: {tax_short}")
+    
+    if features and isinstance(features, list) and len(features) > 0:
+        key_features = features[:3]
+        # Clean each feature text
+        cleaned_features = [_clean_english_text(str(f)) for f in key_features]
+        features_text = ", ".join(cleaned_features)
+        parts.append(f"Key Features: {features_text}")
+    
+    response_text = " ".join(parts) + " See the card below for detailed information."
+    # Final cleanup of the entire response
+    return _clean_english_text(response_text)
 
 
-def _build_rag_system_prompt(rag_context: str) -> str:
+def _build_rag_system_prompt(rag_context: str, user_name: Optional[str] = None) -> str:
     if rag_context:
+        user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
         return f"""You are Vaani, a helpful AI assistant for Sun National Bank (an Indian bank).
 
 The user has asked a question about banking products/loans. Below is relevant information from our official product documentation:
 
-{rag_context}
+{rag_context}{user_name_context}
 
 Based on the above information, provide a clear, accurate, and helpful answer to the user's question.
 
@@ -357,11 +503,22 @@ IMPORTANT GUIDELINES:
 - If mentioning interest rates or fees, include the range (e.g., "8.50% - 11.50% p.a.")
 - For eligibility or documents, distinguish between salaried and self-employed if relevant
 
+HINDI LANGUAGE GUIDELINES (when responding in Hindi):
+- CRITICAL: Use ONLY Hindi (Devanagari script). NEVER use Gujarati, Punjabi, Haryanvi, Rajasthani, or any other regional language
+- Use FEMALE gender: "मैं" (I), "मैं कर सकती हूँ" (I can), "मैं बता सकती हूँ" (I can tell)
+- Use simple North Indian Hindi words, avoid complex Sanskritized words
+- Use common words: "पैसे" (money), "जानकारी" (information), "बताइए" (tell me)
+- Avoid complex words: use "बताइए" instead of "प्रदान करें", "जानकारी" instead of "सूचना"
+- Keep sentences simple and conversational
+- ALWAYS use the user's actual name from user_context if available. NEVER use generic terms like "गुजराती उपयोगकर्ता" or regional language terms
+- If user name is available, use it directly (e.g., "Priya Grahak" or "प्रिया ग्राहक")
+
 Keep your response helpful and professional."""
 
-    return """You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
+    user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
+    return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
-IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.
+IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}
 
 When users ask NON-BANKING questions (like weather, recipes, sports, general knowledge, etc.):
 - Politely acknowledge their question
@@ -375,6 +532,17 @@ For banking questions, you can help with:
 - Interest rates (Savings: 4-6%, FD: 6-8%)
 - Banking products (Loans, Credit cards, Insurance)
 - Branch locations and services
+
+HINDI LANGUAGE GUIDELINES (when responding in Hindi):
+- CRITICAL: Use ONLY Hindi (Devanagari script). NEVER use Gujarati, Punjabi, Haryanvi, Rajasthani, or any other regional language
+- Use FEMALE gender: "मैं" (I), "मैं कर सकती हूँ" (I can), "मैं बता सकती हूँ" (I can tell)
+- Use simple North Indian Hindi words, avoid complex Sanskritized words
+- Use common words: "पैसे" (money), "जानकारी" (information), "बताइए" (tell me), "योजना" (scheme)
+- Avoid complex words: use "बताइए" instead of "प्रदान करें", "जानकारी" instead of "सूचना", "योजना" instead of "अभियान"
+- Keep sentences simple and conversational
+- ALWAYS use the user's actual name from user_context if available. NEVER use generic terms like "गुजराती उपयोगकर्ता" or regional language terms
+- If user name is available, use it directly (e.g., "Priya Grahak" or "प्रिया ग्राहक")
+- Example: "मैं आपकी मदद कर सकती हूँ। मैं आपको निवेश योजनाओं के बारे में बता सकती हूँ।" (I can help you. I can tell you about investment schemes.)
 
 Examples:
 User: "What's the weather like?"

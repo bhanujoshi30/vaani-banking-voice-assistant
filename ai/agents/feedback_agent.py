@@ -14,6 +14,8 @@ async def feedback_agent(state):
     feedback_bucket = state.get("feedback_bucket")
 
     if language == "hi-IN":
+        # Use female gender: "मैंने" → "मैं" (but keep past tense correct: "मैंने...साझा किया है")
+        # Actually, "मैंने" is correct for past tense, but let's use simpler form
         message = (
             f"{user_name or 'जी'}, आपके सुझाव और प्रतिक्रिया के लिए धन्यवाद। "
             "मैंने इसे हमारी सहायता टीम के साथ साझा कर दिया है ताकि हम तुरंत कार्रवाई कर सकें।"

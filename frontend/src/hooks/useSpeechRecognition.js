@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createVoiceProvider, VOICE_SETTINGS } from '../config/voiceConfig.js';
+import { normalizeTranscript } from '../config/vocabularyConfig.js';
 
 /**
  * Custom hook for Web Speech API integration
@@ -100,9 +101,16 @@ export const useSpeechRecognition = (options = {}) => {
       console.log('Speech result event:', event.results.length, 'results');
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcriptPiece = event.results[i][0].transcript;
+        const rawTranscriptPiece = event.results[i][0].transcript;
         
-        console.log(`Result ${i}:`, transcriptPiece, 'isFinal:', event.results[i].isFinal);
+        // Normalize transcript using vocabulary and accent mappings
+        const transcriptPiece = normalizeTranscript(rawTranscriptPiece, lang);
+        
+        console.log(`Result ${i}:`, {
+          raw: rawTranscriptPiece,
+          normalized: transcriptPiece,
+          isFinal: event.results[i].isFinal
+        });
         
         if (event.results[i].isFinal) {
           finalTranscript += transcriptPiece + ' ';
@@ -112,14 +120,18 @@ export const useSpeechRecognition = (options = {}) => {
       }
 
       if (finalTranscript) {
-        console.log('Final transcript:', finalTranscript);
-        setTranscript((prev) => prev + finalTranscript);
+        // Normalize final transcript one more time (in case of multi-word phrases)
+        const normalizedFinal = normalizeTranscript(finalTranscript.trim(), lang);
+        console.log('Final transcript (normalized):', normalizedFinal);
+        setTranscript((prev) => prev + normalizedFinal + ' ');
         setInterimTranscript('');
       }
       
       if (interimText) {
-        console.log('Interim transcript:', interimText);
-        setInterimTranscript(interimText);
+        // Normalize interim transcript
+        const normalizedInterim = normalizeTranscript(interimText, lang);
+        console.log('Interim transcript (normalized):', normalizedInterim);
+        setInterimTranscript(normalizedInterim);
       }
       
       // Reset inactivity timer when speech is detected

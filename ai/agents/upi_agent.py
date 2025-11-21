@@ -48,8 +48,16 @@ async def upi_agent(state):
         word in msg_lower for word in ["pay", "send", "transfer", "भेजें", "भुगतान"]
     )
     
-    # Check if message explicitly mentions UPI
-    has_explicit_upi = any(word in msg_lower for word in ["upi", "यूपीआई", "यूपी"]) or is_wake_up_only
+    # Check if message explicitly mentions UPI (both English and Hindi)
+    upi_keywords = ["upi", "यूपीआई", "यूपी", "yupi", "you pee", "you p i"]
+    has_explicit_upi = any(keyword in msg_lower for keyword in upi_keywords) or is_wake_up_only
+    
+    # If UPI keyword detected but UPI mode is inactive, activate it
+    if has_explicit_upi and not upi_mode_active:
+        state["upi_mode"] = True
+        logger.info("upi_keyword_detected_activating_mode", 
+                   message=last_user_message,
+                   upi_keywords_found=[kw for kw in upi_keywords if kw in msg_lower])
     
     # If UPI mode is inactive and message doesn't explicitly mention UPI, redirect to banking agent
     # Exception: If there's a pending UPI operation (account selection), continue with UPI agent
@@ -59,6 +67,9 @@ async def upi_agent(state):
         existing_structured_data.get("type") in ["upi_balance_check", "upi_payment"] and
         existing_structured_data.get("pending_account_selection") == True
     )
+    
+    # Update upi_mode_active after potential activation above
+    upi_mode_active = state.get("upi_mode", False)
     
     if not upi_mode_active and not has_explicit_upi and not has_pending_upi_operation:
         # Redirect to banking agent for normal balance/transaction queries
@@ -122,7 +133,7 @@ async def upi_agent(state):
         if language == "hi-IN":
             response_content = "नमस्ते! मैं UPI मोड में हूं। आप कह सकते हैं: '₹100 प्राप्तकर्ता को भेजें' या 'पहले लाभार्थी को ₹500 भेजें'।"
         else:
-            response_content = "Hello! I'm in UPI mode. You can say: 'Send ₹100 to recipient' or 'Transfer ₹500 to first beneficiary'."
+            response_content = "Hello! I'm in UPI mode with Vaani by Sun National Bank. You can say: 'Send ₹100 to recipient' or 'Transfer ₹500 to first beneficiary'."
         ai_message = AIMessage(content=response_content)
         state["messages"].append(ai_message)
         state["next_action"] = "end"
@@ -428,43 +439,86 @@ async def handle_upi_payment(state, user_context, language, last_user_message):
     llm = get_llm_service()
     
     # Build conversation context from previous messages
+    # STRICTLY use only the previous 3 pairs of dialogues (user-assistant pairs)
     conversation_context = ""
     upi_ids_in_context = []  # Initialize to avoid NameError
     messages = state.get("messages", [])
+    
     if len(messages) > 1:
-        # Get last 5 messages for context (excluding current message)
-        recent_messages = messages[-6:-1] if len(messages) > 6 else messages[:-1]
-        conversation_context = "\n\nPREVIOUS CONVERSATION CONTEXT:\n"
-        for msg in recent_messages:
-            role = "User" if hasattr(msg, "content") and msg.__class__.__name__ == "HumanMessage" else "Assistant"
-            content = msg.content if hasattr(msg, "content") else str(msg)
-            conversation_context += f"{role}: {content}\n"
+        # Get exactly the last 3 pairs (6 messages total, excluding current message)
+        # A pair consists of: User message followed by Assistant message
+        # We need to go backwards from the second-to-last message and collect 3 complete pairs
         
-        # Extract UPI IDs mentioned in previous messages (in chronological order)
-        # Iterate through messages in order to preserve chronological sequence
-        for msg in recent_messages:
-            content = msg.content if hasattr(msg, "content") else str(msg)
-            # Look for UPI ID patterns in previous messages
-            upi_pattern = r'([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)'
-            found_upis = re.findall(upi_pattern, content)
-            # Append in order (so last one is most recent)
-            upi_ids_in_context.extend(found_upis)
+        # Start from the second-to-last message (since last is current user message)
+        recent_messages = []
+        pairs_collected = 0
+        target_pairs = 3
         
-        # Remove duplicates while preserving order (most recent last)
-        seen = set()
-        unique_upi_ids = []
-        for upi_id in upi_ids_in_context:
-            if upi_id not in seen:
-                seen.add(upi_id)
-                unique_upi_ids.append(upi_id)
-        upi_ids_in_context = unique_upi_ids  # Now contains unique UPI IDs in chronological order
+        # Go backwards through messages to collect exactly 3 pairs
+        # We need to find user-assistant pairs in reverse order
+        i = len(messages) - 2  # Start from second-to-last message (skip current)
         
-        if upi_ids_in_context:
-            # Show all UPI IDs but emphasize the most recent one
-            most_recent_upi = upi_ids_in_context[-1]
-            conversation_context += f"\nUPI IDs mentioned in previous messages (in order): {', '.join(upi_ids_in_context)}\n"
-            conversation_context += f"IMPORTANT: The MOST RECENT UPI ID is: {most_recent_upi}\n"
-            conversation_context += "If the current message refers to 'this UPI', 'the UPI', 'that UPI ID', 'the UPI from QR', 'yes', or just mentions an amount, use the MOST RECENT UPI ID from above.\n"
+        while i >= 0 and pairs_collected < target_pairs:
+            msg = messages[i]
+            msg_type = msg.__class__.__name__
+            
+            # If this is an Assistant message, look for the preceding User message to form a pair
+            if msg_type == "AIMessage":
+                # Check if there's a User message before this Assistant message
+                if i > 0:
+                    prev_msg = messages[i - 1]
+                    prev_msg_type = prev_msg.__class__.__name__
+                    
+                    # If previous is User message, we have a complete pair
+                    if prev_msg_type == "HumanMessage":
+                        # Add both messages to recent_messages (in chronological order)
+                        # We'll prepend them so they're in order when we iterate
+                        recent_messages.insert(0, prev_msg)  # User message first
+                        recent_messages.insert(1, msg)  # Assistant message second
+                        pairs_collected += 1
+                        i -= 2  # Skip both messages
+                    else:
+                        # Previous is also Assistant, skip this one
+                        i -= 1
+                else:
+                    # No previous message, skip
+                    i -= 1
+            else:
+                # Current message is User, but we need pairs, so skip
+                i -= 1
+        
+        # Only use these 3 pairs (6 messages) for context
+        if recent_messages:
+            conversation_context = "\n\nPREVIOUS CONVERSATION CONTEXT (Last 3 pairs only):\n"
+            for msg in recent_messages:
+                role = "User" if hasattr(msg, "content") and msg.__class__.__name__ == "HumanMessage" else "Assistant"
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                conversation_context += f"{role}: {content}\n"
+            
+            # Extract UPI IDs mentioned in these 3 pairs only (in chronological order)
+            for msg in recent_messages:
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                # Look for UPI ID patterns in previous messages
+                upi_pattern = r'([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)'
+                found_upis = re.findall(upi_pattern, content)
+                # Append in order (so last one is most recent)
+                upi_ids_in_context.extend(found_upis)
+            
+            # Remove duplicates while preserving order (most recent last)
+            seen = set()
+            unique_upi_ids = []
+            for upi_id in upi_ids_in_context:
+                if upi_id not in seen:
+                    seen.add(upi_id)
+                    unique_upi_ids.append(upi_id)
+            upi_ids_in_context = unique_upi_ids  # Now contains unique UPI IDs in chronological order
+            
+            if upi_ids_in_context:
+                # Show all UPI IDs but emphasize the most recent one
+                most_recent_upi = upi_ids_in_context[-1]
+                conversation_context += f"\nUPI IDs mentioned in previous messages (in order): {', '.join(upi_ids_in_context)}\n"
+                conversation_context += f"IMPORTANT: The MOST RECENT UPI ID is: {most_recent_upi}\n"
+                conversation_context += "If the current message refers to 'this UPI', 'the UPI', 'that UPI ID', 'the UPI from QR', 'yes', or just mentions an amount, use the MOST RECENT UPI ID from above.\n"
     
     # Word number mapping for reference in prompt
     word_number_examples = {
@@ -479,6 +533,9 @@ async def handle_upi_payment(state, user_context, language, last_user_message):
 {conversation_context}
 
 CRITICAL INSTRUCTIONS:
+- STRICTLY use ONLY the conversation context provided above (last 3 pairs of dialogues only)
+- Do NOT reference any messages outside of the provided context
+- Extract UPI ID, amount, and remarks ONLY from the last 3 pairs shown above
 1. AMOUNT EXTRACTION:
    - Convert word numbers to digits: "hundred" = 100, "thousand" = 1000, "fifty" = 50, "twenty" = 20, etc.
    - Handle combinations: "hundred rupees" = 100, "two thousand" = 2000

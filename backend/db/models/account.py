@@ -32,6 +32,7 @@ class Account(Base):
     __tablename__ = "accounts"
     __table_args__ = (
         UniqueConstraint("account_number", name="uq_accounts_number"),
+        UniqueConstraint("upi_id", name="uq_accounts_upi_id"),
         Index("ix_accounts_user_id_status", "user_id", "status"),
     )
 
@@ -52,6 +53,7 @@ class Account(Base):
         default=lambda: datetime.now(ZoneInfo("Asia/Kolkata")),
     )
     nominee_name = Column(String(120), nullable=True)
+    upi_id = Column(String(100), nullable=True)
 
     user = relationship("User", back_populates="accounts")
     branch = relationship("Branch", backref="accounts")

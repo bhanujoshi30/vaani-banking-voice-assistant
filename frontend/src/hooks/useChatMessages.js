@@ -12,6 +12,7 @@ const createInitialAssistantMessage = (messageText) => {
 export const useChatMessages = ({ initialMessage } = {}) => {
   const [messages, setMessages] = useState(() => [createInitialAssistantMessage(initialMessage)]);
   const messagesEndRef = useRef(null);
+  const isLanguageChangingRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,8 +24,23 @@ export const useChatMessages = ({ initialMessage } = {}) => {
 
   useEffect(() => {
     if (!initialMessage) return;
+    
+    // Skip auto-update if we're in the middle of a language change
+    if (isLanguageChangingRef.current) {
+      // Reset the flag after a short delay to allow messages to be set
+      setTimeout(() => {
+        isLanguageChangingRef.current = false;
+      }, 100);
+      return;
+    }
 
     setMessages((prev) => {
+      // If messages array is empty, set the initial message
+      if (prev.length === 0) {
+        return [createInitialAssistantMessage(initialMessage)];
+      }
+      
+      // If there's exactly 1 assistant message and content is different, update it
       if (
         prev.length === 1 &&
         prev[0].role === 'assistant' &&
@@ -38,12 +54,23 @@ export const useChatMessages = ({ initialMessage } = {}) => {
           },
         ];
       }
+      // If there are multiple messages, keep them as is - don't reset on language change
+      // Language changes should preserve the conversation history
+      // If there's 1 message but it's not an assistant message, reset
+      if (prev.length === 1 && prev[0].role !== 'assistant') {
+        return [createInitialAssistantMessage(initialMessage)];
+      }
       return prev;
     });
   }, [initialMessage]);
+  
+  // Expose a function to mark language change in progress
+  const markLanguageChanging = () => {
+    isLanguageChangingRef.current = true;
+  };
 
-  const addMessage = (role, content, statementData = null, structuredData = null) => {
-    const message = createMessage(role, content);
+  const addMessage = (role, content, statementData = null, structuredData = null, language = null) => {
+    const message = createMessage(role, content, language);
     if (statementData) {
       console.log('✅ Adding message with statementData:', { role, statementData });
       message.statementData = statementData;
@@ -158,9 +185,9 @@ export const useChatMessages = ({ initialMessage } = {}) => {
     }
   };
 
-  const addUserMessage = (content) => addMessage('user', content);
-  const addAssistantMessage = (content, statementData = null, structuredData = null) => 
-    addMessage('assistant', content, statementData, structuredData);
+  const addUserMessage = (content, language = null) => addMessage('user', content, null, null, language);
+  const addAssistantMessage = (content, statementData = null, structuredData = null, language = null) => 
+    addMessage('assistant', content, statementData, structuredData, language);
 
   return {
     messages,
@@ -170,5 +197,6 @@ export const useChatMessages = ({ initialMessage } = {}) => {
     addAssistantMessage,
     scrollToBottom,
     clearUnusedCards,
+    markLanguageChanging,
   };
 };

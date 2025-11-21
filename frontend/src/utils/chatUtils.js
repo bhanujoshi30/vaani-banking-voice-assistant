@@ -28,15 +28,23 @@ export const generateMessageId = () => {
  * Create a message object
  * @param {string} role - 'user' or 'assistant'
  * @param {string} content - Message content
+ * @param {string} language - Language code (optional, stored for cards to preserve their language)
  * @returns {Object} Message object
  */
-export const createMessage = (role, content) => {
-  return {
+export const createMessage = (role, content, language = null) => {
+  const message = {
     id: generateMessageId(),
     role,
     content,
     timestamp: new Date(),
   };
+  
+  // Store language if provided (important for cards to preserve their original language)
+  if (language) {
+    message.language = language;
+  }
+  
+  return message;
 };
 
 /**

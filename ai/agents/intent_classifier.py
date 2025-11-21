@@ -167,8 +167,22 @@ async def classify_intent(state):
             logger.info("upi_payment_routed", message=last_message, upi_mode_active=True)
             return state
     
+    # Check for UPI keywords (both English and Hindi) BEFORE routing to banking agent
+    upi_keywords = ["upi", "यूपीआई", "यूपी", "yupi", "you pee", "you p i"]
+    has_upi_keyword = any(keyword in msg_lower for keyword in upi_keywords)
+    
     # When UPI mode is inactive: Route to banking agent for balance/transfer
     if not upi_mode_active:
+        # If UPI keyword is detected, activate UPI mode and route to UPI agent
+        if has_upi_keyword:
+            state["upi_mode"] = True
+            intent = "upi_payment"
+            state["current_intent"] = intent
+            logger.info("upi_keyword_detected_activating_upi_mode", 
+                       message=last_message, 
+                       upi_keywords_found=[kw for kw in upi_keywords if kw in msg_lower])
+            return state
+        
         # Balance query → Banking agent (normal balance check)
         if has_balance_keyword:
             intent = "banking_operation"
@@ -177,15 +191,29 @@ async def classify_intent(state):
             return state
         
         # Transfer (without explicit UPI mention) → Banking agent
-        if has_transfer_keyword and "upi" not in msg_lower:
+        if has_transfer_keyword and not has_upi_keyword:
             intent = "banking_operation"
             state["current_intent"] = intent
             logger.info("normal_transfer_routed", message=last_message, upi_mode_active=False)
             return state
     
+    # Check for UPI keywords again before LLM classification (in case it wasn't caught above)
+    upi_keywords = ["upi", "यूपीआई", "यूपी", "yupi", "you pee", "you p i"]
+    has_upi_keyword = any(keyword in msg_lower for keyword in upi_keywords)
+    
+    # If UPI keyword detected and not already in UPI mode, activate it
+    if has_upi_keyword and not upi_mode_active:
+        state["upi_mode"] = True
+        intent = "upi_payment"
+        state["current_intent"] = intent
+        logger.info("upi_keyword_detected_in_llm_fallback", 
+                   message=last_message,
+                   upi_keywords_found=[kw for kw in upi_keywords if kw in msg_lower])
+        return state
+    
     # For other queries, use LLM classification
     intent_prompt = f"""You are a banking assistant. Classify the user's intent into ONE of these categories:
-    - upi_payment: UPI payments, sending money via UPI, "pay via UPI", "UPI payment", "send money via UPI", "pay ₹X to Y via UPI", or explicitly mentions UPI
+    - upi_payment: UPI payments, sending money via UPI, "pay via UPI", "UPI payment", "send money via UPI", "pay ₹X to Y via UPI", "यूपीआई से पैसे ट्रांसफर", "यूपीआई से भुगतान", or explicitly mentions UPI/यूपीआई
     - banking_operation: Balance check (when UPI mode is NOT active), transactions, transfers (non-UPI), account operations, setting reminders, viewing reminders, managing reminders, downloading statements, account statements, bank statements
     - general_faq: Questions about interest rates, products, services, branches
     - greeting: Hi, hello, namaste, how are you
@@ -195,7 +223,8 @@ async def classify_intent(state):
 CRITICAL RULES:
     - "set reminder", "create reminder", "view reminders", "show reminders", "remind me" → "banking_operation"
     - "download statement", "bank statement", "account statement", "statement download", "nikalna", "स्टेटमेंट" → "banking_operation"
-    - If message explicitly mentions "UPI" → "upi_payment"
+    - If message explicitly mentions "UPI" or "यूपीआई" or "यूपी" → "upi_payment"
+    - Hindi UPI phrases: "यूपीआई से पैसे ट्रांसफर", "यूपीआई से भुगतान", "यूपीआई से पैसे भेजें" → "upi_payment"
     - Otherwise, classify based on the message content
 
 User message: "{last_message}"

@@ -17,7 +17,7 @@ const FALLBACK_COPY = {
     start: "Start voice input",
   },
   hints: {
-    speaking: "Assistant is speaking... Input disabled",
+    speaking: "Assistant is speaking...",
     comingSoon: "Voice input coming soon for this language. Please use English or Hindi.",
     voiceMode: "Voice mode active - Speak naturally, your message will be sent automatically",
     listening: "Listening... Speak clearly",
@@ -197,12 +197,34 @@ const ChatInput = ({
             {hints.comingSoon}
           </span>
         )}
-        {!isSpeaking && !isLanguageComingSoon && isVoiceModeEnabled && (
+        {!isSpeaking && !isLanguageComingSoon && isVoiceModeEnabled && isListening && (
           <span className="chat-hint chat-hint--listening">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="10" fill="#7cb5ff" />
             </svg>
             {hints.voiceMode}
+          </span>
+        )}
+        {!isSpeaking && !isLanguageComingSoon && isVoiceModeEnabled && !isListening && (
+          <span className="chat-hint chat-hint--click-to-record">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="chat-hint__mic-icon">
+              <path
+                d="M12 15C13.66 15 15 13.66 15 12V6C15 4.34 13.66 3 12 3C10.34 3 9 4.34 9 6V12C9 13.66 10.34 15 12 15Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M19 12C19 15.31 16.31 18 13 18H11C7.69 18 5 15.31 5 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="chat-hint__arrow">←</span>
+            {hints.clickToRecord || "Click microphone to record again"}
           </span>
         )}
         {!isSpeaking && !isLanguageComingSoon && !isVoiceModeEnabled && isListening && (

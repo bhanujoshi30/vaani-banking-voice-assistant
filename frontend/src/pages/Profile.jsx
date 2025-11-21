@@ -126,7 +126,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     message: "",
     accountId: "",
     channel: "voice",
-    recurrenceRule: "",
   });
   const [reminderStatus, setReminderStatus] = useState(null);
 
@@ -673,7 +672,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
         message: reminderForm.message,
         accountId: reminderForm.accountId || undefined,
         channel: reminderForm.channel || "voice",
-        recurrenceRule: reminderForm.recurrenceRule || undefined,
       };
       const created = await createReminder({ accessToken, payload });
       setReminders((prev) => [created, ...prev]);
@@ -682,7 +680,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
         ...prev,
         message: "",
         remindAt: "",
-        recurrenceRule: "",
       }));
     } catch (error) {
       if (
@@ -836,7 +833,17 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
               {!checkingVoiceBinding && (
                 <div
                   className={`profile-pill ${isVoiceSecured ? "profile-pill--secured" : "profile-pill--unsecured"}`}
-                  onClick={!isVoiceSecured ? () => setIsVoiceEnrollmentModalOpen(true) : undefined}
+                  onClick={!isVoiceSecured ? (e) => {
+                    setIsVoiceEnrollmentModalOpen(true);
+                    // Remove focus immediately after click to prevent outline from persisting
+                    e.currentTarget.blur();
+                  } : undefined}
+                  onMouseDown={!isVoiceSecured ? (e) => {
+                    // Prevent focus on mouse down for mouse clicks
+                    if (e.button === 0) {
+                      e.preventDefault();
+                    }
+                  } : undefined}
                   style={!isVoiceSecured ? { cursor: "pointer" } : undefined}
                   role={!isVoiceSecured ? "button" : undefined}
                   tabIndex={!isVoiceSecured ? 0 : undefined}
@@ -1273,16 +1280,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                         required
                       />
                     </label>
-                    <label htmlFor="reminder-message" className="form-grid--span">
-                      {s.message}
-                      <textarea
-                        id="reminder-message"
-                        name="message"
-                        value={reminderForm.message}
-                        onChange={handleReminderChange}
-                        required
-                      />
-                    </label>
                     <label htmlFor="reminder-account">
                       {s.linkedAccount}
                       <select
@@ -1299,6 +1296,16 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                         ))}
                       </select>
                     </label>
+                    <label htmlFor="reminder-message" className="form-grid--span">
+                      {s.message}
+                      <textarea
+                        id="reminder-message"
+                        name="message"
+                        value={reminderForm.message}
+                        onChange={handleReminderChange}
+                        required
+                      />
+                    </label>
                     <label htmlFor="reminder-channel">
                       {s.channel}
                       <select
@@ -1311,17 +1318,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                         <option value="sms">SMS</option>
                         <option value="push">Push</option>
                       </select>
-                    </label>
-                    <label htmlFor="reminder-recurrence">
-                      {s.recurrenceRule}
-                      <input
-                        id="reminder-recurrence"
-                        type="text"
-                        name="recurrenceRule"
-                        value={reminderForm.recurrenceRule}
-                        onChange={handleReminderChange}
-                        placeholder={s.optionalRrule}
-                      />
                     </label>
                     <button type="submit" className="primary-btn primary-btn--compact" disabled={remindersLoading}>
                       {remindersLoading ? s.creating : s.createReminder}

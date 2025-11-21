@@ -1,10 +1,31 @@
+import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { downloadDocument } from '../../utils/documentDownload.js';
 import './LoanInfoCard.css';
 
 /**
  * LoanInfoCard component - Displays loan product information in card format
  */
-const LoanInfoCard = ({ loanInfo, language = 'en-IN' }) => {
+const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!loanInfo || isDownloading) return;
+    
+    setIsDownloading(true);
+    try {
+      const loanName = loanInfo.name || loanInfo.title || '';
+      await downloadDocument('loan', loanName, language, accessToken);
+    } catch (error) {
+      console.error('Error downloading loan document:', error);
+      alert(language === 'hi-IN' 
+        ? 'दस्तावेज़ डाउनलोड करने में त्रुटि: ' + error.message
+        : 'Error downloading document: ' + error.message
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   if (!loanInfo) {
     return null;
   }
@@ -94,6 +115,29 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN' }) => {
         <div className="loan-info-card__title">
           {loanInfo.name || loanInfo.title || (language === 'hi-IN' ? 'ऋण जानकारी' : 'Loan Information')}
         </div>
+        <button
+          className="loan-info-card__download-btn"
+          onClick={handleDownload}
+          disabled={isDownloading}
+          title={language === 'hi-IN' ? 'विस्तृत दस्तावेज़ डाउनलोड करें' : 'Download detailed document'}
+          aria-label={language === 'hi-IN' ? 'विस्तृत दस्तावेज़ डाउनलोड करें' : 'Download detailed document'}
+        >
+          {isDownloading ? (
+            <>
+              <span className="loan-info-card__download-icon">⏳</span>
+              <span className="loan-info-card__download-text">
+                {language === 'hi-IN' ? 'डाउनलोड हो रहा है...' : 'Downloading...'}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="loan-info-card__download-icon">📥</span>
+              <span className="loan-info-card__download-text">
+                {language === 'hi-IN' ? 'विस्तृत दस्तावेज़ डाउनलोड करें' : 'Download detailed document'}
+              </span>
+            </>
+          )}
+        </button>
       </div>
 
       <div className="loan-info-card__content">
@@ -149,18 +193,34 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN' }) => {
           </div>
         )}
 
-        {loanInfo.features && loanInfo.features.length > 0 && (
-          <div className="loan-info-card__features">
-            <div className="loan-info-card__features-title">
-              {language === 'hi-IN' ? 'विशेषताएं' : 'Features'}
-            </div>
-            <ul className="loan-info-card__features-list">
-              {loanInfo.features.map((feature, index) => (
-                <li key={index}>{feature}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {(() => {
+          // Safely handle features - ensure it's an array
+          let featuresArray = [];
+          if (loanInfo.features) {
+            if (Array.isArray(loanInfo.features)) {
+              featuresArray = loanInfo.features;
+            } else if (typeof loanInfo.features === 'string') {
+              // If features is a string, try to split it or wrap it in an array
+              featuresArray = [loanInfo.features];
+            }
+          }
+          
+          if (featuresArray.length > 0) {
+            return (
+              <div className="loan-info-card__features">
+                <div className="loan-info-card__features-title">
+                  {language === 'hi-IN' ? 'विशेषताएं' : 'Features'}
+                </div>
+                <ul className="loan-info-card__features-list">
+                  {featuresArray.map((feature, index) => (
+                    <li key={index}>{feature}</li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
     </div>
   );
@@ -179,6 +239,7 @@ LoanInfoCard.propTypes = {
     features: PropTypes.arrayOf(PropTypes.string),
   }),
   language: PropTypes.string,
+  accessToken: PropTypes.string,
 };
 
 export default LoanInfoCard;

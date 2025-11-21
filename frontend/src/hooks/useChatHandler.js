@@ -23,6 +23,7 @@ export const useChatHandler = ({
   isSpeaking,
   stopListening,
   toggleListening,
+  stopSpeaking,
   clearUnusedCards,
   upiConsentGiven,
   setPendingUPIMessage,
@@ -59,10 +60,11 @@ export const useChatHandler = ({
       return;
     }
 
-    // Don't send if speaking in voice mode
-    if (isVoiceModeEnabled && isSpeaking) {
-      console.log('⚠️ Cannot send while speaking');
-      return;
+    // Stop speaking immediately when user sends a message, but don't block the action
+    if (isSpeaking && stopSpeaking) {
+      console.log('🛑 Stopping TTS - user sent message');
+      stopSpeaking();
+      // Continue with the action - don't return here
     }
 
     // Stop listening if currently recording
@@ -80,8 +82,8 @@ export const useChatHandler = ({
       clearUnusedCards(userFacingText);
     }
 
-    // Add user message
-    addUserMessage(userFacingText);
+    // Add user message with current language
+    addUserMessage(userFacingText, language);
     
     if (config.clearInput) {
       setInputText('');
@@ -141,10 +143,11 @@ export const useChatHandler = ({
       }
 
       // Add assistant message with optional statement data and structured data
-      addAssistantMessage(assistantText, response.statementData, response.structuredData);
+      // Store language so cards preserve their original language even if language changes later
+      addAssistantMessage(assistantText, response.statementData, response.structuredData, language);
     } catch (error) {
       console.error('Error in chat handler:', error);
-      addAssistantMessage('Sorry, I encountered an error. Please try again.');
+      addAssistantMessage('Sorry, I encountered an error. Please try again.', null, null, language);
     } finally {
       setIsTyping(false);
     }
@@ -165,6 +168,7 @@ export const useChatHandler = ({
     isSpeaking,
     stopListening,
     toggleListening,
+    stopSpeaking,
     upiConsentGiven,
     setPendingUPIMessage
   ]);
@@ -183,6 +187,13 @@ export const useChatHandler = ({
    */
   const handleQuickAction = async (action) => {
     if (!action) return;
+
+    // Stop speaking if currently speaking, but continue with action
+    if (isSpeaking && stopSpeaking) {
+      console.log('🛑 Stopping TTS - quick action clicked');
+      stopSpeaking();
+      // Continue with the action - don't return here
+    }
 
     const displayMessage = action.prompt || action.label || '';
     const backendMessage = action.command || displayMessage;

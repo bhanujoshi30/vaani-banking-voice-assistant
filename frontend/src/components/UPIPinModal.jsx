@@ -9,6 +9,7 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
   const [editedAmount, setEditedAmount] = useState("");
   const [editedRecipient, setEditedRecipient] = useState("");
   const [upiIdError, setUpiIdError] = useState("");
+  const [amountError, setAmountError] = useState("");
   const pinInputRefs = useRef([]);
 
   useEffect(() => {
@@ -17,12 +18,42 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
       setError("");
       setIsEditing(false);
       setUpiIdError("");
+      setAmountError("");
       if (paymentDetails) {
         setEditedAmount(paymentDetails.amount?.toString() || "");
         setEditedRecipient(paymentDetails.recipient || "");
       }
     }
   }, [isOpen, paymentDetails]);
+
+  // Validate amount
+  const validateAmount = (amountValue) => {
+    if (!amountValue || amountValue.trim() === '') {
+      return { valid: false, error: language === 'hi-IN' ? 'राशि आवश्यक है' : 'Amount is required' };
+    }
+    
+    const numValue = parseFloat(amountValue);
+    
+    if (isNaN(numValue)) {
+      return { valid: false, error: language === 'hi-IN' ? 'कृपया वैध संख्या दर्ज करें' : 'Please enter a valid number' };
+    }
+    
+    if (numValue <= 0) {
+      return { valid: false, error: language === 'hi-IN' ? 'राशि 0 से अधिक होनी चाहिए' : 'Amount must be greater than 0' };
+    }
+    
+    if (numValue < 1) {
+      return { valid: false, error: language === 'hi-IN' ? 'न्यूनतम राशि ₹1 है' : 'Minimum amount is ₹1' };
+    }
+    
+    // Check for too many decimal places
+    const decimalPlaces = (amountValue.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 2) {
+      return { valid: false, error: language === 'hi-IN' ? 'राशि में अधिकतम 2 दशमलव स्थान हो सकते हैं' : 'Amount can have maximum 2 decimal places' };
+    }
+    
+    return { valid: true, error: '' };
+  };
 
   // Validate UPI ID format
   const validateUPIId = (upiId) => {
@@ -32,22 +63,27 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
     
     const trimmed = upiId.trim();
     
-    // UPI ID format: username@payee (e.g., john@paytm, 9876543210@ybl)
-    // Valid patterns:
-    // - username@payee (username can contain letters, numbers, dots, hyphens, underscores)
-    // - phone@payee (phone number with @payee)
-    // Payee can be: paytm, ybl, phonepe, gpay, amazonpay, etc.
-    
-    const upiIdPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/;
-    
-    if (!upiIdPattern.test(trimmed)) {
+    // Check basic format first
+    if (!trimmed.includes('@')) {
       return { 
         valid: false, 
         error: language === 'hi-IN' 
-          ? 'अमान्य UPI ID प्रारूप। सही प्रारूप: username@payee (उदाहरण: john@paytm, 9876543210@ybl)'
-          : 'Invalid UPI ID format. Correct format: username@payee (e.g., john@paytm, 9876543210@ybl)'
+          ? 'अमान्य UPI ID प्रारूप'
+          : 'Invalid UPI ID format'
       };
     }
+    
+    const parts = trimmed.split('@');
+    if (parts.length !== 2) {
+      return { 
+        valid: false, 
+        error: language === 'hi-IN' 
+          ? 'अमान्य UPI ID प्रारूप'
+          : 'Invalid UPI ID format'
+      };
+    }
+    
+    const [username, payee] = parts;
     
     // Check length constraints
     if (trimmed.length < 5 || trimmed.length > 100) {
@@ -59,20 +95,42 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
       };
     }
     
-    // Check for valid payee providers (common ones)
-    const validPayees = ['paytm', 'ybl', 'phonepe', 'gpay', 'amazonpay', 'bhim', 'sunbank'];
-    const payee = trimmed.split('@')[1]?.toLowerCase();
+    // Validate username
+    if (username.length < 3 || username.length > 99) {
+      return { 
+        valid: false, 
+        error: language === 'hi-IN' 
+          ? 'यूजरनेम 3-99 वर्णों के बीच होना चाहिए'
+          : 'Username must be between 3-99 characters'
+      };
+    }
     
-    if (payee && !validPayees.includes(payee) && !/^[a-zA-Z0-9]+$/.test(payee)) {
-      // Allow other payees but warn if format seems wrong
-      if (payee.length < 2 || payee.length > 20) {
-        return { 
-          valid: false, 
-          error: language === 'hi-IN' 
-            ? 'अमान्य UPI ID प्रदाता'
-            : 'Invalid UPI ID provider'
-        };
-      }
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      return { 
+        valid: false, 
+        error: language === 'hi-IN' 
+          ? 'यूजरनेम में केवल अक्षर, संख्या, बिंदु, हाइफन और अंडरस्कोर हो सकते हैं'
+          : 'Username can only contain letters, numbers, dots, hyphens, and underscores'
+      };
+    }
+    
+    // Validate payee
+    if (payee.length < 2 || payee.length > 20) {
+      return { 
+        valid: false, 
+        error: language === 'hi-IN' 
+          ? 'Payee 2-20 वर्णों के बीच होना चाहिए'
+          : 'Payee must be between 2-20 characters'
+      };
+    }
+    
+    if (!/^[a-zA-Z0-9]+$/.test(payee)) {
+      return { 
+        valid: false, 
+        error: language === 'hi-IN' 
+          ? 'Payee में केवल अक्षर और संख्या हो सकते हैं'
+          : 'Payee can only contain letters and numbers'
+      };
     }
     
     return { valid: true, error: "" };
@@ -82,6 +140,15 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
     const value = e.target.value.replace(/[^\d.]/g, '');
     setEditedAmount(value);
     setError("");
+    setAmountError("");
+    
+    // Validate amount in real-time
+    if (value.trim() !== '') {
+      const validation = validateAmount(value);
+      if (!validation.valid) {
+        setAmountError(validation.error);
+      }
+    }
   };
 
   const handleRecipientChange = (e) => {
@@ -100,16 +167,16 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
 
   const handleSaveEdit = () => {
     // Validate amount
-    const amount = parseFloat(editedAmount);
-    if (!editedAmount || isNaN(amount) || amount <= 0) {
-      setError(language === 'hi-IN' ? 'कृपया वैध राशि दर्ज करें' : 'Please enter a valid amount');
+    const amountValidation = validateAmount(editedAmount);
+    if (!amountValidation.valid) {
+      setAmountError(amountValidation.error);
       return;
     }
     
     // Validate recipient/UPI ID
-    const validation = validateUPIId(editedRecipient);
-    if (!validation.valid) {
-      setUpiIdError(validation.error);
+    const upiValidation = validateUPIId(editedRecipient);
+    if (!upiValidation.valid) {
+      setUpiIdError(upiValidation.error);
       return;
     }
     
@@ -117,7 +184,7 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
     if (onPaymentDetailsChange) {
       onPaymentDetailsChange({
         ...paymentDetails,
-        amount: amount,
+        amount: parseFloat(editedAmount),
         recipient: editedRecipient.trim(),
       });
     }
@@ -125,6 +192,7 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
     setIsEditing(false);
     setError("");
     setUpiIdError("");
+    setAmountError("");
   };
 
   const handlePinChange = (index, value) => {
@@ -216,9 +284,14 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
                       value={editedAmount}
                       onChange={handleAmountChange}
                       placeholder="0.00"
-                      className="upi-pin-edit-input"
+                      className={`upi-pin-edit-input ${amountError ? 'upi-pin-edit-input--error' : ''}`}
                     />
                   </label>
+                  {amountError && (
+                    <div className="upi-pin-error-container">
+                      <span className="upi-pin-error-text">{amountError}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="upi-pin-edit-field">
                   <label>
@@ -228,10 +301,19 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
                       value={editedRecipient}
                       onChange={handleRecipientChange}
                       placeholder="username@payee"
-                      className="upi-pin-edit-input"
+                      className={`upi-pin-edit-input ${upiIdError ? 'upi-pin-edit-input--error' : ''}`}
                     />
-                    {upiIdError && <span className="upi-pin-error-text">{upiIdError}</span>}
                   </label>
+                  {upiIdError && (
+                    <div className="upi-pin-error-container">
+                      <span className="upi-pin-error-text">{upiIdError}</span>
+                      <span className="upi-pin-error-hint">
+                        {language === 'hi-IN' 
+                          ? 'सही प्रारूप: username@payee (उदाहरण: john@paytm, 9876543210@ybl)'
+                          : 'Correct format: username@payee (e.g., john@paytm, 9876543210@ybl)'}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="upi-pin-edit-actions">
                   <button 
@@ -240,6 +322,7 @@ const UPIPinModal = ({ isOpen, onClose, onConfirm, paymentDetails, strings, lang
                     onClick={() => {
                       setIsEditing(false);
                       setUpiIdError("");
+                      setAmountError("");
                       setError("");
                     }}
                   >

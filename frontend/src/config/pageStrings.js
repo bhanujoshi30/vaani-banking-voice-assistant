@@ -240,6 +240,18 @@ export const PAGE_STRINGS = {
       returnToLogin: "Return to login",
       logIn: "Log in",
     },
+    chat: {
+      handsFreeEnabled: "Hands-free enabled",
+      backToProfile: "← Back to Profile",
+      logOut: "Log out",
+      uploadQRCode: "Upload QR Code",
+      assistantSpeaking: "Assistant is speaking...",
+      wasThisHelpful: "Was this helpful?",
+      goodResponse: "Good response",
+      badResponse: "Bad response",
+      downloadStatement: "Download Statement",
+      downloadStatementTitle: "Download account statement as CSV",
+    },
   },
   "hi-IN": {
     profile: {
@@ -469,6 +481,18 @@ export const PAGE_STRINGS = {
       goBack: "वापस जाएं",
       returnToLogin: "लॉगिन पर वापस जाएं",
       logIn: "लॉग इन करें",
+    },
+    chat: {
+      handsFreeEnabled: "हैंड्स-फ्री सक्षम",
+      backToProfile: "← प्रोफ़ाइल पर वापस जाएं",
+      logOut: "लॉग आउट करें",
+      uploadQRCode: "QR कोड अपलोड करें",
+      assistantSpeaking: "सहायक बोल रहा है...",
+      wasThisHelpful: "यह उत्तर कैसा था?",
+      goodResponse: "अच्छा",
+      badResponse: "बुरा",
+      downloadStatement: "स्टेटमेंट डाउनलोड करें",
+      downloadStatementTitle: "CSV के रूप में खाता स्टेटमेंट डाउनलोड करें",
     },
   },
 };

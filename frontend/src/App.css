@@ -469,6 +469,7 @@
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.2s ease;
   letter-spacing: 0.2px;
+  text-decoration: none;
 }
 
 .primary-btn {
@@ -487,15 +488,28 @@
   cursor: progress;
 }
 
+.primary-btn--compact {
+  padding: 0.75rem 1.4rem;
+  font-size: 0.95rem;
+  align-self: end;
+}
+
 .ghost-btn {
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(15, 27, 42, 0.12);
   color: rgba(15, 27, 42, 0.8);
+  text-decoration: none !important;
 }
 
 .ghost-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 24px -18px rgba(15, 27, 42, 0.25);
+  text-decoration: none !important;
+}
+
+.ghost-btn:focus,
+.ghost-btn:active {
+  text-decoration: none !important;
 }
 
 .secondary-btn {
@@ -668,6 +682,10 @@
 }
 
 .profile-pill--unsecured:focus {
+  outline: none;
+}
+
+.profile-pill--unsecured:focus-visible {
   outline: 2px solid rgba(255, 149, 58, 0.5);
   outline-offset: 2px;
 }
@@ -684,6 +702,10 @@
 }
 
 .profile-pill--orange:focus {
+  outline: none;
+}
+
+.profile-pill--orange:focus-visible {
   outline: 2px solid rgba(255, 149, 58, 0.5);
   outline-offset: 2px;
 }
@@ -927,6 +949,7 @@
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-top: 1rem;
+  align-items: start;
 }
 
 .form-grid label {
@@ -934,6 +957,19 @@
   flex-direction: column;
   gap: 0.5rem;
   font-weight: 600;
+}
+
+.form-grid button {
+  align-self: end;
+  height: fit-content;
+  margin-top: 0;
+}
+
+.form-grid button.primary-btn--compact {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-grid input,
@@ -945,6 +981,8 @@
   font-size: 1rem;
   background: rgba(249, 251, 255, 0.9);
   transition: border 0.2s ease, box-shadow 0.2s ease;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .form-grid input:focus,

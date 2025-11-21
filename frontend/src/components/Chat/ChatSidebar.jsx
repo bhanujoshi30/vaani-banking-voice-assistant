@@ -38,6 +38,14 @@ const ChatSidebar = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onVoiceModeToggle();
+                // Remove focus immediately after click to prevent outline from persisting
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => {
+                // Prevent focus on mouse down for mouse clicks
+                if (e.button === 0) {
+                  e.preventDefault();
+                }
               }}
               role="button"
               tabIndex={0}
@@ -59,6 +67,14 @@ const ChatSidebar = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onVoiceModeToggle();
+                // Remove focus immediately after click to prevent outline from persisting
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => {
+                // Prevent focus on mouse down for mouse clicks
+                if (e.button === 0) {
+                  e.preventDefault();
+                }
               }}
               role="button"
               tabIndex={0}
@@ -80,6 +96,14 @@ const ChatSidebar = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onVoiceEnrollmentClick();
+                // Remove focus immediately after click to prevent outline from persisting
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => {
+                // Prevent focus on mouse down for mouse clicks
+                if (e.button === 0) {
+                  e.preventDefault();
+                }
               }}
               role="button"
               tabIndex={0}
@@ -103,6 +127,14 @@ const ChatSidebar = ({
           onClick={(e) => {
             e.stopPropagation();
             onUPIModeToggle();
+            // Remove focus immediately after click to prevent outline from persisting
+            e.currentTarget.blur();
+          }}
+          onMouseDown={(e) => {
+            // Prevent focus on mouse down for mouse clicks
+            if (e.button === 0) {
+              e.preventDefault();
+            }
           }}
           role="button"
           tabIndex={0}

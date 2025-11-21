@@ -105,6 +105,21 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "prepayment",
         "tenure",
         "collateral",
+        # Hindi keywords
+        "udhar",
+        "udhaar",
+        "कर्ज",
+        "ऋण",
+        "लोन",
+        "उधार",
+        "उधारी",
+        "ब्याज दर",
+        "होम लोन",
+        "पर्सनल लोन",
+        "ऑटो लोन",
+        "एजुकेशन लोन",
+        "बिजनेस लोन",
+        "गोल्ड लोन",
     ]
 
     general_loan_queries = [
@@ -119,6 +134,28 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "what kind of loans",
         "loan options",
         "loan schemes",
+        # Hindi general loan queries (only when NO specific loan type is mentioned)
+        "कौन से लोन",
+        "कौन सी लोन",
+        "कौन सा लोन",
+        "कौन से ऋण",
+        "कौन सी ऋण",
+        "कौन सा ऋण",
+        # Note: "लोन के बारे में" and "ऋण के बारे में" are removed from general queries
+        # because they match specific queries like "home loan ke baare mein" or "होम लोन के बारे में"
+        # Only match if it's just "लोन" or "ऋण" without a specific type before "के बारे में"
+        "उधार के बारे में",
+        "कर्ज के बारे में",
+        "मुझे लोन चाहिए",
+        "मुझे ऋण चाहिए",
+        "मुझे उधार चाहिए",
+        "मुझे कर्ज चाहिए",
+        "बैंक से उधार",
+        "बैंक से कर्ज",
+        "बैंक से लोन",
+        "बैंक से ऋण",
+        "पैसे उधार",
+        "पैसे कर्ज",
     ]
 
     investment_keywords = [
@@ -145,6 +182,23 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "sukanya samriddhi",
         "equity linked",
         "national savings certificate",
+        # Hindi keywords
+        "nivesh",
+        "निवेश",
+        "निवेश करना",
+        "योजना",
+        "स्कीम",
+        "पीपीएफ",
+        "एनपीएस",
+        "सुकन्या",
+        "फिक्स्ड डिपॉजिट",
+        "एफडी",
+        "रिकरिंग डिपॉजिट",
+        "आरडी",
+        "टैक्स सेविंग",
+        "बचत",
+        "पेंशन",
+        "रिटायरमेंट",
     ]
 
     general_investment_queries = [
@@ -162,9 +216,30 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "tax saving schemes",
         "show me investment",
         "investment options available",
+        # Hindi general investment queries
+        "कौन सी योजना",
+        "कौन सी स्कीम",
+        "कौन से निवेश",
+        "कौन सी निवेश योजना",
+        "निवेश योजना",
+        "निवेश स्कीम",
+        "निवेश के बारे में",
+        "योजना के बारे में",
+        "स्कीम के बारे में",
+        "मुझे निवेश करना है",
+        "पैसे निवेश करना",
+        "पैसे निवेश",
+        "निवेश करने के लिए",
+        "कुछ योजना",
+        "कुछ स्कीम",
+        "कुछ निवेश",
+        "निवेश की जानकारी",
+        "योजना की जानकारी",
+        "स्कीम की जानकारी",
     ]
 
     specific_loan_types = {
+        # English loan types
         "home loan": "home_loan",
         "home_loan": "home_loan",
         "personal loan": "personal_loan",
@@ -182,6 +257,21 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "loan_against_property": "loan_against_property",
         "property loan": "loan_against_property",
         "lap": "loan_against_property",
+        # Hindi loan types
+        "होम लोन": "home_loan",
+        "होमलोन": "home_loan",
+        "पर्सनल लोन": "personal_loan",
+        "पर्सनललोन": "personal_loan",
+        "ऑटो लोन": "auto_loan",
+        "ऑटोलोन": "auto_loan",
+        "एजुकेशन लोन": "education_loan",
+        "एजुकेशनलोन": "education_loan",
+        "बिजनेस लोन": "business_loan",
+        "बिजनेसलोन": "business_loan",
+        "गोल्ड लोन": "gold_loan",
+        "गोल्डलोन": "gold_loan",
+        "प्रॉपर्टी लोन": "loan_against_property",
+        "प्रॉपर्टी के खिलाफ लोन": "loan_against_property",
     }
 
     specific_investment_types = {
@@ -207,8 +297,11 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
         "national savings certificate": "nsc",
     }
 
+    # IMPORTANT: Check for specific loan types FIRST (before general queries)
+    # Sort by length (longest first) to match longer phrases first (e.g., "home loan" before "loan")
     detected_loan_type = None
-    for loan_name, loan_type in specific_loan_types.items():
+    sorted_loan_types = sorted(specific_loan_types.items(), key=lambda item: len(item[0]), reverse=True)
+    for loan_name, loan_type in sorted_loan_types:
         if loan_name in query_lower:
             detected_loan_type = loan_type
             break
@@ -220,9 +313,19 @@ def _detect_query_signals(user_query: str) -> QuerySignals:
             detected_investment_type = investment_type
             break
 
+    # Check if it's a general loan query (only if no specific loan type was detected)
+    is_general_loan = False
+    if not detected_loan_type:
+        # Only check general queries if no specific loan type was found
+        is_general_loan = any(phrase in query_lower for phrase in general_loan_queries)
+    else:
+        # If specific loan type detected, also check if query contains general phrases
+        # but prioritize specific type
+        is_general_loan = any(phrase in query_lower for phrase in general_loan_queries) and not detected_loan_type
+
     return QuerySignals(
         is_loan_query=any(keyword in query_lower for keyword in loan_keywords),
-        is_general_loan_query=any(phrase in query_lower for phrase in general_loan_queries),
+        is_general_loan_query=is_general_loan,
         is_investment_query=any(keyword in query_lower for keyword in investment_keywords),
         is_general_investment_query=any(phrase in query_lower for phrase in general_investment_queries),
         detected_loan_type=detected_loan_type,

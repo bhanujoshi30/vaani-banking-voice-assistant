@@ -380,12 +380,72 @@
   animation: fadeIn 0.3s ease;
 }
 
+.chat-hint--click-to-record {
+  color: #ff6b35;
+  font-weight: 600;
+  animation: pulse-hint 2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-hint--click-to-record .chat-hint__mic-icon {
+  animation: pulse-icon 1.5s ease-in-out infinite;
+  color: #ff6b35;
+}
+
+.chat-hint__arrow {
+  display: inline-block;
+  margin: 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  animation: bounce-left 1s ease-in-out infinite;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes pulse-hint {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes point-up {
+  0%, 100% {
+    transform: translateY(-50%) translateY(0);
+  }
+  50% {
+    transform: translateY(-50%) translateY(-4px);
+  }
+}
+
+@keyframes bounce-left {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
   }
 }
 
@@ -580,6 +640,7 @@
 .ghost-btn--compact {
   padding: 0.6rem 1.2rem;
   font-size: 0.9rem;
+  text-decoration: none !important;
 }
 
 /* Responsive Styles */
