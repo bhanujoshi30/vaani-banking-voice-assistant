@@ -1,0 +1,52 @@
+%% Hybrid Supervisor Architecture Diagram
+%% Render with: `npx @mermaid-js/mermaid-cli -i hybrid_supervisor_architecture.mmd -o diagram.svg`
+flowchart LR
+    subgraph Client[Voice/Web Client]
+        U(User Input)
+    end
+
+    Note right of Client: Message history (when available) stays inside the UI payload.
+
+    subgraph SupervisorStack[Hybrid Supervisor Stack]
+        CS[ConversationState Builder]
+        IR[IntentRouter]
+        HS[HybridSupervisor]
+    end
+
+    subgraph Specialists[Specialist Agents]
+        BA[Banking Agent]
+        UA[UPI Agent]
+        FAQ[FAQ Agent]
+        GR[Greeting Agent]
+        FB[Feedback Agent]
+    end
+
+    subgraph Services[Shared Services]
+        LLM[LLM Service]
+        Tools[Tools & Data APIs]
+    end
+
+    U --> HS
+    HS --> CS
+    CS --> IR
+    IR --> HS
+    HS -->|route key| BA
+    HS -->|route key| UA
+    HS -->|route key| FAQ
+    HS -->|route key| GR
+    HS -->|route key| FB
+
+    BA --> LLM
+    BA --> Tools
+    UA --> LLM
+    UA --> Tools
+    FAQ --> LLM
+    GR --> HS
+    FB --> HS
+
+    BA -->|structured_data / statement_data| HS
+    UA -->|payment status| HS
+    FAQ -->|response| HS
+    GR -->|welcome| HS
+    FB -->|acknowledgement| HS
+    HS -->|final payload| Client
