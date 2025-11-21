@@ -10,6 +10,7 @@ import hashlib
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
+from fastapi.responses import FileResponse
 
 from ..db.services.auth import AuthService
 from ..db.services.banking import BankingService
@@ -1072,8 +1073,9 @@ def verify_upi_pin(
         
         # Try to resolve recipient
         with session_factory() as db:
-            # Check if recipient is a UPI ID
+            # Check if recipient is a UPI ID (contains @)
             if "@" in recipient_identifier:
+                # If it's a UPI ID format, ONLY match by UPI ID - don't fall back to phone/beneficiary
                 stmt = select(User).where(User.upi_id == recipient_identifier)
                 recipient_user = db.execute(stmt).scalars().first()
                 if recipient_user:
@@ -1082,32 +1084,40 @@ def verify_upi_pin(
                     if primary_account:
                         destination_account_number = primary_account.account_number
                         beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
-            
-            # If not found, try phone number
-            if not destination_account_number:
-                clean_phone = ''.join(filter(str.isdigit, recipient_identifier))
-                if len(clean_phone) >= 10:
-                    clean_phone = clean_phone[-10:]
-                    stmt = select(User).where(User.phone_number.like(f"%{clean_phone}%"))
-                    recipient_user = db.execute(stmt).scalars().first()
-                    if recipient_user:
-                        accounts = account_repo.list_accounts_for_user(db, recipient_user.id)
-                        primary_account = next(iter(accounts), None)
-                        if primary_account:
-                            destination_account_number = primary_account.account_number
-                            beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
-            
-            # If still not found, try beneficiary lookup
-            if not destination_account_number:
-                beneficiaries = beneficiary_repo.list_beneficiaries(db, user_id=user_id, include_blocked=False)
-                beneficiaries_list = list(beneficiaries)
-                if beneficiaries_list:
-                    # Try to match by name
-                    for beneficiary in beneficiaries_list:
-                        if recipient_identifier.lower() in beneficiary.name.lower() or beneficiary.name.lower() in recipient_identifier.lower():
-                            destination_account_number = beneficiary.account_number
-                            beneficiary_name = beneficiary.name
-                            break
+                else:
+                    # UPI ID not found - raise error immediately (don't try phone/beneficiary lookup)
+                    raise_http_error(
+                        ctx,
+                        message=f"UPI ID not found: {recipient_identifier}. Please verify the UPI ID and try again.",
+                        code="upi_id_not_found",
+                        status_code=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                # Not a UPI ID format - try phone number
+                if not destination_account_number:
+                    clean_phone = ''.join(filter(str.isdigit, recipient_identifier))
+                    if len(clean_phone) >= 10:
+                        clean_phone = clean_phone[-10:]
+                        stmt = select(User).where(User.phone_number.like(f"%{clean_phone}%"))
+                        recipient_user = db.execute(stmt).scalars().first()
+                        if recipient_user:
+                            accounts = account_repo.list_accounts_for_user(db, recipient_user.id)
+                            primary_account = next(iter(accounts), None)
+                            if primary_account:
+                                destination_account_number = primary_account.account_number
+                                beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
+                
+                # If still not found, try beneficiary lookup
+                if not destination_account_number:
+                    beneficiaries = beneficiary_repo.list_beneficiaries(db, user_id=user_id, include_blocked=False)
+                    beneficiaries_list = list(beneficiaries)
+                    if beneficiaries_list:
+                        # Try to match by name
+                        for beneficiary in beneficiaries_list:
+                            if recipient_identifier.lower() in beneficiary.name.lower() or beneficiary.name.lower() in recipient_identifier.lower():
+                                destination_account_number = beneficiary.account_number
+                                beneficiary_name = beneficiary.name
+                                break
         
         if not destination_account_number:
             raise_http_error(
@@ -1170,6 +1180,126 @@ def verify_upi_pin(
             code="payment_processing_failed",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@router.get(
+    "/documents/{document_type}/{document_name}",
+    tags=["Documents"],
+    summary="Download loan or investment PDF document",
+    response_class=FileResponse,
+)
+def download_document(
+    document_type: str,
+    document_name: str,
+    language: str = Query(default="en-IN", description="Language code (en-IN or hi-IN)"),
+    ctx: RequestContext = RequestContextDep,
+):
+    """
+    Download PDF documents for loan products or investment schemes.
+    
+    - document_type: "loan" or "investment"
+    - document_name: Product/scheme identifier (e.g., "home_loan", "ppf")
+    - language: "en-IN" for English, "hi-IN" for Hindi
+    """
+    import os
+    from pathlib import Path
+    
+    # Map document names to PDF filenames
+    loan_name_mapping = {
+        "home_loan": "home_loan_product_guide.pdf",
+        "personal_loan": "personal_loan_product_guide.pdf",
+        "auto_loan": "auto_loan_product_guide.pdf",
+        "education_loan": "education_loan_product_guide.pdf",
+        "business_loan": "business_loan_product_guide.pdf",
+        "gold_loan": "gold_loan_product_guide.pdf",
+        "loan_against_property": "loan_against_property_guide.pdf",
+        # Handle display names
+        "home loan": "home_loan_product_guide.pdf",
+        "personal loan": "personal_loan_product_guide.pdf",
+        "auto loan": "auto_loan_product_guide.pdf",
+        "education loan": "education_loan_product_guide.pdf",
+        "business loan": "business_loan_product_guide.pdf",
+        "gold loan": "gold_loan_product_guide.pdf",
+        "loan against property": "loan_against_property_guide.pdf",
+    }
+    
+    investment_name_mapping = {
+        "ppf": "ppf_scheme_guide.pdf",
+        "nps": "nps_scheme_guide.pdf",
+        "ssy": "ssy_scheme_guide.pdf",
+        "sukanya samriddhi yojana": "ssy_scheme_guide.pdf",
+        "sukanya": "ssy_scheme_guide.pdf",
+        # Handle display names
+        "PPF": "ppf_scheme_guide.pdf",
+        "NPS": "nps_scheme_guide.pdf",
+        "SSY": "ssy_scheme_guide.pdf",
+    }
+    
+    # Normalize document name (lowercase, replace spaces with underscores)
+    normalized_name = document_name.lower().strip()
+    
+    # Determine PDF filename based on document type
+    if document_type.lower() == "loan":
+        pdf_filename = loan_name_mapping.get(normalized_name)
+        if not pdf_filename:
+            # Try to find a match by checking if any key is contained in the name
+            for key, value in loan_name_mapping.items():
+                if key.replace("_", " ") in normalized_name or normalized_name in key.replace("_", " "):
+                    pdf_filename = value
+                    break
+    elif document_type.lower() == "investment":
+        pdf_filename = investment_name_mapping.get(normalized_name)
+        if not pdf_filename:
+            # Try to find a match
+            for key, value in investment_name_mapping.items():
+                if key in normalized_name or normalized_name in key:
+                    pdf_filename = value
+                    break
+    else:
+        raise_http_error(
+            ctx,
+            message=f"Invalid document type: {document_type}. Must be 'loan' or 'investment'.",
+            code="invalid_document_type",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    if not pdf_filename:
+        raise_http_error(
+            ctx,
+            message=f"Document not found: {document_name}",
+            code="document_not_found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    
+    # Determine directory based on language
+    if language == "hi-IN":
+        if document_type.lower() == "loan":
+            doc_dir = "loan_products_hindi"
+        else:
+            doc_dir = "investment_schemes_hindi"
+    else:
+        if document_type.lower() == "loan":
+            doc_dir = "loan_products"
+        else:
+            doc_dir = "investment_schemes"
+    
+    # Get the base directory (backend/documents)
+    base_dir = Path(__file__).parent.parent / "documents"
+    pdf_path = base_dir / doc_dir / pdf_filename
+    
+    if not pdf_path.exists():
+        raise_http_error(
+            ctx,
+            message=f"PDF file not found: {pdf_filename}",
+            code="pdf_not_found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    
+    return FileResponse(
+        path=str(pdf_path),
+        filename=pdf_filename,
+        media_type="application/pdf",
+    )
 
 
 __all__ = ["router"]

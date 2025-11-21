@@ -139,19 +139,25 @@ const TransactionTable = ({
               onChange={(e) => setSelectedAccount(e.target.value)}
             >
               <option value="all">{language === 'hi-IN' ? 'सभी खाते' : 'All Accounts'}</option>
-              {accounts.map((acc) => (
-                <option key={acc.account_number} value={acc.account_number}>
-                  {acc.account_type?.replace('AccountType.', '') || acc.account_number}
-                </option>
-              ))}
+              {accounts.map((acc) => {
+                const accountType = acc.account_type?.replace('AccountType.', '') || 'Account';
+                const accountNumber = acc.account_number || '';
+                const lastFour = accountNumber.length >= 4 ? accountNumber.slice(-4) : accountNumber;
+                const displayText = lastFour ? `${accountType} • ${lastFour}` : accountType;
+                return (
+                  <option key={acc.account_number} value={acc.account_number}>
+                    {displayText}
+                  </option>
+                );
+              })}
             </select>
           )}
           <span className="transaction-count">
             {selectedAccount === 'all'
-              ? (totalCount ?? sortedTransactions.length)
+              ? (totalCount ?? baseTransactions.length)
               : (
                 accounts?.find((acc) => acc.account_number === selectedAccount)?.transaction_count ??
-                sortedTransactions.length
+                baseTransactions.length
               )}{' '}
             {language === 'hi-IN' ? 'लेनदेन' : 'transactions'}
           </span>

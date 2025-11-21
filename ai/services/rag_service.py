@@ -354,9 +354,18 @@ class RAGService:
         context_parts = []
         for i, doc in enumerate(documents, 1):
             source = doc.metadata.get("source", "Unknown")
-            loan_type = doc.metadata.get("loan_type", "").replace("_", " ").title()
+            loan_type = doc.metadata.get("loan_type", "")
+            scheme_type = doc.metadata.get("scheme_type", "")
+            doc_type = doc.metadata.get("document_type", "")
+            
+            # Format the type label
+            if doc_type == "investment":
+                type_label = scheme_type.replace("_", " ").title() if scheme_type else "Investment"
+            else:
+                type_label = loan_type.replace("_", " ").title() if loan_type else "Loan"
+            
             context_parts.append(
-                f"[Source {i}: {loan_type} - {source}]\n{doc.page_content}\n"
+                f"[Source {i}: {type_label} - {source}]\n{doc.page_content}\n"
             )
         
         context = "\n".join(context_parts)
@@ -373,42 +382,75 @@ class RAGService:
         return context
 
 
-# Global RAG service instance
-_rag_service: Optional[RAGService] = None
+# Global RAG service instances cache: (documents_type, language) -> RAGService
+_rag_service_cache: Dict[Tuple[str, str], RAGService] = {}
 
 
-def get_rag_service(documents_type: str = None) -> RAGService:
+def get_rag_service(documents_type: str = None, language: str = "en-IN") -> RAGService:
     """
     Get or create RAG service instance
     
     Args:
         documents_type: "loan" or "investment" - determines which documents to load.
                         If None, defaults to "loan" for backward compatibility.
+        language: "en-IN" or "hi-IN" - determines which language vector database to use.
+                 Defaults to "en-IN".
     """
-    global _rag_service
+    global _rag_service_cache
     
     if documents_type is None:
         documents_type = "loan"
     
-    # Determine documents path based on type
-    if documents_type == "investment":
-        ai_dir = Path(__file__).parent.parent
-        documents_path = ai_dir.parent / "backend" / "documents" / "investment_schemes"
-        collection_name = "investment_schemes"
+    # Normalize language code
+    if language not in ["en-IN", "hi-IN"]:
+        language = "en-IN"  # Default to English if invalid language
+    
+    # Create cache key
+    cache_key = (documents_type, language)
+    
+    # Check if service already exists in cache
+    if cache_key in _rag_service_cache:
+        return _rag_service_cache[cache_key]
+    
+    # Determine documents path and collection name based on type and language
+    ai_dir = Path(__file__).parent.parent
+    base_docs_dir = ai_dir.parent / "backend" / "documents"
+    
+    if language == "hi-IN":
+        # Hindi documents
+        if documents_type == "investment":
+            documents_path = base_docs_dir / "investment_schemes_hindi"
+            collection_name = "investment_schemes_hindi"
+            persist_directory = "./chroma_db/investment_schemes_hindi"
+        else:
+            documents_path = base_docs_dir / "loan_products_hindi"
+            collection_name = "loan_products_hindi"
+            persist_directory = "./chroma_db/loan_products_hindi"
     else:
-        documents_path = None  # Will use default loan_products path
-        collection_name = "loan_products"
+        # English documents (default)
+        if documents_type == "investment":
+            documents_path = base_docs_dir / "investment_schemes"
+            collection_name = "investment_schemes"
+            persist_directory = "./chroma_db/investment_schemes"
+        else:
+            documents_path = base_docs_dir / "loan_products"
+            collection_name = "loan_products"
+            persist_directory = "./chroma_db/loan_products"
     
-    # Create new service if doesn't exist or if collection type changed
-    if _rag_service is None or getattr(_rag_service, '_documents_type', None) != documents_type:
-        _rag_service = RAGService(
-            documents_path=str(documents_path) if documents_path else None,
-            collection_name=collection_name
-        )
-        _rag_service._documents_type = documents_type  # Store type for reference
-        _rag_service.initialize()
+    # Create new service
+    rag_service = RAGService(
+        documents_path=str(documents_path),
+        collection_name=collection_name,
+        persist_directory=persist_directory
+    )
+    rag_service._documents_type = documents_type  # Store type for reference
+    rag_service._language = language  # Store language for reference
+    rag_service.initialize()
     
-    return _rag_service
+    # Cache the service
+    _rag_service_cache[cache_key] = rag_service
+    
+    return rag_service
 
 
 def initialize_rag(force_rebuild: bool = False) -> None:

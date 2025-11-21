@@ -6,6 +6,7 @@ import LoanInfoCard from "./LoanInfoCard.jsx";
 import LoanSelectionTable from "./LoanSelectionTable.jsx";
 import InvestmentInfoCard from "./InvestmentInfoCard.jsx";
 import InvestmentSelectionTable from "./InvestmentSelectionTable.jsx";
+import CustomerSupportCard from "./CustomerSupportCard.jsx";
 import ReminderCard from "./ReminderCard.jsx";
 import TransferFlow from "./TransferFlow.jsx";
 import TransferReceipt from "./TransferReceipt.jsx";
@@ -15,6 +16,7 @@ import UPIBalanceCheckFlow from "./UPIBalanceCheckFlow.jsx";
 import UPIPaymentFlow from "./UPIPaymentFlow.jsx";
 import AIAssistantLogo from "../AIAssistantLogo.jsx";
 import { getChatCopy } from "../../config/chatCopy.js";
+import { getPageStrings } from "../../config/pageStrings.js";
 import "./ChatMessage.css";
 
 /**
@@ -22,8 +24,14 @@ import "./ChatMessage.css";
  */
 const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedback, onAddAssistantMessage, onSendMessage, onShowUPIPinModal, onSetUpiPaymentDetails }) => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const chatCopy = useMemo(() => getChatCopy(language), [language]);
+  
+  // Use message's stored language if available, otherwise fall back to current language prop
+  // This ensures cards preserve their original language even when language changes
+  const messageLanguage = message.language || language;
+  const chatCopy = useMemo(() => getChatCopy(messageLanguage), [messageLanguage]);
   const cardIntroMessages = chatCopy?.cardIntros || {};
+  const pageStrings = useMemo(() => getPageStrings(messageLanguage), [messageLanguage]);
+  const chatPageStrings = pageStrings.chat || {};
   
   // Debug: Log message data to console
   if (message.role === 'assistant') {
@@ -317,7 +325,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'transactions' && message.structuredData.transactions && (
               <TransactionTable 
                 transactions={message.structuredData.transactions} 
-                language={language}
+                language={messageLanguage}
                 accounts={message.structuredData.accounts}
                 accountTransactions={message.structuredData.accountTransactions}
                 totalCount={message.structuredData.total_count}
@@ -327,27 +335,32 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'balance' && message.structuredData.accounts && (
               <AccountBalanceCards 
                 accounts={message.structuredData.accounts} 
-                language={language}
+                language={messageLanguage}
               />
             )}
             
             {message.structuredData.type === 'loan' && message.structuredData.loanInfo && (
               <LoanInfoCard 
                 loanInfo={message.structuredData.loanInfo} 
-                language={language}
+                language={messageLanguage}
+                accessToken={session?.accessToken}
               />
             )}
             
             {message.structuredData.type === 'loan_selection' && message.structuredData.loans && (
               <LoanSelectionTable 
                 loans={message.structuredData.loans} 
-                language={language}
+                language={messageLanguage}
                 onLoanSelect={(loanType) => {
-                  // Send a message to get detailed loan information
+                  // Stop speaking if currently speaking, then send message
                   if (onSendMessage) {
-                    const loanQuery = language === 'hi-IN' 
+                    const loanQuery = messageLanguage === 'hi-IN' 
                       ? `${loanType.replace(/_/g, ' ')} के बारे में बताएं`
                       : `Tell me about ${loanType.replace(/_/g, ' ')}`;
+                    // Stop TTS first, then send message
+                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                      window.speechSynthesis.cancel();
+                    }
                     onSendMessage(loanQuery);
                   }
                 }}
@@ -357,37 +370,49 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'investment' && message.structuredData.investmentInfo && (
               <InvestmentInfoCard 
                 investmentInfo={message.structuredData.investmentInfo} 
-                language={language}
+                language={messageLanguage}
+                accessToken={session?.accessToken}
               />
             )}
             
             {message.structuredData.type === 'investment_selection' && message.structuredData.investments && (
               <InvestmentSelectionTable 
                 investments={message.structuredData.investments} 
-                language={language}
+                language={messageLanguage}
                 onInvestmentSelect={(investmentType) => {
-                  // Send a message to get detailed investment information
+                  // Stop speaking if currently speaking, then send message
                   if (onSendMessage) {
-                    const investmentQuery = language === 'hi-IN' 
+                    const investmentQuery = messageLanguage === 'hi-IN' 
                       ? `${investmentType.replace(/_/g, ' ')} के बारे में बताएं`
                       : `Tell me about ${investmentType.replace(/_/g, ' ')}`;
+                    // Stop TTS first, then send message
+                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                      window.speechSynthesis.cancel();
+                    }
                     onSendMessage(investmentQuery);
                   }
                 }}
               />
             )}
             
+            {message.structuredData.type === 'customer_support' && message.structuredData.supportInfo && (
+              <CustomerSupportCard 
+                supportInfo={message.structuredData.supportInfo} 
+                language={messageLanguage}
+              />
+            )}
+            
             {message.structuredData.type === 'reminder' && message.structuredData.reminder && (
               <ReminderCard 
                 reminder={message.structuredData.reminder} 
-                language={language}
+                language={messageLanguage}
               />
             )}
             
             {message.structuredData.type === 'upi_balance_check' && message.structuredData.pending_account_selection && session && (
               <UPIBalanceCheckFlow
                 session={session}
-                language={language}
+                language={messageLanguage}
                 balanceData={message.structuredData}
                 onAccountSelected={(accountData) => {
                   // Directly show PIN modal when account is selected (no message sent)
@@ -406,7 +431,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'transfer' && session && (
               <TransferFlow 
                 session={session}
-                language={language}
+                language={messageLanguage}
                 transferData={message.structuredData}
                 onTransferInitiated={(data, receiptData) => {
                   console.log('Transfer initiated:', data, receiptData);
@@ -416,7 +441,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
                     const amount = receiptData?.amount || data?.amount || 0;
                     const beneficiaryName = receiptData?.beneficiaryName || data?.beneficiaryName || 'beneficiary';
                     
-                    const successMessage = language === 'hi-IN' 
+                    const successMessage = messageLanguage === 'hi-IN' 
                       ? `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${beneficiaryName} को सफलतापूर्वक स्थानांतरित कर दिया गया है।`
                       : `Successfully transferred ₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} to ${beneficiaryName}.`;
                     
@@ -438,7 +463,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'upi_payment_card' && session && (
               <UPIPaymentFlow 
                 session={session}
-                language={language}
+                language={messageLanguage}
                 paymentData={message.structuredData}
                 onPaymentReady={(paymentDetails) => {
                   // Validate UPI ID and show PIN modal directly (no message to backend)
@@ -459,7 +484,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'statement_request' && session && (
               <StatementRequestCard
                 accounts={message.structuredData.accounts || []}
-                language={language}
+                language={messageLanguage}
                 session={session}
                 detectedAccount={message.structuredData.detectedAccount}
                 detectedPeriod={message.structuredData.detectedPeriod}
@@ -477,7 +502,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             {message.structuredData.type === 'reminder_manager' && session && (
               <ReminderManagerCard
                 session={session}
-                language={language}
+                language={messageLanguage}
                 intent={message.structuredData.intent}
                 accounts={message.structuredData.accounts}
                 prefilled={message.structuredData.prefilled || {}}
@@ -503,9 +528,9 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
             <button
               className="chat-message__download-btn"
               onClick={() => handleDownloadStatement(message.statementData)}
-              title="Download account statement as CSV"
+              title={chatPageStrings.downloadStatementTitle || (messageLanguage === 'hi-IN' ? 'CSV के रूप में खाता स्टेटमेंट डाउनलोड करें' : 'Download account statement as CSV')}
             >
-              📄 Download Statement
+              📄 {chatPageStrings.downloadStatement || (messageLanguage === 'hi-IN' ? 'स्टेटमेंट डाउनलोड करें' : 'Download Statement')}
             </button>
           </div>
         )}
@@ -514,7 +539,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
         {message.role === 'assistant' && (
           <div className="chat-message__feedback">
             <span className="chat-message__feedback-label">
-              {language === 'hi-IN' ? 'यह उत्तर कैसा था?' : 'Was this helpful?'}
+              {chatPageStrings.wasThisHelpful || (messageLanguage === 'hi-IN' ? 'यह उत्तर कैसा था?' : 'Was this helpful?')}
             </span>
             <div className="chat-message__feedback-buttons">
               <button
@@ -522,7 +547,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
                 className={`chat-message__feedback-btn chat-message__feedback-btn--positive ${feedbackSubmitted ? 'chat-message__feedback-btn--submitted' : ''}`}
                 onClick={() => handleFeedback(true)}
                 disabled={feedbackSubmitted}
-                title={language === 'hi-IN' ? 'अच्छा' : 'Good response'}
+                title={chatPageStrings.goodResponse || (messageLanguage === 'hi-IN' ? 'अच्छा' : 'Good response')}
               >
                 👍
               </button>
@@ -531,7 +556,7 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
                 className={`chat-message__feedback-btn chat-message__feedback-btn--negative ${feedbackSubmitted ? 'chat-message__feedback-btn--submitted' : ''}`}
                 onClick={() => handleFeedback(false)}
                 disabled={feedbackSubmitted}
-                title={language === 'hi-IN' ? 'बुरा' : 'Bad response'}
+                title={chatPageStrings.badResponse || (messageLanguage === 'hi-IN' ? 'बुरा' : 'Bad response')}
               >
                 👎
               </button>

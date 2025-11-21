@@ -50,6 +50,7 @@ const Chat = ({ session, onSignOut }) => {
 
   // Voice binding status
   const { strings: pageStrings } = usePageLanguage();
+  const chatPageStrings = useMemo(() => pageStrings.chat || {}, [pageStrings, language]);
   const [hasVoiceBinding, setHasVoiceBinding] = useState(false);
   const [checkingVoiceBinding, setCheckingVoiceBinding] = useState(true);
   const [isVoiceEnrollmentModalOpen, setIsVoiceEnrollmentModalOpen] = useState(false);
@@ -83,6 +84,7 @@ const Chat = ({ session, onSignOut }) => {
     addUserMessage,
     addAssistantMessage,
     clearUnusedCards,
+    markLanguageChanging,
   } = useChatMessages({ initialMessage: chatCopy.initialGreeting });
 
   // Use speech recognition hook with selected language
@@ -145,6 +147,7 @@ const Chat = ({ session, onSignOut }) => {
     isSpeaking,
     stopListening,
     toggleListening,
+    stopSpeaking, // Pass stopSpeaking to handler
     upiConsentGiven, // Pass consent status to handler
     upiMode, // Pass UPI mode state to handler
     setPendingUPIMessage, // Pass setter for pending messages
@@ -403,13 +406,31 @@ const Chat = ({ session, onSignOut }) => {
   useEffect(() => {
     const handleStorageChange = (event) => {
       if (event.key === PREFERRED_LANGUAGE_KEY) {
-        setLanguage(event.newValue || DEFAULT_LANGUAGE);
+        const newLang = event.newValue || DEFAULT_LANGUAGE;
+        
+        // Mark that we're changing language to prevent hook interference
+        markLanguageChanging();
+        
+        // Simply update language - keep all messages as they are
+        setLanguage(newLang);
       }
     };
 
     const handleLanguageChange = (event) => {
       const { language: newLang } = event.detail;
       if (newLang && newLang !== language) {
+        // Stop any ongoing speech/listening first
+        if (isListening) {
+          stopListening();
+        }
+        if (isSpeaking) {
+          stopSpeaking();
+        }
+        
+        // Mark that we're changing language to prevent hook interference
+        markLanguageChanging();
+        
+        // Simply update language - keep all messages as they are
         setLanguage(newLang);
       }
     };
@@ -420,7 +441,7 @@ const Chat = ({ session, onSignOut }) => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("languageChanged", handleLanguageChange);
     };
-  }, [language]);
+  }, [language, isListening, isSpeaking, stopListening, stopSpeaking]);
 
   if (!session.authenticated) {
     return <Navigate to="/" replace />;
@@ -435,6 +456,12 @@ const Chat = ({ session, onSignOut }) => {
     if (isLanguageComingSoon) {
       alert('Voice input for this language is coming soon. Please use English or Hindi.');
       return;
+    }
+
+    // Stop speaking when user starts/stops recording
+    if (isSpeaking && stopSpeaking) {
+      console.log('🛑 Stopping TTS - user interacting with microphone');
+      stopSpeaking();
     }
 
     // NORMAL MODE: Simple toggle - completely independent of voice mode
@@ -529,18 +556,37 @@ const Chat = ({ session, onSignOut }) => {
         }),
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('UPI PIN verification failed:', response.status, errorText);
-        throw new Error(`UPI PIN verification failed: ${response.status}`);
-      }
-      
       const data = await response.json();
       
       console.log('UPI PIN verification response:', data);
       console.log('Payment details:', upiPaymentDetails);
       
-      if (!response.ok || !data.data?.success) {
+      if (!response.ok) {
+        // Handle different error types
+        const errorDetail = data?.detail?.error || data?.error || {};
+        const errorCode = errorDetail.code || '';
+        const errorMessage = errorDetail.message || data?.detail?.message || 'Payment failed. Please try again.';
+        
+        console.error('UPI PIN verification failed:', response.status, errorMessage, errorCode);
+        
+        // If UPI ID not found, show specific error and close modal
+        if (errorCode === 'upi_id_not_found' || errorCode === 'recipient_not_found') {
+          setShowUPIPinModal(false);
+          setUpiPaymentDetails(null);
+          
+          const errorMsg = language === 'hi-IN'
+            ? `UPI ID नहीं मिला: ${upiPaymentDetails?.recipient || ''}. कृपया UPI ID जांचें और पुनः प्रयास करें।`
+            : `UPI ID not found: ${upiPaymentDetails?.recipient || ''}. Please verify the UPI ID and try again.`;
+          
+          addAssistantMessage(errorMsg, null, null, language);
+          return;
+        }
+        
+        // For other errors (like PIN verification), throw to be caught by catch block
+        throw new Error(errorMessage);
+      }
+      
+      if (!data.data?.success) {
         // PIN verification failed - modal stays open, error shown in modal
         console.error('PIN verification failed:', data);
         // Don't close modal on error - let the modal show the error
@@ -575,7 +621,7 @@ const Chat = ({ session, onSignOut }) => {
               balance: balanceInfo.balance,
               currency: balanceInfo.currency || 'INR'
             }]
-          });
+          }, language);
           return; // Exit early after handling balance check
         } else {
           console.error('Balance data not found in response:', data.data);
@@ -585,7 +631,8 @@ const Chat = ({ session, onSignOut }) => {
               ? 'शेष राशि प्राप्त करने में त्रुटि हुई। कृपया पुनः प्रयास करें।'
               : 'Error fetching balance. Please try again.',
             null,
-            null
+            null,
+            language
           );
           return; // Exit early after error
         }
@@ -594,21 +641,26 @@ const Chat = ({ session, onSignOut }) => {
       // Handle payment operations (only if not balance check)
       // Check if receipt is returned (for payments)
       if (data.data?.receipt) {
-        // Payment successful - show receipt
+        // Payment successful - remove payment card and show only success message (no receipt card)
         const receipt = data.data.receipt;
         const successMessage = language === 'hi-IN'
           ? `₹${parseFloat(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ${receipt.beneficiaryName || paymentDetails?.recipient} को सफलतापूर्वक भेज दिया गया है।`
           : `Successfully sent ₹${parseFloat(receipt.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} to ${receipt.beneficiaryName || paymentDetails?.recipient}.`;
         
-        // Add success message
-        addAssistantMessage(successMessage, null, null);
+        // Remove UPI payment card from messages
+        setMessages((prev) => {
+          return prev.map((msg) => {
+            // Remove structured data cards (especially upi_payment_card) from assistant messages
+            if (msg.role === 'assistant' && msg.structuredData?.type === 'upi_payment_card') {
+              const { structuredData, ...rest } = msg;
+              return rest;
+            }
+            return msg;
+          });
+        });
         
-        // Add receipt as structured data
-        addAssistantMessage(
-          '', // Empty text - receipt component will display
-          null,
-          { type: 'transfer_receipt', receipt: receipt }
-        );
+        // Add success message only (no receipt card)
+        addAssistantMessage(successMessage, null, null, language);
       } else if (paymentDetails && !paymentDetails.operation) {
         // Fallback: send message to trigger payment processing (only if not a balance check)
         const paymentMessage = `Confirm UPI payment: ₹${paymentDetails.amount} to ${paymentDetails.recipient}${paymentDetails.remarks ? ` for ${paymentDetails.remarks}` : ''}`;
@@ -637,7 +689,8 @@ const Chat = ({ session, onSignOut }) => {
       addAssistantMessage(
         pendingUPIMessage.text || pendingUPIMessage.content,
         pendingUPIMessage.statementData,
-        pendingUPIMessage.structuredData
+        pendingUPIMessage.structuredData,
+        language
       );
       
       // Handle UPI mode activation
@@ -694,11 +747,11 @@ const Chat = ({ session, onSignOut }) => {
       const declineMessage = language === 'hi-IN' 
         ? 'आपने UPI मोड को अस्वीकार कर दिया है। UPI भुगतान सुविधा उपलब्ध नहीं होगी।'
         : 'You have denied UPI mode. UPI payment feature will not be available.';
-      addAssistantMessage(declineMessage, null, null);
+      addAssistantMessage(declineMessage, null, null, language);
       setPendingUPIMessage(null);
     } else {
       // If no pending message, just add a general denial message
-      addAssistantMessage(upiStrings.upiConsentDenied || "You have denied UPI mode. UPI payment feature will not be available.", null, null);
+      addAssistantMessage(upiStrings.upiConsentDenied || "You have denied UPI mode. UPI payment feature will not be available.", null, null, language);
     }
     
     // Ensure UPI mode is inactive and consent is not given
@@ -709,42 +762,29 @@ const Chat = ({ session, onSignOut }) => {
   };
 
   const handleLanguageChange = (newLang) => {
-    const langStrings = chatCopy.languageChange;
-
-    // Show confirmation alert in current language
-    const confirmed = window.confirm(
-      `${langStrings.title}\n\n${langStrings.message}`
-    );
-
-    if (confirmed) {
-      // Stop any ongoing speech/listening first
-      if (isListening) {
-        stopListening();
-      }
-      if (isSpeaking) {
-        stopSpeaking();
-      }
-      
-      // Set the new language preference
-      setPreferredLanguage(newLang);
-      // Update local language state
-      setLanguage(newLang);
-      // Dispatch event to notify other components
-      window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
-      
-      // Reset chat messages with new language greeting
-      // Get the new chat copy directly
-      const newChatCopy = getChatCopy(newLang);
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: newChatCopy.initialGreeting,
-        timestamp: new Date(),
-      }]);
-      
-      // Reset input text
-      setInputText("");
+    // If language hasn't changed, do nothing
+    if (newLang === language) {
+      return;
     }
+
+    // Stop any ongoing speech/listening first
+    if (isListening) {
+      stopListening();
+    }
+    if (isSpeaking) {
+      stopSpeaking();
+    }
+    
+    // Mark that we're changing language to prevent hook interference
+    markLanguageChanging();
+    
+    // Set the new language preference
+    setPreferredLanguage(newLang);
+    // Update local language state - keep all messages as they are
+    setLanguage(newLang);
+    
+    // Dispatch event to notify other components
+    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
   };
 
   return (
@@ -759,7 +799,7 @@ const Chat = ({ session, onSignOut }) => {
                 {isVoiceModeEnabled && (
                   <div className="voice-mode-indicator">
                     <span className="voice-mode-pulse"></span>
-                    <span className="voice-mode-status">Hands-free enabled</span>
+                    <span className="voice-mode-status">{chatPageStrings.handsFreeEnabled || "Hands-free enabled"}</span>
                   </div>
                 )}
                 <LanguageDropdown onSelect={handleLanguageChange} />
@@ -768,10 +808,10 @@ const Chat = ({ session, onSignOut }) => {
                   className="ghost-btn ghost-btn--compact"
                   onClick={() => navigate("/profile")}
                 >
-                  ← Back to Profile
+                  {chatPageStrings.backToProfile || "← Back to Profile"}
                 </button>
                 <button type="button" className="ghost-btn ghost-btn--compact" onClick={onSignOut}>
-                  Log out
+                  {chatPageStrings.logOut || "Log out"}
                 </button>
               </div>
             }
@@ -802,12 +842,10 @@ const Chat = ({ session, onSignOut }) => {
                     />
                   </svg>
                   <div>
-                    <div>{chatCopy.chatInput?.hints?.speaking || "Assistant is speaking..."}</div>
-                    {selectedVoice && (
-                      <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
-                        Voice: {selectedVoice.name.split(' ')[0]}
-                      </div>
-                    )}
+                    <div>{chatCopy.chatInput?.hints?.speaking || chatPageStrings.assistantSpeaking || "Assistant is speaking..."}</div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Voice: Vaani by Sun National Bank
+                    </div>
                   </div>
                 </div>
               )}
@@ -879,7 +917,7 @@ const Chat = ({ session, onSignOut }) => {
                       <path d="M15 15H17V17H15V15Z" fill="currentColor"/>
                       <path d="M19 11H21V13H19V11Z" fill="currentColor"/>
                     </svg>
-                    {language === 'hi-IN' ? 'QR कोड अपलोड करें' : 'Upload QR Code'}
+                    {chatPageStrings.uploadQRCode || (language === 'hi-IN' ? 'QR कोड अपलोड करें' : 'Upload QR Code')}
                   </label>
                   <input
                     id="upi-qr-upload"
@@ -969,7 +1007,7 @@ const Chat = ({ session, onSignOut }) => {
                                   const qrScannedMessage = language === 'hi-IN'
                                     ? `QR कोड स्कैन किया गया`
                                     : `QR code scanned`;
-                                  addUserMessage(qrScannedMessage);
+                                  addUserMessage(qrScannedMessage, language);
                                   
                                   // Directly show UPI payment card with QR data pre-filled
                                   // Don't send message to backend - just show the card
@@ -987,13 +1025,16 @@ const Chat = ({ session, onSignOut }) => {
                                     source_account_id: null, // Let user select account
                                     source_account_number: null,
                                     accounts: null, // Will be loaded by UPIPaymentFlow component
-                                  });
+                                  }, language);
                                 } else {
                                   // Could not extract UPI address
                                   addAssistantMessage(
                                     language === 'hi-IN'
                                       ? 'QR कोड से UPI पता निकाला नहीं जा सका। कृपया पुनः प्रयास करें।'
-                                      : 'Could not extract UPI address from QR code. Please try again.'
+                                      : 'Could not extract UPI address from QR code. Please try again.',
+                                    null,
+                                    null,
+                                    language
                                   );
                                 }
                               } else {
@@ -1025,7 +1066,7 @@ const Chat = ({ session, onSignOut }) => {
                                     const qrScannedMessage = language === 'hi-IN'
                                       ? `QR कोड स्कैन किया गया`
                                       : `QR code scanned`;
-                                    addUserMessage(qrScannedMessage);
+                                    addUserMessage(qrScannedMessage, language);
                                     
                                     // Directly show UPI payment card with QR data pre-filled
                                     // Don't send message to backend - just show the card
@@ -1043,13 +1084,16 @@ const Chat = ({ session, onSignOut }) => {
                                       source_account_id: null, // Let user select account
                                       source_account_number: null,
                                       accounts: null, // Will be loaded by UPIPaymentFlow component
-                                    });
+                                    }, language);
                                   } else {
                                     // QR code processing failed
                                     addAssistantMessage(
                                       result?.message || (language === 'hi-IN'
                                         ? 'QR कोड से UPI पता निकाला नहीं जा सका। कृपया पुनः प्रयास करें।'
-                                        : 'Could not extract UPI address from QR code. Please try again.')
+                                        : 'Could not extract UPI address from QR code. Please try again.'),
+                                      null,
+                                      null,
+                                      language
                                     );
                                   }
                                 } catch (backendError) {
@@ -1057,7 +1101,10 @@ const Chat = ({ session, onSignOut }) => {
                                   addAssistantMessage(
                                     language === 'hi-IN'
                                       ? 'QR कोड प्रसंस्करण में त्रुटि। कृपया पुनः प्रयास करें।'
-                                      : 'Error processing QR code. Please try again.'
+                                      : 'Error processing QR code. Please try again.',
+                                    null,
+                                    null,
+                                    language
                                   );
                                 }
                               }
@@ -1068,7 +1115,10 @@ const Chat = ({ session, onSignOut }) => {
                             addAssistantMessage(
                               language === 'hi-IN'
                                 ? 'QR कोड प्रसंस्करण में त्रुटि। कृपया पुनः प्रयास करें।'
-                                : 'Error processing QR code. Please try again.'
+                                : 'Error processing QR code. Please try again.',
+                              null,
+                              null,
+                              language
                             );
                           }
                         };
@@ -1077,7 +1127,10 @@ const Chat = ({ session, onSignOut }) => {
                           addAssistantMessage(
                             language === 'hi-IN'
                               ? 'छवि पढ़ने में त्रुटि।'
-                              : 'Error reading image.'
+                              : 'Error reading image.',
+                            null,
+                            null,
+                            language
                           );
                         };
                         

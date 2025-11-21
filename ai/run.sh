@@ -56,5 +56,46 @@ fi
 # Create logs directory
 mkdir -p logs
 
+# Check if vector databases exist, suggest ingestion if not
+echo "🔍 Checking vector databases..."
+VDB_ENGLISH_LOANS="./chroma_db/loan_products"
+VDB_ENGLISH_INVEST="./chroma_db/investment_schemes"
+VDB_HINDI_LOANS="./chroma_db/loan_products_hindi"
+VDB_HINDI_INVEST="./chroma_db/investment_schemes_hindi"
+
+MISSING_DBS=0
+
+if [ ! -d "$VDB_ENGLISH_LOANS" ] || [ -z "$(ls -A $VDB_ENGLISH_LOANS 2>/dev/null)" ]; then
+    echo "⚠️  English loan vector database not found"
+    MISSING_DBS=$((MISSING_DBS + 1))
+fi
+
+if [ ! -d "$VDB_ENGLISH_INVEST" ] || [ -z "$(ls -A $VDB_ENGLISH_INVEST 2>/dev/null)" ]; then
+    echo "⚠️  English investment vector database not found"
+    MISSING_DBS=$((MISSING_DBS + 1))
+fi
+
+if [ ! -d "$VDB_HINDI_LOANS" ] || [ -z "$(ls -A $VDB_HINDI_LOANS 2>/dev/null)" ]; then
+    echo "⚠️  Hindi loan vector database not found"
+    MISSING_DBS=$((MISSING_DBS + 1))
+fi
+
+if [ ! -d "$VDB_HINDI_INVEST" ] || [ -z "$(ls -A $VDB_HINDI_INVEST 2>/dev/null)" ]; then
+    echo "⚠️  Hindi investment vector database not found"
+    MISSING_DBS=$((MISSING_DBS + 1))
+fi
+
+if [ $MISSING_DBS -gt 0 ]; then
+    echo ""
+    echo "💡 Note: Vector databases will be created automatically on first use."
+    echo "   To pre-create them, run:"
+    echo "   - python ingest_documents.py (for English loans)"
+    echo "   - python ingest_investment_documents.py (for English investments)"
+    echo "   - python ingest_documents_hindi.py (for Hindi loans & investments)"
+    echo ""
+else
+    echo "✅ All vector databases found"
+fi
+
 echo "🌟 Starting server on http://localhost:8001"
 python main.py

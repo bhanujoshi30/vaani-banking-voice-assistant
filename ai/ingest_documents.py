@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Document Ingestion Script
 Processes loan product PDFs and creates vector database for RAG
@@ -19,8 +20,18 @@ def main():
     print("LOAN PRODUCT DOCUMENTS INGESTION")
     print("=" * 60)
     
-    # Initialize RAG service
-    rag_service = RAGService()
+    # Initialize RAG service with explicit paths for loan products
+    ai_dir = Path(__file__).parent
+    base_docs_dir = ai_dir.parent / "backend" / "documents"
+    documents_path = base_docs_dir / "loan_products"
+    persist_directory = "./chroma_db/loan_products"
+    collection_name = "loan_products"
+    
+    rag_service = RAGService(
+        documents_path=str(documents_path),
+        persist_directory=persist_directory,
+        collection_name=collection_name
+    )
     
     print(f"\n📂 Document Source: {rag_service.documents_path}")
     print(f"💾 Vector Store Path: {rag_service.persist_directory}")
@@ -29,9 +40,10 @@ def main():
     print(f"🔗 Chunk Overlap: {rag_service.chunk_overlap}")
     
     # Check if documents exist
-    if not rag_service.documents_path.exists():
-        print(f"\n❌ ERROR: Documents folder not found at {rag_service.documents_path}")
+    if not documents_path.exists():
+        print(f"\n❌ ERROR: Documents folder not found at {documents_path}")
         print("   Please ensure loan product PDFs are in backend/documents/loan_products/")
+        print("   Run: python backend/documents/create_loan_product_docs.py")
         return 1
     
     pdf_files = list(rag_service.documents_path.glob("*.pdf"))
@@ -59,7 +71,7 @@ def main():
     
     # Create vector store
     print(f"\n🔄 Creating vector database...")
-    print(f"   Using embedding model: nomic-embed-text (Ollama)")
+    print(f"   Using embedding model: sentence-transformers/all-MiniLM-L6-v2")
     print(f"   This may take a few minutes...")
     
     try:

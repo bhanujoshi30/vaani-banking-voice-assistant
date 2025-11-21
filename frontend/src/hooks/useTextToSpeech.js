@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { normalizeForTTS } from '../config/vocabularyConfig.js';
 
 /**
  * Custom hook for Text-to-Speech functionality
@@ -33,59 +34,68 @@ export const useTextToSpeech = (options = {}) => {
     if (supported) {
       console.log('✅ Text-to-Speech is supported');
       
-      // Load voices and select Indian female voice
+      // Load voices and select appropriate voice based on language
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         
         if (voices.length > 0) {
           console.log('🔍 Available voices:', voices.length);
           
-          // Preference order for Indian female voices
-          const voicePreferences = [
-            // Google voices (best quality)
-            { name: 'Google हिन्दी', lang: 'hi-IN', female: true },
-            { name: 'Google हिंदी', lang: 'hi-IN', female: true },
-            { name: 'Google भारत', lang: 'hi-IN', female: true },
-            // Microsoft voices
-            { name: 'Microsoft Swara Online (Natural) - Hindi (India)', lang: 'hi-IN', female: true },
-            { name: 'Microsoft Swara - Hindi (India)', lang: 'hi-IN', female: true },
-            { name: 'Swara', lang: 'hi-IN', female: true },
-            // Generic Indian English female voices
-            { name: 'Google UK English Female', lang: 'en-GB', female: true },
-            { name: 'Google US English Female', lang: 'en-US', female: true },
-            { name: 'Microsoft Heera Online (Natural) - English (India)', lang: 'en-IN', female: true },
-            { name: 'Microsoft Heera - English (India)', lang: 'en-IN', female: true },
-            { name: 'Heera', lang: 'en-IN', female: true },
-          ];
-          
-          // Try to find preferred Indian female voice
           let voice = null;
           
-          // First: Try exact name matches for Indian voices
-          for (const pref of voicePreferences) {
-            voice = voices.find(v => 
-              v.name.includes(pref.name) || 
-              (v.lang.startsWith(pref.lang) && v.name.toLowerCase().includes('female'))
-            );
-            if (voice) {
-              console.log('✅ Found preferred voice:', voice.name, voice.lang);
-              break;
+          // Select voice based on current language
+          if (lang === 'hi-IN') {
+            // For Hindi, prioritize Hindi voices
+            const hindiVoicePreferences = [
+              { name: 'Google हिन्दी', lang: 'hi-IN' },
+              { name: 'Google हिंदी', lang: 'hi-IN' },
+              { name: 'Google भारत', lang: 'hi-IN' },
+              { name: 'Microsoft Swara Online (Natural) - Hindi (India)', lang: 'hi-IN' },
+              { name: 'Microsoft Swara - Hindi (India)', lang: 'hi-IN' },
+              { name: 'Swara', lang: 'hi-IN' },
+            ];
+            
+            // Try exact name matches for Hindi voices
+            for (const pref of hindiVoicePreferences) {
+              voice = voices.find(v => v.name.includes(pref.name));
+              if (voice) {
+                console.log('✅ Found preferred Hindi voice:', voice.name, voice.lang);
+                break;
+              }
+            }
+            
+            // Try any Hindi voice
+            if (!voice) {
+              voice = voices.find(v => v.lang.startsWith('hi-IN') || v.lang.startsWith('hi'));
+              if (voice) console.log('✅ Found Hindi voice:', voice.name, voice.lang);
+            }
+          } else {
+            // For English, prioritize Indian English voices
+            const englishVoicePreferences = [
+              { name: 'Microsoft Heera Online (Natural) - English (India)', lang: 'en-IN' },
+              { name: 'Microsoft Heera - English (India)', lang: 'en-IN' },
+              { name: 'Heera', lang: 'en-IN' },
+              { name: 'Google UK English Female', lang: 'en-GB' },
+              { name: 'Google US English Female', lang: 'en-US' },
+            ];
+            
+            // Try exact name matches for Indian English voices
+            for (const pref of englishVoicePreferences) {
+              voice = voices.find(v => v.name.includes(pref.name));
+              if (voice) {
+                console.log('✅ Found preferred English voice:', voice.name, voice.lang);
+                break;
+              }
+            }
+            
+            // Try any Indian English voice
+            if (!voice) {
+              voice = voices.find(v => v.lang.startsWith('en-IN'));
+              if (voice) console.log('✅ Found Indian English voice:', voice.name);
             }
           }
           
-          // Second: Try any Hindi voice
-          if (!voice) {
-            voice = voices.find(v => v.lang.startsWith('hi-IN'));
-            if (voice) console.log('✅ Found Hindi voice:', voice.name);
-          }
-          
-          // Third: Try any Indian English voice
-          if (!voice) {
-            voice = voices.find(v => v.lang.startsWith('en-IN'));
-            if (voice) console.log('✅ Found Indian English voice:', voice.name);
-          }
-          
-          // Fourth: Try any female-sounding voice
+          // Fallback: Try any female-sounding voice
           if (!voice) {
             const femaleKeywords = ['female', 'woman', 'heera', 'swara', 'nisha', 'priya'];
             voice = voices.find(v => 
@@ -94,7 +104,7 @@ export const useTextToSpeech = (options = {}) => {
             if (voice) console.log('✅ Found female voice:', voice.name);
           }
           
-          // Fifth: Use first available voice
+          // Last resort: Use first available voice
           if (!voice && voices.length > 0) {
             voice = voices[0];
             console.log('⚠️ Using default voice:', voice.name);
@@ -106,6 +116,7 @@ export const useTextToSpeech = (options = {}) => {
             console.log('🎤 Selected TTS voice:', {
               name: voice.name,
               lang: voice.lang,
+              requestedLang: lang,
               localService: voice.localService,
               default: voice.default
             });
@@ -122,7 +133,7 @@ export const useTextToSpeech = (options = {}) => {
     } else {
       console.warn('❌ Text-to-Speech is not supported in this browser');
     }
-  }, []);
+  }, [lang]); // Re-select voice when language changes
 
   /**
    * Speak the given text
@@ -142,17 +153,28 @@ export const useTextToSpeech = (options = {}) => {
       return;
     }
 
-    console.log('🔊 Starting TTS:', text.substring(0, 50) + '...');
+    // Normalize text for TTS pronunciation (e.g., "UPI" → "U P I")
+    const normalizedText = normalizeForTTS(text, lang);
+    
+    console.log('🔊 Starting TTS:', {
+      language: lang,
+      original: text.substring(0, 100) + '...',
+      normalized: normalizedText.substring(0, 100) + '...',
+      hasHindiChars: /[\u0900-\u097F]/.test(text),
+      hasPercentages: /(\d+\.?\d*)\s*%/.test(text)
+    });
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(normalizedText);
     
     // Use selected Indian female voice if available
     if (selectedVoice) {
       utterance.voice = selectedVoice;
-      console.log('🎤 Using voice:', selectedVoice.name);
+      console.log('🎤 Using voice:', selectedVoice.name, 'Language:', selectedVoice.lang);
     }
     
+    // Ensure utterance language matches the selected language
     utterance.lang = lang;
+    console.log('🎤 TTS utterance language set to:', utterance.lang);
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;

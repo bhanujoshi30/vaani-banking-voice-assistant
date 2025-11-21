@@ -60,6 +60,19 @@ async def banking_agent(state):
         response_content = await handle_transaction_query(state, user_context, language)
     
     elif any(word in msg_lower for word in ["transfer", "send", "pay", "ट्रांसफर", "भेजें", "भुगतान"]):
+        # Check for UPI keywords (both English and Hindi)
+        upi_keywords = ["upi", "यूपीआई", "यूपी", "yupi", "you pee", "you p i"]
+        has_upi_keyword = any(keyword in msg_lower for keyword in upi_keywords)
+        
+        # If UPI keyword detected, activate UPI mode and route to UPI agent
+        if has_upi_keyword:
+            state["upi_mode"] = True
+            from .upi_agent import upi_agent
+            logger.info("upi_keyword_detected_in_banking_agent", 
+                       message=last_user_message,
+                       upi_keywords_found=[kw for kw in upi_keywords if kw in msg_lower])
+            return await upi_agent(state)
+        
         # Check if UPI mode is active - redirect to UPI agent
         if state.get("upi_mode", False):
             # Route to UPI agent instead of handling as normal transfer
@@ -615,8 +628,15 @@ Return ONLY valid JSON, no other text. Example:
     }
 
     if language == "hi-IN":
-        return "यहाँ आप अपने भुगतान अनुस्मारक बना या देख सकते हैं।"
-    return "Here's the reminder panel to create or review reminders."
+        if intent == "create":
+            return "आप यहाँ अपने भुगतान अनुस्मारक बना सकते हैं। नीचे दिए गए फॉर्म में तारीख, समय, खाता और संदेश दर्ज करें। अनुस्मारक आवाज, SMS या पुश नोटिफिकेशन के माध्यम से भेजा जा सकता है।"
+        else:
+            return "यहाँ आप अपने सभी भुगतान अनुस्मारक देख और प्रबंधित कर सकते हैं।"
+    else:
+        if intent == "create":
+            return "You can create payment reminders here. Fill in the form below with date, time, account, and message. Reminders can be sent via voice, SMS, or push notifications."
+        else:
+            return "Here's the reminder panel to create or review reminders."
 
 
 async def handle_transfer_request(state, user_context, language, last_user_message):

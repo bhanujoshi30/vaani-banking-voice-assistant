@@ -26,6 +26,52 @@
   font-size: 1.125rem;
   font-weight: 600;
   color: rgba(15, 27, 42, 0.9);
+  flex: 1;
+}
+
+.investment-info-card__download-btn {
+  background: transparent;
+  border: 1px solid rgba(15, 27, 42, 0.15);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: auto;
+  height: auto;
+  white-space: nowrap;
+}
+
+.investment-info-card__download-btn:hover:not(:disabled) {
+  background: rgba(255, 143, 66, 0.1);
+  border-color: rgba(255, 143, 66, 0.3);
+  transform: translateY(-1px);
+}
+
+.investment-info-card__download-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.investment-info-card__download-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.investment-info-card__download-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.investment-info-card__download-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(15, 27, 42, 0.8);
+  line-height: 1.2;
 }
 
 .investment-info-card__content {
@@ -122,6 +168,8 @@
 @media (max-width: 768px) {
   .investment-info-card__header {
     padding: 1rem 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
   
   .investment-info-card__content {
@@ -136,6 +184,19 @@
   
   .investment-info-card__value {
     text-align: left;
+  }
+  
+  .investment-info-card__download-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+  }
+  
+  .investment-info-card__download-text {
+    font-size: 0.8rem;
+  }
+  
+  .investment-info-card__download-icon {
+    font-size: 1.1rem;
   }
 }
 

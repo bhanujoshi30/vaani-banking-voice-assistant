@@ -68,11 +68,12 @@ const CHAT_COPY = {
         start: "Start voice input",
       },
       hints: {
-        speaking: "Assistant is speaking... Input disabled",
+        speaking: "Assistant is speaking...",
         comingSoon: "Voice input coming soon for this language. Please use English or Hindi.",
         voiceMode: "Voice mode active - Speak naturally, your message will be sent automatically",
         listening: "Listening... Speak clearly",
         idle: "Try: \"Check my account balance\" or \"Show recent transactions\"",
+        clickToRecord: "Click microphone to record again",
       },
       sendButtonTitle: {
         default: "Send message",
@@ -205,6 +206,7 @@ const CHAT_COPY = {
         voiceMode: "वॉइस मोड सक्रिय है - सामान्य रूप से बोलें, संदेश अपने आप भेजा जाएगा",
         listening: "सुन रहा हूँ... साफ़ बोलें",
         idle: "कोशिश करें: \"मेरा खाता बैलेंस बताओ\" या \"हाल के लेनदेन दिखाओ\"",
+        clickToRecord: "फिर से रिकॉर्ड करने के लिए माइक्रोफ़ोन पर क्लिक करें",
       },
       sendButtonTitle: {
         default: "संदेश भेजें",

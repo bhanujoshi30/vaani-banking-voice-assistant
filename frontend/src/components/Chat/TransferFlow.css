@@ -102,6 +102,92 @@
   box-shadow: 0 0 0 3px rgba(255, 143, 66, 0.1);
 }
 
+.transfer-flow__input--error {
+  border-color: #dc3545;
+}
+
+.transfer-flow__input--error:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.transfer-flow__error-container {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.transfer-flow__error {
+  color: #dc3545;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: block;
+}
+
+.transfer-flow__error-hint {
+  color: rgba(15, 27, 42, 0.6);
+  font-size: 0.8rem;
+  display: block;
+  line-height: 1.4;
+}
+
+.transfer-flow__input-group {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.transfer-flow__input-group .transfer-flow__input {
+  flex: 1;
+  margin: 0;
+}
+
+.transfer-flow__scan-qr-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: 1px solid rgba(15, 27, 42, 0.15);
+  border-radius: 8px;
+  color: rgba(15, 27, 42, 0.8);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.transfer-flow__scan-qr-btn:hover:not(:disabled) {
+  background: rgba(255, 143, 66, 0.05);
+  border-color: rgba(255, 143, 66, 0.3);
+  color: #ff8f42;
+}
+
+.transfer-flow__scan-qr-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.transfer-flow__scan-qr-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.transfer-flow__scan-qr-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.transfer-flow__scan-qr-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 .transfer-flow__submit {
   width: 100%;
   padding: 0.875rem 1.5rem;
@@ -392,6 +478,20 @@
 
   .transfer-flow__modal-content {
     padding: 1.5rem;
+  }
+
+  .transfer-flow__input-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .transfer-flow__scan-qr-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .transfer-flow__scan-qr-text {
+    font-size: 0.8rem;
   }
 }
 
