@@ -8,4 +8,5 @@ uvicorn[standard]>=0.32
 resemblyzer>=0.1.2
 librosa>=0.10
 soundfile>=0.12
+reportlab>=4.0
 

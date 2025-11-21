@@ -1,0 +1,123 @@
+/* Loan Selection Table Styles */
+.loan-selection-table-container {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 27, 42, 0.1);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 27, 42, 0.04);
+}
+
+.loan-selection-table-header {
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 143, 66, 0.1) 0%, rgba(255, 107, 26, 0.05) 100%);
+  border-bottom: 1px solid rgba(15, 27, 42, 0.08);
+}
+
+.loan-selection-table-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+  margin: 0 0 0.5rem 0;
+}
+
+.loan-selection-table-subtitle {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  margin: 0;
+}
+
+.loan-selection-table {
+  padding: 0.5rem;
+}
+
+.loan-selection-row {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(15, 27, 42, 0.06);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.loan-selection-row:last-child {
+  border-bottom: none;
+}
+
+.loan-selection-row:hover {
+  background-color: rgba(255, 143, 66, 0.05);
+}
+
+.loan-selection-row:focus {
+  background-color: rgba(255, 143, 66, 0.08);
+  outline: 2px solid rgba(255, 143, 66, 0.3);
+  outline-offset: -2px;
+}
+
+.loan-selection-row:active {
+  background-color: rgba(255, 143, 66, 0.1);
+}
+
+.loan-selection-row-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loan-selection-row-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.loan-selection-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.loan-selection-row-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+  margin-bottom: 0.25rem;
+}
+
+.loan-selection-row-description {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  line-height: 1.4;
+}
+
+.loan-selection-row-arrow {
+  font-size: 1.25rem;
+  color: rgba(255, 143, 66, 0.8);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.loan-selection-row:hover .loan-selection-row-arrow {
+  transform: translateX(4px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .loan-selection-table-header {
+    padding: 1rem;
+  }
+  
+  .loan-selection-row {
+    padding: 0.875rem 1rem;
+  }
+  
+  .loan-selection-row-icon {
+    font-size: 1.5rem;
+  }
+  
+  .loan-selection-row-name {
+    font-size: 0.95rem;
+  }
+  
+  .loan-selection-row-description {
+    font-size: 0.8rem;
+  }
+}
+

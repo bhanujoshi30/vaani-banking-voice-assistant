@@ -1,23 +1,125 @@
 import PropTypes from "prop-types";
-import { DEFAULT_LANGUAGE, getLanguageByCode } from "../../config/voiceConfig.js";
+import { DEFAULT_LANGUAGE } from "../../config/voiceConfig.js";
 import { getChatCopy } from "../../config/chatCopy.js";
 import QuickActionIcon from "./QuickActionIcon.jsx";
 
 const FALLBACK_COPY = getChatCopy(DEFAULT_LANGUAGE);
 
 /**
- * ChatSidebar component - Quick actions and voice status
+ * ChatSidebar component - Quick actions and mode toggles
  */
-const ChatSidebar = ({ isSpeechSupported, selectedLanguage, onQuickAction, copy }) => {
-  const currentLanguage = getLanguageByCode(selectedLanguage);
-  const isComingSoon = currentLanguage?.comingSoon || false;
+const ChatSidebar = ({ 
+  isSpeechSupported, 
+  onQuickAction, 
+  copy,
+  upiMode,
+  isVoiceModeEnabled,
+  isVoiceSecured,
+  checkingVoiceBinding,
+  onVoiceModeToggle,
+  onVoiceEnrollmentClick,
+  onUPIModeToggle,
+  pageStrings,
+  upiStrings,
+}) => {
   const localizedCopy = copy || FALLBACK_COPY;
   const quickActions = localizedCopy.quickActions || [];
-  const recentTopics = localizedCopy.recentTopics || [];
-  const voiceFeatures = localizedCopy.voiceFeatures || FALLBACK_COPY.voiceFeatures;
 
   return (
     <aside className="chat-sidebar">
+      {/* Mode Toggle Pills */}
+      <div className="chat-sidebar-mode-buttons">
+        {/* Voice Mode Pill */}
+        {!checkingVoiceBinding && (
+          isVoiceModeEnabled ? (
+            // Voice mode active - show green secured pill
+            <div
+              className="profile-pill profile-pill--secured"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVoiceModeToggle();
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onVoiceModeToggle();
+                }
+              }}
+            >
+              <span className="status-dot status-dot--online" />
+              {pageStrings?.profile?.voiceMode || "Voice Mode"}
+            </div>
+          ) : isVoiceSecured ? (
+            // Voice mode off but secured - show orange pill that activates voice mode on click
+            <div
+              className="profile-pill profile-pill--orange"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVoiceModeToggle();
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onVoiceModeToggle();
+                }
+              }}
+            >
+              <span className="status-dot status-dot--orange" />
+              {pageStrings?.profile?.voiceMode || "Voice Mode"}
+            </div>
+          ) : (
+            // Voice mode off and unsecured - show tag that prompts to secure
+            <div
+              className="profile-pill profile-pill--unsecured"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVoiceEnrollmentClick();
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onVoiceEnrollmentClick();
+                }
+              }}
+            >
+              <span className="status-dot status-dot--warning" />
+              {pageStrings?.profile?.voiceSessionUnsecured || "Voice session unsecured"}
+            </div>
+          )
+        )}
+        
+        {/* UPI Mode Pill */}
+        <div 
+          className={`profile-pill ${upiMode ? 'profile-pill--secured' : 'profile-pill--unsecured'}`} 
+          onClick={(e) => {
+            e.stopPropagation();
+            onUPIModeToggle();
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onUPIModeToggle();
+            }
+          }}
+        >
+          <span className={`status-dot ${upiMode ? 'status-dot--online' : 'status-dot--warning'}`} />
+          {upiMode ? (upiStrings?.upiModeActive || "UPI Mode Active") : (upiStrings?.upiModeInactive || "UPI Mode Inactive")}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
       <div className="chat-sidebar-card">
         <h3>{localizedCopy.quickActionsTitle}</h3>
         {localizedCopy.helperText && (
@@ -39,56 +141,12 @@ const ChatSidebar = ({ isSpeechSupported, selectedLanguage, onQuickAction, copy 
           ))}
         </div>
       </div>
-
-      <div className="chat-sidebar-card">
-        <h3>{localizedCopy.recentTopicsTitle}</h3>
-        <ul className="chat-recent-topics">
-          {recentTopics.map((topic) => (
-            <li key={topic}>{topic}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="chat-sidebar-card chat-sidebar-card--accent">
-        <h3>{voiceFeatures.title}</h3>
-        <p>{voiceFeatures.description}</p>
-        {!isSpeechSupported ? (
-          <div className="voice-status">
-            <span className="chat-badge chat-badge--warning">
-              {voiceFeatures.badges?.notAvailable || "Not Available"}
-            </span>
-            <p className="chat-sidebar-hint">{voiceFeatures.notSupportedHint}</p>
-          </div>
-        ) : isComingSoon ? (
-          <div className="voice-status">
-            <span className="chat-badge chat-badge--info">
-              {voiceFeatures.badges?.comingSoon || "🚧 Coming Soon"}
-            </span>
-            <p className="chat-sidebar-hint">
-              {voiceFeatures.comingSoonHint} {currentLanguage?.flag} {currentLanguage?.nativeName}
-            </p>
-            <p className="chat-sidebar-hint chat-sidebar-hint--warning">
-              {voiceFeatures.comingSoonWarning}
-            </p>
-          </div>
-        ) : (
-          <div className="voice-status">
-            <span className="chat-badge chat-badge--success">
-              {voiceFeatures.badges?.ready || "✓ Ready"}
-            </span>
-            <p className="chat-sidebar-hint">
-              {voiceFeatures.readyHint} {currentLanguage?.flag} {currentLanguage?.nativeName} ({currentLanguage?.name})
-            </p>
-          </div>
-        )}
-      </div>
     </aside>
   );
 };
 
 ChatSidebar.propTypes = {
   isSpeechSupported: PropTypes.bool.isRequired,
-  selectedLanguage: PropTypes.string.isRequired,
   onQuickAction: PropTypes.func.isRequired,
   copy: PropTypes.shape({
     quickActionsTitle: PropTypes.string,
@@ -104,16 +162,16 @@ ChatSidebar.propTypes = {
     recentTopicsTitle: PropTypes.string,
     recentTopics: PropTypes.arrayOf(PropTypes.string),
     helperText: PropTypes.string,
-    voiceFeatures: PropTypes.shape({
-      title: PropTypes.string,
-      description: PropTypes.string,
-      notSupportedHint: PropTypes.string,
-      comingSoonHint: PropTypes.string,
-      comingSoonWarning: PropTypes.string,
-      readyHint: PropTypes.string,
-      badges: PropTypes.object,
-    }),
   }),
+  upiMode: PropTypes.bool.isRequired,
+  isVoiceModeEnabled: PropTypes.bool.isRequired,
+  isVoiceSecured: PropTypes.bool.isRequired,
+  checkingVoiceBinding: PropTypes.bool.isRequired,
+  onUPIModeToggle: PropTypes.func.isRequired,
+  onVoiceModeToggle: PropTypes.func.isRequired,
+  onVoiceEnrollmentClick: PropTypes.func.isRequired,
+  pageStrings: PropTypes.object,
+  upiStrings: PropTypes.object,
 };
 
 ChatSidebar.defaultProps = {

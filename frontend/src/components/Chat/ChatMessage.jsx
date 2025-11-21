@@ -3,6 +3,9 @@ import PropTypes from "prop-types";
 import TransactionTable from "./TransactionTable.jsx";
 import AccountBalanceCards from "./AccountBalanceCards.jsx";
 import LoanInfoCard from "./LoanInfoCard.jsx";
+import LoanSelectionTable from "./LoanSelectionTable.jsx";
+import InvestmentInfoCard from "./InvestmentInfoCard.jsx";
+import InvestmentSelectionTable from "./InvestmentSelectionTable.jsx";
 import ReminderCard from "./ReminderCard.jsx";
 import TransferFlow from "./TransferFlow.jsx";
 import TransferReceipt from "./TransferReceipt.jsx";
@@ -332,6 +335,45 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
               <LoanInfoCard 
                 loanInfo={message.structuredData.loanInfo} 
                 language={language}
+              />
+            )}
+            
+            {message.structuredData.type === 'loan_selection' && message.structuredData.loans && (
+              <LoanSelectionTable 
+                loans={message.structuredData.loans} 
+                language={language}
+                onLoanSelect={(loanType) => {
+                  // Send a message to get detailed loan information
+                  if (onSendMessage) {
+                    const loanQuery = language === 'hi-IN' 
+                      ? `${loanType.replace(/_/g, ' ')} के बारे में बताएं`
+                      : `Tell me about ${loanType.replace(/_/g, ' ')}`;
+                    onSendMessage(loanQuery);
+                  }
+                }}
+              />
+            )}
+            
+            {message.structuredData.type === 'investment' && message.structuredData.investmentInfo && (
+              <InvestmentInfoCard 
+                investmentInfo={message.structuredData.investmentInfo} 
+                language={language}
+              />
+            )}
+            
+            {message.structuredData.type === 'investment_selection' && message.structuredData.investments && (
+              <InvestmentSelectionTable 
+                investments={message.structuredData.investments} 
+                language={language}
+                onInvestmentSelect={(investmentType) => {
+                  // Send a message to get detailed investment information
+                  if (onSendMessage) {
+                    const investmentQuery = language === 'hi-IN' 
+                      ? `${investmentType.replace(/_/g, ' ')} के बारे में बताएं`
+                      : `Tell me about ${investmentType.replace(/_/g, ' ')}`;
+                    onSendMessage(investmentQuery);
+                  }
+                }}
               />
             )}
             

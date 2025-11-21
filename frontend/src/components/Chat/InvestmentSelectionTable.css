@@ -1,0 +1,123 @@
+/* Loan Selection Table Styles */
+.investment-selection-table-container {
+  margin-top: 1rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 27, 42, 0.1);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 27, 42, 0.04);
+}
+
+.investment-selection-table-header {
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 143, 66, 0.1) 0%, rgba(255, 107, 26, 0.05) 100%);
+  border-bottom: 1px solid rgba(15, 27, 42, 0.08);
+}
+
+.investment-selection-table-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+  margin: 0 0 0.5rem 0;
+}
+
+.investment-selection-table-subtitle {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  margin: 0;
+}
+
+.investment-selection-table {
+  padding: 0.5rem;
+}
+
+.investment-selection-row {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(15, 27, 42, 0.06);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.investment-selection-row:last-child {
+  border-bottom: none;
+}
+
+.investment-selection-row:hover {
+  background-color: rgba(255, 143, 66, 0.05);
+}
+
+.investment-selection-row:focus {
+  background-color: rgba(255, 143, 66, 0.08);
+  outline: 2px solid rgba(255, 143, 66, 0.3);
+  outline-offset: -2px;
+}
+
+.investment-selection-row:active {
+  background-color: rgba(255, 143, 66, 0.1);
+}
+
+.investment-selection-row-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.investment-selection-row-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.investment-selection-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.investment-selection-row-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+  margin-bottom: 0.25rem;
+}
+
+.investment-selection-row-description {
+  font-size: 0.875rem;
+  color: rgba(15, 27, 42, 0.6);
+  line-height: 1.4;
+}
+
+.investment-selection-row-arrow {
+  font-size: 1.25rem;
+  color: rgba(255, 143, 66, 0.8);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.investment-selection-row:hover .investment-selection-row-arrow {
+  transform: translateX(4px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .investment-selection-table-header {
+    padding: 1rem;
+  }
+  
+  .investment-selection-row {
+    padding: 0.875rem 1rem;
+  }
+  
+  .investment-selection-row-icon {
+    font-size: 1.5rem;
+  }
+  
+  .investment-selection-row-name {
+    font-size: 0.95rem;
+  }
+  
+  .investment-selection-row-description {
+    font-size: 0.8rem;
+  }
+}
+

@@ -9,6 +9,21 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from pathlib import Path
+import re
+
+
+def replace_rupee_symbol(text):
+    """
+    Replace rupee symbol (Rs.) with 'Rs.' for PDF compatibility
+    ReportLab's default fonts don't support Unicode rupee symbol properly
+    """
+    if isinstance(text, str):
+        # Replace Rs. with Rs. (with proper spacing)
+        text = re.sub(r'Rs.(\d)', r'Rs. \1', text)
+        text = re.sub(r'Rs.', 'Rs.', text)
+        # Handle cases like "Rs. 5 lakhs" -> "Rs. 5 lakhs"
+        text = re.sub(r'Rs\.(\d)', r'Rs. \1', text)
+    return text
 
 
 def create_header_footer(canvas, doc, title):
@@ -81,12 +96,12 @@ def create_home_loan_doc():
     story.append(Paragraph("KEY FEATURES", heading_style))
     features = [
         ["Feature", "Details"],
-        ["Loan Amount", "₹5 lakhs to ₹5 crores"],
+        ["Loan Amount", replace_rupee_symbol("Rs. 5 lakhs to Rs. 5 crores")],
         ["Interest Rate", "8.35% - 9.50% p.a. (Floating Rate)\n8.85% - 10.00% p.a. (Fixed Rate)"],
         ["Tenure", "Up to 30 years (maximum age at maturity: 70 years)"],
-        ["Processing Fee", "0.50% of loan amount (Min: ₹5,000, Max: ₹25,000) + GST"],
+        ["Processing Fee", replace_rupee_symbol("0.50% of loan amount (Min: Rs. 5,000, Max: Rs. 25,000) + GST")],
         ["Prepayment Charges", "Nil for floating rate loans\n2% + GST for fixed rate loans"],
-        ["Loan-to-Value Ratio", "Up to 90% for loans up to ₹30 lakhs\nUp to 80% for loans above ₹30 lakhs"],
+        ["Loan-to-Value Ratio", replace_rupee_symbol("Up to 90% for loans up to Rs. 30 lakhs\nUp to 80% for loans above Rs. 30 lakhs")],
         ["Moratorium Period", "Up to 48 months for under-construction properties"],
     ]
     
@@ -123,7 +138,7 @@ def create_home_loan_doc():
     story.append(Paragraph("Finance for extending or expanding your existing residential property.", normal_style))
     
     story.append(Paragraph("5. Home Renovation Loan", subheading_style))
-    story.append(Paragraph("Finance for renovating, repairing, or improving your existing home. Maximum loan amount: ₹50 lakhs.", normal_style))
+    story.append(Paragraph("Finance for renovating, repairing, or improving your existing home. Maximum loan amount: Rs. 50 lakhs.", normal_style))
     
     story.append(Paragraph("6. Balance Transfer Loan", subheading_style))
     story.append(Paragraph("Transfer your existing home loan from another bank to Sun National Bank to avail better interest rates or additional top-up loan.", normal_style))
@@ -135,7 +150,7 @@ def create_home_loan_doc():
     eligibility = [
         ["Criteria", "Salaried Individuals", "Self-Employed"],
         ["Age", "21 - 65 years", "25 - 70 years"],
-        ["Minimum Income", "₹25,000 per month", "₹3,00,000 per annum"],
+        ["Minimum Income", "Rs. 25,000 per month", "Rs. 3,00,000 per annum"],
         ["Work Experience", "Minimum 2 years (1 year in current organization)", "Minimum 3 years in business"],
         ["Credit Score", "Minimum 700 (CIBIL)", "Minimum 700 (CIBIL)"],
         ["Employment Type", "Permanent employee with reputed organization", "Stable business with ITR filed for last 3 years"],
@@ -200,10 +215,10 @@ def create_home_loan_doc():
     
     emi_data = [
         ["Loan Amount", "Interest Rate", "Tenure", "Monthly EMI", "Total Interest", "Total Payment"],
-        ["₹25,00,000", "8.50% p.a.", "20 years", "₹21,612", "₹26,86,880", "₹51,86,880"],
-        ["₹50,00,000", "8.50% p.a.", "25 years", "₹39,712", "₹69,13,600", "₹1,19,13,600"],
-        ["₹75,00,000", "9.00% p.a.", "30 years", "₹60,347", "₹1,42,24,920", "₹2,17,24,920"],
-        ["₹1,00,00,000", "9.00% p.a.", "20 years", "₹89,973", "₹1,15,93,520", "₹2,15,93,520"],
+        ["Rs. 25,00,000", "8.50% p.a.", "20 years", "Rs. 21,612", "Rs. 26,86,880", "Rs. 51,86,880"],
+        ["Rs. 50,00,000", "8.50% p.a.", "25 years", "Rs. 39,712", "Rs. 69,13,600", "Rs. 1,19,13,600"],
+        ["Rs. 75,00,000", "9.00% p.a.", "30 years", "Rs. 60,347", "Rs. 1,42,24,920", "Rs. 2,17,24,920"],
+        ["Rs. 1,00,00,000", "9.00% p.a.", "20 years", "Rs. 89,973", "Rs. 1,15,93,520", "Rs. 2,15,93,520"],
     ]
     
     emi_table = Table(emi_data, colWidths=[1.2*inch, 1*inch, 0.9*inch, 1.1*inch, 1.1*inch, 1.2*inch])
@@ -228,7 +243,7 @@ def create_home_loan_doc():
         "• <b>No Hidden Charges:</b> Complete transparency in all fees and charges",
         "• <b>Quick Approval:</b> In-principle approval within 48 hours",
         "• <b>Flexible Repayment:</b> Option to increase EMI as income grows (Step-up EMI)",
-        "• <b>Tax Benefits:</b> Deduction up to ₹1.5 lakhs on principal (Sec 80C) + ₹2 lakhs on interest (Sec 24)",
+        "• <b>Tax Benefits:</b> Deduction up to Rs. 1.5 lakhs on principal (Sec 80C) + Rs. 2 lakhs on interest (Sec 24)",
         "• <b>Free Insurance:</b> Complimentary property insurance for first year",
         "• <b>Doorstep Service:</b> Documentation pickup and delivery at your convenience",
         "• <b>Digital Process:</b> Paperless loan application through mobile app or website",
@@ -242,20 +257,20 @@ def create_home_loan_doc():
     story.append(Paragraph("FEES AND CHARGES", heading_style))
     fees_data = [
         ["Charge Type", "Amount"],
-        ["Processing Fee", "0.50% of loan amount (Min ₹5,000, Max ₹25,000) + GST"],
-        ["Login Fee/Documentation Charges", "₹5,000 + GST (One-time)"],
-        ["Property Valuation Charges", "Actual cost (₹3,000 - ₹10,000 depending on property)"],
-        ["Legal & Technical Charges", "₹5,000 - ₹15,000 + GST"],
+        ["Processing Fee", "0.50% of loan amount (Min Rs. 5,000, Max Rs. 25,000) + GST"],
+        ["Login Fee/Documentation Charges", "Rs. 5,000 + GST (One-time)"],
+        ["Property Valuation Charges", "Actual cost (Rs. 3,000 - Rs. 10,000 depending on property)"],
+        ["Legal & Technical Charges", "Rs. 5,000 - Rs. 15,000 + GST"],
         ["Stamp Duty & Registration", "As per state government norms (customer's account)"],
         ["Late Payment Penalty", "2% per month on overdue amount"],
-        ["Cheque/NACH Bounce Charges", "₹500 per instance"],
+        ["Cheque/NACH Bounce Charges", "Rs. 500 per instance"],
         ["Part Prepayment Charges (Floating)", "Nil"],
         ["Part Prepayment Charges (Fixed)", "2% of prepaid amount + GST"],
         ["Foreclosure Charges (Floating)", "Nil"],
         ["Foreclosure Charges (Fixed)", "3% of outstanding principal + GST"],
-        ["Loan Cancellation Charges", "₹5,000 + GST (if cancelled after approval)"],
-        ["Duplicate Statement Charges", "₹250 per statement"],
-        ["NOC/Closure Certificate", "₹1,000 + GST"],
+        ["Loan Cancellation Charges", "Rs. 5,000 + GST (if cancelled after approval)"],
+        ["Duplicate Statement Charges", "Rs. 250 per statement"],
+        ["NOC/Closure Certificate", "Rs. 1,000 + GST"],
         ["Swap Charges (Fixed to Floating)", "0.50% of outstanding principal + GST"],
     ]
     
@@ -301,7 +316,7 @@ def create_home_loan_doc():
     
     faqs = [
         ("<b>Q1: What is the maximum loan amount I can get?</b>",
-         "The maximum loan amount depends on your income, age, existing obligations, and property value. Generally, we offer up to ₹5 crores for eligible customers."),
+         "The maximum loan amount depends on your income, age, existing obligations, and property value. Generally, we offer up to Rs. 5 crores for eligible customers."),
         
         ("<b>Q2: Can I prepay my home loan?</b>",
          "Yes, you can prepay your home loan anytime. For floating rate loans, there are no prepayment charges. For fixed rate loans, 2% + GST is charged on the prepaid amount."),
@@ -404,7 +419,7 @@ def create_personal_loan_doc():
     story.append(Paragraph("KEY FEATURES", heading_style))
     features = [
         ["Feature", "Details"],
-        ["Loan Amount", "₹50,000 to ₹25 lakhs"],
+        ["Loan Amount", "Rs. 50,000 to Rs. 25 lakhs"],
         ["Interest Rate", "10.49% - 18.00% p.a. (based on credit profile)"],
         ["Tenure", "12 to 60 months (1 to 5 years)"],
         ["Processing Fee", "Up to 2% of loan amount + GST"],
@@ -437,7 +452,7 @@ def create_personal_loan_doc():
     eligibility = [
         ["Criteria", "Salaried", "Self-Employed"],
         ["Age", "21 - 60 years", "25 - 65 years"],
-        ["Minimum Income", "₹20,000 per month", "₹2,50,000 per annum (ITR)"],
+        ["Minimum Income", "Rs. 20,000 per month", "Rs. 2,50,000 per annum (ITR)"],
         ["Work Experience", "Min 1 year (6 months in current company)", "Min 2 years in business"],
         ["Credit Score (CIBIL)", "Minimum 750 for best rates\n650-749: Higher interest\nBelow 650: May be rejected", "Minimum 750 for best rates\n650-749: Higher interest\nBelow 650: May be rejected"],
         ["Nationality", "Indian Resident or NRI", "Indian Resident or NRI"],
@@ -525,10 +540,10 @@ def create_personal_loan_doc():
     
     emi_data = [
         ["Loan Amount", "Interest Rate", "Tenure", "Monthly EMI", "Total Interest", "Total Payment"],
-        ["₹2,00,000", "11.00%", "24 months", "₹9,284", "₹22,816", "₹2,22,816"],
-        ["₹5,00,000", "12.00%", "36 months", "₹16,607", "₹97,852", "₹5,97,852"],
-        ["₹10,00,000", "13.00%", "48 months", "₹26,783", "₹12,85,584", "₹22,85,584"],
-        ["₹15,00,000", "14.00%", "60 months", "₹34,865", "₹20,91,900", "₹35,91,900"],
+        ["Rs. 2,00,000", "11.00%", "24 months", "Rs. 9,284", "Rs. 22,816", "Rs. 2,22,816"],
+        ["Rs. 5,00,000", "12.00%", "36 months", "Rs. 16,607", "Rs. 97,852", "Rs. 5,97,852"],
+        ["Rs. 10,00,000", "13.00%", "48 months", "Rs. 26,783", "Rs. 12,85,584", "Rs. 22,85,584"],
+        ["Rs. 15,00,000", "14.00%", "60 months", "Rs. 34,865", "Rs. 20,91,900", "Rs. 35,91,900"],
     ]
     
     emi_table = Table(emi_data, colWidths=[1.1*inch, 1*inch, 1*inch, 1.1*inch, 1.1*inch, 1.2*inch])
@@ -554,12 +569,12 @@ def create_personal_loan_doc():
         ["Processing Fee", "Up to 2% of loan amount + GST"],
         ["Prepayment Charges", "Nil after 6 EMI payments\n4% of principal outstanding + GST (within 6 months)"],
         ["Foreclosure Charges", "Nil after 12 EMI payments\n5% of outstanding + GST (within 12 months)"],
-        ["Late Payment Charges", "2% per month on overdue amount or ₹500, whichever is higher"],
-        ["Cheque/NACH Bounce", "₹500 per instance"],
-        ["Loan Cancellation", "₹3,000 + GST (after approval but before disbursal)"],
-        ["Statement Request", "₹100 per statement"],
-        ["Duplicate NOC", "₹500 + GST"],
-        ["EMI Swap Charges", "₹500 + GST per swap"],
+        ["Late Payment Charges", "2% per month on overdue amount or Rs. 500, whichever is higher"],
+        ["Cheque/NACH Bounce", "Rs. 500 per instance"],
+        ["Loan Cancellation", "Rs. 3,000 + GST (after approval but before disbursal)"],
+        ["Statement Request", "Rs. 100 per statement"],
+        ["Duplicate NOC", "Rs. 500 + GST"],
+        ["EMI Swap Charges", "Rs. 500 + GST per swap"],
     ]
     
     fees_table = Table(fees_data, colWidths=[3*inch, 3.5*inch])
@@ -639,7 +654,7 @@ def create_personal_loan_doc():
          "Yes, you can prepay anytime. No charges if you prepay after 6 months. 4% + GST if prepaid within first 6 months."),
         
         ("<b>Q6: What if I miss an EMI payment?</b>",
-         "Late payment charges of 2% per month or ₹500 (whichever higher) will be levied. It will also negatively impact your credit score. Contact us immediately if facing difficulty."),
+         "Late payment charges of 2% per month or Rs. 500 (whichever higher) will be levied. It will also negatively impact your credit score. Contact us immediately if facing difficulty."),
         
         ("<b>Q7: Can I increase my loan amount after disbursal?</b>",
          "Yes, you can apply for a top-up loan after successfully paying 6 EMIs. The top-up amount depends on your repayment track record and income."),
@@ -754,7 +769,7 @@ def create_auto_loan_doc():
     story.append(Paragraph("KEY FEATURES", heading_style))
     features = [
         ["Feature", "Details"],
-        ["Loan Amount", "Up to 100% on-road price (conditions apply)\nNew Car: ₹1 lakh - ₹1 crore\nUsed Car: ₹50,000 - ₹50 lakhs\nTwo-Wheeler: ₹30,000 - ₹3 lakhs"],
+        ["Loan Amount", "Up to 100% on-road price (conditions apply)\nNew Car: Rs. 1 lakh - Rs. 1 crore\nUsed Car: Rs. 50,000 - Rs. 50 lakhs\nTwo-Wheeler: Rs. 30,000 - Rs. 3 lakhs"],
         ["Interest Rate", "New Car: 8.50% - 10.50% p.a.\nUsed Car: 10.50% - 13.50% p.a.\nTwo-Wheeler: 11.00% - 14.00% p.a."],
         ["Loan-to-Value (LTV)", "New Vehicles: Up to 90%\nUsed Vehicles: Up to 80%\nTwo-Wheelers: Up to 95%"],
         ["Tenure", "New Car: Up to 7 years (84 months)\nUsed Car: Up to 5 years (60 months)\nTwo-Wheeler: Up to 5 years (60 months)"],
@@ -802,7 +817,7 @@ def create_auto_loan_doc():
     eligibility = [
         ["Criteria", "Salaried", "Self-Employed"],
         ["Age", "21 - 65 years", "25 - 70 years"],
-        ["Minimum Income", "₹20,000 per month (metro)\n₹15,000 per month (non-metro)", "₹3,00,000 per annum (ITR)"],
+        ["Minimum Income", "Rs. 20,000 per month (metro)\nRs. 15,000 per month (non-metro)", "Rs. 3,00,000 per annum (ITR)"],
         ["Work Experience", "Min 1 year total\n(6 months current employer)", "Min 2 years in business"],
         ["Credit Score", "Minimum 700 for best rates\n650-699: Higher rate\nBelow 650: Case-to-case", "Minimum 700 for best rates\n650-699: Higher rate\nBelow 650: Case-to-case"],
         ["Down Payment", "Minimum 10% for new\n20% for used vehicles", "Minimum 15% for new\n25% for used vehicles"],
@@ -860,11 +875,11 @@ def create_auto_loan_doc():
     
     emi_data = [
         ["Vehicle Type", "Loan Amount", "Rate", "Tenure", "Monthly EMI", "Total Interest"],
-        ["New Car\n(Hatchback)", "₹5,00,000", "9.00%", "5 years", "₹10,378", "₹1,22,680"],
-        ["New Car\n(Sedan)", "₹10,00,000", "8.75%", "7 years", "₹15,071", "₹2,65,972"],
-        ["Used Car\n(5 years old)", "₹3,00,000", "11.50%", "4 years", "₹7,822", "₹75,456"],
-        ["Two-Wheeler\n(New)", "₹1,00,000", "12.00%", "3 years", "₹3,321", "₹19,556"],
-        ["Electric Car\n(New - Special)", "₹8,00,000", "8.25%", "5 years", "₹16,258", "₹1,75,480"],
+        ["New Car\n(Hatchback)", "Rs. 5,00,000", "9.00%", "5 years", "Rs. 10,378", "Rs. 1,22,680"],
+        ["New Car\n(Sedan)", "Rs. 10,00,000", "8.75%", "7 years", "Rs. 15,071", "Rs. 2,65,972"],
+        ["Used Car\n(5 years old)", "Rs. 3,00,000", "11.50%", "4 years", "Rs. 7,822", "Rs. 75,456"],
+        ["Two-Wheeler\n(New)", "Rs. 1,00,000", "12.00%", "3 years", "Rs. 3,321", "Rs. 19,556"],
+        ["Electric Car\n(New - Special)", "Rs. 8,00,000", "8.25%", "5 years", "Rs. 16,258", "Rs. 1,75,480"],
     ]
     
     emi_table = Table(emi_data, colWidths=[1.2*inch, 1*inch, 0.7*inch, 0.8*inch, 1*inch, 1*inch])
@@ -891,13 +906,13 @@ def create_auto_loan_doc():
         ["Processing Fee", "New: 1% of loan amount + GST\nUsed: 1.5% of loan amount + GST\nTwo-Wheeler: 1% + GST"],
         ["Prepayment Charges", "Nil after 12 EMI payments\n3% of outstanding + GST (within 12 months)"],
         ["Foreclosure Charges", "Nil after 18 EMI payments\n4% of outstanding + GST (within 18 months)"],
-        ["Late Payment Fee", "2% per month on overdue or ₹500 (whichever higher)"],
-        ["NACH/Cheque Bounce", "₹500 per bounce"],
-        ["Duplicate Documents", "₹250 + GST per document"],
-        ["RC Transfer Assistance", "₹1,000 + GST (optional service)"],
-        ["Insurance Processing", "Free for policies through bank\n₹500 + GST for external insurance"],
-        ["Vehicle Valuation", "₹500 to ₹2,000 (based on vehicle value) - for used vehicles"],
-        ["Loan Cancellation", "₹2,000 + GST (post-approval, pre-disbursal)"],
+        ["Late Payment Fee", "2% per month on overdue or Rs. 500 (whichever higher)"],
+        ["NACH/Cheque Bounce", "Rs. 500 per bounce"],
+        ["Duplicate Documents", "Rs. 250 + GST per document"],
+        ["RC Transfer Assistance", "Rs. 1,000 + GST (optional service)"],
+        ["Insurance Processing", "Free for policies through bank\nRs. 500 + GST for external insurance"],
+        ["Vehicle Valuation", "Rs. 500 to Rs. 2,000 (based on vehicle value) - for used vehicles"],
+        ["Loan Cancellation", "Rs. 2,000 + GST (post-approval, pre-disbursal)"],
     ]
     
     fees_table = Table(fees_data, colWidths=[2.5*inch, 4*inch])
@@ -1062,12 +1077,12 @@ def create_education_loan_doc():
     story.append(Paragraph("KEY FEATURES", heading_style))
     features = [
         ["Feature", "Domestic Education", "International Education"],
-        ["Loan Amount", "Up to ₹10 lakhs (no collateral)\n₹10-20 lakhs (with collateral)", "Up to ₹1.5 crores\n(collateral mandatory above ₹7.5 lakhs)"],
+        ["Loan Amount", "Up to Rs. 10 lakhs (no collateral)\nRs. 10-20 lakhs (with collateral)", "Up to Rs. 1.5 crores\n(collateral mandatory above Rs. 7.5 lakhs)"],
         ["Interest Rate", "8.50% - 11.50% p.a.", "9.50% - 12.50% p.a."],
         ["Tenure", "Up to 15 years", "Up to 15 years"],
         ["Moratorium Period", "Course duration + 1 year\nor 6 months after job (whichever earlier)", "Course duration + 1 year\nor 6 months after job (whichever earlier)"],
-        ["Processing Fee", "Nil for loans up to ₹4 lakhs\n1% + GST for above ₹4 lakhs", "1% of loan amount + GST"],
-        ["Margin Money", "5% (up to ₹4 lakhs)\n15% (above ₹4 lakhs)", "15% for all loan amounts"],
+        ["Processing Fee", "Nil for loans up to Rs. 4 lakhs\n1% + GST for above Rs. 4 lakhs", "1% of loan amount + GST"],
+        ["Margin Money", "5% (up to Rs. 4 lakhs)\n15% (above Rs. 4 lakhs)", "15% for all loan amounts"],
         ["Tax Benefit", "Interest paid deductible u/s 80E for 8 years", "Interest paid deductible u/s 80E for 8 years"],
     ]
     
@@ -1094,7 +1109,7 @@ def create_education_loan_doc():
         "<b>Graduate Courses:</b> Engineering (B.Tech/B.E.), Medical (MBBS), Management (BBA), Commerce (B.Com), Science, Arts, Diploma courses.",
         "<b>Post-Graduate:</b> M.Tech, MBA, MS, MCA, M.Com, M.Sc., Medical PG (MD/MS), CA, CFA, etc.",
         "<b>Professional Courses:</b> Chartered Accountancy, Company Secretary, CFA, Actuarial Science, etc.",
-        "<b>Competitive Exam Coaching:</b> IIT-JEE, NEET, UPSC, CAT, GRE, GMAT, IELTS preparation courses (up to ₹2 lakhs).",
+        "<b>Competitive Exam Coaching:</b> IIT-JEE, NEET, UPSC, CAT, GRE, GMAT, IELTS preparation courses (up to Rs. 2 lakhs).",
         "<b>Foreign Education:</b> Undergraduate and postgraduate courses in USA, UK, Canada, Australia, Germany, Singapore, etc.",
     ]
     
@@ -1156,7 +1171,7 @@ def create_education_loan_doc():
         ["Age", "18 years and above\n(at time of loan)", "21 - 65 years"],
         ["Academic Record", "Admission confirmed in approved institution\nGood academic record (60%+ in qualifying exam)", "Not applicable"],
         ["Co-borrower", "Mandatory requirement\n(Parent/Guardian/Spouse)", "Income proof mandatory\nGood credit score required"],
-        ["Income Requirement", "Not applicable for student", "Minimum ₹2 lakhs p.a. for domestic\n₹3 lakhs p.a. for international"],
+        ["Income Requirement", "Not applicable for student", "Minimum Rs. 2 lakhs p.a. for domestic\nRs. 3 lakhs p.a. for international"],
         ["Credit Score", "Not applicable\n(Student may not have credit history)", "Minimum 650 (700+ preferred)"],
         ["Nationality", "Indian citizen", "Indian citizen or NRI parent"],
     ]
@@ -1252,10 +1267,10 @@ def create_education_loan_doc():
     
     emi_data = [
         ["Course", "Total Loan", "Rate", "Course+Moratorium", "Repay Tenure", "Monthly EMI"],
-        ["B.Tech (India)", "₹8,00,000", "9.00%", "4+1 = 5 years", "10 years", "₹13,927"],
-        ["MBA (India)", "₹15,00,000", "9.50%", "2+1 = 3 years", "10 years", "₹26,199"],
-        ["MS (USA)", "₹50,00,000", "10.50%", "2+1 = 3 years", "15 years", "₹71,955"],
-        ["MBBS (India)", "₹25,00,000", "8.75%", "5.5+1 = 6.5 years", "15 years", "₹43,462"],
+        ["B.Tech (India)", "Rs. 8,00,000", "9.00%", "4+1 = 5 years", "10 years", "Rs. 13,927"],
+        ["MBA (India)", "Rs. 15,00,000", "9.50%", "2+1 = 3 years", "10 years", "Rs. 26,199"],
+        ["MS (USA)", "Rs. 50,00,000", "10.50%", "2+1 = 3 years", "15 years", "Rs. 71,955"],
+        ["MBBS (India)", "Rs. 25,00,000", "8.75%", "5.5+1 = 6.5 years", "15 years", "Rs. 43,462"],
     ]
     
     emi_table = Table(emi_data, colWidths=[1.2*inch, 1*inch, 0.7*inch, 1.1*inch, 1*inch, 1*inch])
@@ -1291,8 +1306,8 @@ def create_education_loan_doc():
     
     story.append(Spacer(1, 0.15*inch))
     tax_example = """
-    <b>Example:</b> If you paid ₹1,50,000 as interest in a year and you are in 30% tax bracket, 
-    you save ₹45,000 in tax (₹1,50,000 × 30% = ₹45,000). This benefit is available for 8 consecutive assessment years.
+    <b>Example:</b> If you paid Rs. 1,50,000 as interest in a year and you are in 30% tax bracket, 
+    you save Rs. 45,000 in tax (Rs. 1,50,000 × 30% = Rs. 45,000). This benefit is available for 8 consecutive assessment years.
     """
     story.append(Paragraph(tax_example, normal_style))
     
@@ -1303,13 +1318,13 @@ def create_education_loan_doc():
     
     fees_data = [
         ["Charge Type", "Domestic", "International"],
-        ["Processing Fee", "Nil (up to ₹4 lakhs)\n1% + GST (above ₹4 lakhs)", "1% of loan amount + GST"],
+        ["Processing Fee", "Nil (up to Rs. 4 lakhs)\n1% + GST (above Rs. 4 lakhs)", "1% of loan amount + GST"],
         ["Prepayment/Foreclosure", "Nil - No charges for prepayment anytime", "Nil - No charges for prepayment anytime"],
-        ["Late Payment Fee", "₹500 or 2% per month (whichever higher) on overdue amount", "₹500 or 2% per month (whichever higher) on overdue amount"],
-        ["Cheque/NACH Bounce", "₹500 per bounce", "₹500 per bounce"],
-        ["Loan Restructuring Fee", "₹1,000 + GST (if tenure modified)", "₹1,000 + GST (if tenure modified)"],
-        ["Duplicate Certificate", "₹250 + GST", "₹250 + GST"],
-        ["Collateral Valuation", "As per actual (₹500 to ₹3,000)", "As per actual (₹2,000 to ₹5,000)"],
+        ["Late Payment Fee", "Rs. 500 or 2% per month (whichever higher) on overdue amount", "Rs. 500 or 2% per month (whichever higher) on overdue amount"],
+        ["Cheque/NACH Bounce", "Rs. 500 per bounce", "Rs. 500 per bounce"],
+        ["Loan Restructuring Fee", "Rs. 1,000 + GST (if tenure modified)", "Rs. 1,000 + GST (if tenure modified)"],
+        ["Duplicate Certificate", "Rs. 250 + GST", "Rs. 250 + GST"],
+        ["Collateral Valuation", "As per actual (Rs. 500 to Rs. 3,000)", "As per actual (Rs. 2,000 to Rs. 5,000)"],
     ]
     
     fees_table = Table(fees_data, colWidths=[2.2*inch, 2.2*inch, 2.1*inch])
@@ -1333,7 +1348,7 @@ def create_education_loan_doc():
     
     faqs = [
         ("<b>Q1: Can I get loan without collateral?</b>",
-         "Yes, for loans up to ₹7.5 lakhs, no collateral required. Third-party guarantee may be needed. Above ₹7.5 lakhs, collateral (property/FD/LIC) is mandatory."),
+         "Yes, for loans up to Rs. 7.5 lakhs, no collateral required. Third-party guarantee may be needed. Above Rs. 7.5 lakhs, collateral (property/FD/LIC) is mandatory."),
         
         ("<b>Q2: What if I don't get admission? Will fees be refunded?</b>",
          "Yes, processing fee is refunded if admission is not confirmed. Loan is sanctioned only after unconditional admission offer is received."),
@@ -1436,10 +1451,10 @@ def create_business_loan_doc():
     
     features = [
         ["Feature", "MUDRA Loan", "SME Term Loan", "Working Capital"],
-        ["Loan Amount", "₹10,000 - ₹10 lakhs\n(Shishu/Kishore/Tarun)", "₹10 lakhs - ₹50 crores", "₹5 lakhs - ₹25 crores"],
+        ["Loan Amount", "Rs. 10,000 - Rs. 10 lakhs\n(Shishu/Kishore/Tarun)", "Rs. 10 lakhs - Rs. 50 crores", "Rs. 5 lakhs - Rs. 25 crores"],
         ["Interest Rate", "7.50% - 10.00% p.a.", "10.00% - 14.00% p.a.", "11.00% - 15.00% p.a."],
         ["Tenure", "Up to 7 years", "Up to 10 years", "12 months (renewable)"],
-        ["Collateral", "Not required\n(up to ₹10 lakhs)", "Required above ₹25 lakhs", "Required above ₹50 lakhs"],
+        ["Collateral", "Not required\n(up to Rs. 10 lakhs)", "Required above Rs. 25 lakhs", "Required above Rs. 50 lakhs"],
         ["Processing Fee", "0.50% - 1% + GST", "1.5% - 2% + GST", "1% + GST"],
     ]
     
@@ -1461,7 +1476,7 @@ def create_business_loan_doc():
     
     story.append(Paragraph("TYPES OF BUSINESS LOANS", heading_style))
     loan_types = [
-        "<b>1. MUDRA Loans:</b> Government scheme for micro enterprises. Shishu (up to ₹50,000), Kishore (₹50,001 to ₹5 lakhs), Tarun (₹5,00,001 to ₹10 lakhs).",
+        "<b>1. MUDRA Loans:</b> Government scheme for micro enterprises. Shishu (up to Rs. 50,000), Kishore (Rs. 50,001 to Rs. 5 lakhs), Tarun (Rs. 5,00,001 to Rs. 10 lakhs).",
         "<b>2. Term Loans:</b> For capital expenditure - machinery, equipment, factory setup, expansion. Fixed tenure with monthly/quarterly EMI.",
         "<b>3. Working Capital Loan:</b> For day-to-day operations - raw material, salaries, rent. Overdraft or cash credit limit facility.",
         "<b>4. Invoice Financing:</b> Get instant funds against pending invoices/bills. Up to 80% of invoice value. Interest only on utilized amount.",
@@ -1477,10 +1492,10 @@ def create_business_loan_doc():
     eligibility = [
         ["Criteria", "Requirement"],
         ["Business Type", "Proprietorship, Partnership, Private Limited, LLP, Co-operatives"],
-        ["Business Vintage", "Minimum 2 years (3 years for loans above ₹50 lakhs)"],
-        ["Turnover", "MUDRA: No minimum\nSME: Minimum ₹10 lakhs p.a.\nLarge: As per requirement"],
+        ["Business Vintage", "Minimum 2 years (3 years for loans above Rs. 50 lakhs)"],
+        ["Turnover", "MUDRA: No minimum\nSME: Minimum Rs. 10 lakhs p.a.\nLarge: As per requirement"],
         ["Age", "Proprietor/Partner: 21-65 years"],
-        ["GST Registration", "Mandatory for turnover > ₹40 lakhs or as per GST Act"],
+        ["GST Registration", "Mandatory for turnover > Rs. 40 lakhs or as per GST Act"],
         ["ITR Filing", "Last 2 years ITR mandatory (3 years for large loans)"],
         ["CIBIL Score", "Minimum 650 (business & personal)\n700+ for best rates"],
         ["Profitability", "Business should be profitable for at least last 1 year"],
@@ -1526,9 +1541,9 @@ def create_business_loan_doc():
         ["Prepayment Charges", "2% - 4% + GST (if prepaid before 12 months)\nNil after 12 months"],
         ["Late Payment", "2% - 3% per month on overdue amount"],
         ["Penal Interest", "Additional 2% p.a. on default amount"],
-        ["Document Charges", "₹500 - ₹2,000 + GST"],
-        ["Legal/Technical Charges", "As per actuals (₹2,000 - ₹10,000)"],
-        ["Inspection Charges", "₹1,000 per inspection for project loans"],
+        ["Document Charges", "Rs. 500 - Rs. 2,000 + GST"],
+        ["Legal/Technical Charges", "As per actuals (Rs. 2,000 - Rs. 10,000)"],
+        ["Inspection Charges", "Rs. 1,000 per inspection for project loans"],
     ]
     
     fees_table = Table(fees_data, colWidths=[3*inch, 3.5*inch])
@@ -1550,9 +1565,9 @@ def create_business_loan_doc():
     
     story.append(Paragraph("FREQUENTLY ASKED QUESTIONS", heading_style))
     faqs = [
-        ("<b>Q1: What is MUDRA loan?</b>", "MUDRA (Micro Units Development & Refinance Agency) is government scheme for micro enterprises up to ₹10 lakhs without collateral."),
+        ("<b>Q1: What is MUDRA loan?</b>", "MUDRA (Micro Units Development & Refinance Agency) is government scheme for micro enterprises up to Rs. 10 lakhs without collateral."),
         ("<b>Q2: Can startups apply for business loan?</b>", "Yes, but minimum 2 years business vintage required. For fresh startups, explore government schemes like Startup India or PMEGP."),
-        ("<b>Q3: Is GST registration mandatory?</b>", "Yes, if your turnover exceeds ₹40 lakhs or as per GST Act. For smaller businesses under MUDRA, may not be mandatory."),
+        ("<b>Q3: Is GST registration mandatory?</b>", "Yes, if your turnover exceeds Rs. 40 lakhs or as per GST Act. For smaller businesses under MUDRA, may not be mandatory."),
         ("<b>Q4: What is working capital loan?</b>", "It's a credit facility for day-to-day operations. You get a limit and can withdraw as needed. Interest charged only on utilized amount."),
         ("<b>Q5: Can I get loan for business losses?</b>", "No, loan is for growth and expansion. Business should show profitability. Loss-making businesses are high risk and generally not financed."),
     ]
@@ -1593,11 +1608,11 @@ def create_gold_loan_doc():
     
     features = [
         ["Feature", "Details"],
-        ["Loan Amount", "₹10,000 to ₹1 crore (based on gold value)"],
+        ["Loan Amount", "Rs. 10,000 to Rs. 1 crore (based on gold value)"],
         ["Loan-to-Value (LTV)", "Up to 75% of gold value (as per RBI norms)"],
         ["Interest Rate", "7.00% - 12.00% p.a. (based on amount and tenure)"],
         ["Tenure", "3 months to 36 months"],
-        ["Processing Fee", "0.50% - 1% + GST (minimum ₹500)"],
+        ["Processing Fee", "0.50% - 1% + GST (minimum Rs. 500)"],
         ["Gold Purity Accepted", "18 Karat to 24 Karat gold"],
         ["Disbursal Time", "Within 30 minutes of gold verification"],
         ["Prepayment", "Allowed anytime without charges"],
@@ -1662,7 +1677,7 @@ def create_gold_loan_doc():
         "<b>Step 2:</b> Weight measured on certified electronic weighing scale",
         "<b>Step 3:</b> Loan value calculated: Weight × Purity % × Current gold rate × LTV (75%)",
         "<b>Step 4:</b> Gold rate as per bank's rate card (based on market price)",
-        "<b>Example:</b> 100 grams of 22K gold @ ₹6,000/gram = ₹6,00,000 value. Loan: 75% = ₹4,50,000",
+        "<b>Example:</b> 100 grams of 22K gold @ Rs. 6,000/gram = Rs. 6,00,000 value. Loan: 75% = Rs. 4,50,000",
     ]
     for val in valuation:
         story.append(Paragraph(val, bullet_style))
@@ -1672,13 +1687,13 @@ def create_gold_loan_doc():
     story.append(Paragraph("FEES & CHARGES", heading_style))
     fees_data = [
         ["Charge Type", "Amount"],
-        ["Processing Fee", "0.50% - 1% + GST (Min ₹500, Max ₹10,000)"],
+        ["Processing Fee", "0.50% - 1% + GST (Min Rs. 500, Max Rs. 10,000)"],
         ["Prepayment/Foreclosure", "Nil - Close anytime without charges"],
         ["Late Payment Fee", "2% per month on overdue amount"],
         ["Valuation Charges", "Free - No gold testing charges"],
         ["Storage & Insurance", "Free - Bank bears all storage and insurance cost"],
-        ["Duplicate Documents", "₹100 per document"],
-        ["Loan Renewal Charges", "₹500 + GST (if tenure extended)"],
+        ["Duplicate Documents", "Rs. 100 per document"],
+        ["Loan Renewal Charges", "Rs. 500 + GST (if tenure extended)"],
     ]
     
     fees_table = Table(fees_data, colWidths=[3*inch, 3.5*inch])
@@ -1773,7 +1788,7 @@ def create_loan_against_property_doc():
     
     features = [
         ["Feature", "Residential Property", "Commercial Property"],
-        ["Loan Amount", "₹5 lakhs to ₹10 crores", "₹10 lakhs to ₹25 crores"],
+        ["Loan Amount", "Rs. 5 lakhs to Rs. 10 crores", "Rs. 10 lakhs to Rs. 25 crores"],
         ["LTV (Loan to Value)", "Up to 60% of market value", "Up to 55% of market value"],
         ["Interest Rate", "9.00% - 12.00% p.a.", "10.00% - 14.00% p.a."],
         ["Tenure", "Up to 20 years", "Up to 15 years"],
@@ -1814,7 +1829,7 @@ def create_loan_against_property_doc():
     eligibility = [
         ["Criteria", "Salaried", "Self-Employed/Business"],
         ["Age", "21 - 65 years", "25 - 70 years"],
-        ["Income", "Minimum ₹50,000 per month", "Minimum ₹6 lakhs per annum (ITR)"],
+        ["Income", "Minimum Rs. 50,000 per month", "Minimum Rs. 6 lakhs per annum (ITR)"],
         ["Work Experience", "Min 2 years total", "Min 3 years in business"],
         ["Credit Score", "Minimum 700 (750+ for best rates)", "Minimum 700 (750+ for best rates)"],
         ["Property Age", "Up to 30 years at loan maturity", "Up to 25 years at loan maturity"],
@@ -1886,13 +1901,13 @@ def create_loan_against_property_doc():
     fees_data = [
         ["Charge Type", "Amount"],
         ["Processing Fee", "1% - 2.5% of loan amount + GST"],
-        ["Property Valuation", "₹3,000 - ₹10,000 (based on property value)"],
-        ["Legal Charges", "₹5,000 - ₹15,000 + stamp duty on mortgage deed"],
+        ["Property Valuation", "Rs. 3,000 - Rs. 10,000 (based on property value)"],
+        ["Legal Charges", "Rs. 5,000 - Rs. 15,000 + stamp duty on mortgage deed"],
         ["Prepayment Charges", "Nil after 12-18 months\n4-5% + GST if within 12-18 months"],
-        ["Late Payment Fee", "2% per month on overdue or ₹500 (whichever higher)"],
-        ["NACH Bounce", "₹500 per bounce"],
+        ["Late Payment Fee", "2% per month on overdue or Rs. 500 (whichever higher)"],
+        ["NACH Bounce", "Rs. 500 per bounce"],
         ["Part-payment Charges", "Nil - Make lump sum payments anytime"],
-        ["Duplicate Documents", "₹500 per document set"],
+        ["Duplicate Documents", "Rs. 500 per document set"],
     ]
     
     fees_table = Table(fees_data, colWidths=[3*inch, 3.5*inch])

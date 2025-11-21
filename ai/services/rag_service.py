@@ -108,13 +108,20 @@ class RAGService:
                 loader = PyPDFLoader(str(pdf_path))
                 docs = loader.load()
                 
-                # Add metadata
+                # Add metadata - detect if it's loan or investment based on path/filename
+                is_investment = "investment" in str(self.documents_path).lower() or "_scheme_guide" in pdf_path.stem
+                
                 for doc in docs:
                     doc.metadata["source"] = pdf_path.name
-                    doc.metadata["loan_type"] = pdf_path.stem.replace("_product_guide", "")
+                    if is_investment:
+                        doc.metadata["scheme_type"] = pdf_path.stem.replace("_scheme_guide", "")
+                        doc.metadata["document_type"] = "investment"
+                    else:
+                        doc.metadata["loan_type"] = pdf_path.stem.replace("_product_guide", "")
+                        doc.metadata["document_type"] = "loan"
                 
                 documents.extend(docs)
-                logger.info("pdf_loaded", file=pdf_path.name, pages=len(docs))
+                logger.info("pdf_loaded", file=pdf_path.name, pages=len(docs), type="investment" if is_investment else "loan")
                 
             except Exception as e:
                 logger.error("pdf_load_error", file=pdf_path.name, error=str(e))
@@ -320,12 +327,35 @@ class RAGService:
 _rag_service: Optional[RAGService] = None
 
 
-def get_rag_service() -> RAGService:
-    """Get or create RAG service instance"""
+def get_rag_service(documents_type: str = None) -> RAGService:
+    """
+    Get or create RAG service instance
+    
+    Args:
+        documents_type: "loan" or "investment" - determines which documents to load.
+                        If None, defaults to "loan" for backward compatibility.
+    """
     global _rag_service
     
-    if _rag_service is None:
-        _rag_service = RAGService()
+    if documents_type is None:
+        documents_type = "loan"
+    
+    # Determine documents path based on type
+    if documents_type == "investment":
+        ai_dir = Path(__file__).parent.parent
+        documents_path = ai_dir.parent / "backend" / "documents" / "investment_schemes"
+        collection_name = "investment_schemes"
+    else:
+        documents_path = None  # Will use default loan_products path
+        collection_name = "loan_products"
+    
+    # Create new service if doesn't exist or if collection type changed
+    if _rag_service is None or getattr(_rag_service, '_documents_type', None) != documents_type:
+        _rag_service = RAGService(
+            documents_path=str(documents_path) if documents_path else None,
+            collection_name=collection_name
+        )
+        _rag_service._documents_type = documents_type  # Store type for reference
         _rag_service.initialize()
     
     return _rag_service

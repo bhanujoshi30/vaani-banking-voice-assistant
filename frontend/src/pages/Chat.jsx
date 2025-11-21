@@ -7,7 +7,6 @@ import ChatMessage from "../components/Chat/ChatMessage.jsx";
 import TypingIndicator from "../components/Chat/TypingIndicator.jsx";
 import ChatInput from "../components/Chat/ChatInput.jsx";
 import ChatSidebar from "../components/Chat/ChatSidebar.jsx";
-import VoiceModeToggle from "../components/Chat/VoiceModeToggle.jsx";
 import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import UPIPinModal from "../components/UPIPinModal.jsx";
 import UPIConsentModal from "../components/UPIConsentModal.jsx";
@@ -476,6 +475,35 @@ const Chat = ({ session, onSignOut }) => {
     setIsVoiceModeEnabled((prev) => !prev);
   };
 
+  const handleUPIModeToggle = () => {
+    if (upiMode) {
+      // Deactivate UPI mode
+      console.log('🔄 Deactivating UPI mode');
+      setUpiMode(false);
+      setUpiConsentGiven(false);
+      localStorage.removeItem('upi_consent_given');
+      sessionStorage.removeItem('upi_consent_given_session');
+      setShowUPIConsentModal(false);
+      setShowUPIPinModal(false);
+      setUpiPaymentDetails(null);
+    } else {
+      // Activate UPI mode - show consent modal FIRST if not given
+      console.log('🔄 Attempting to activate UPI mode', { upiConsentGiven, showUPIConsentModal });
+      if (!upiConsentGiven) {
+        // Show consent modal first, don't activate yet
+        console.log('📋 Showing consent modal before activation - consent not given');
+        setUpiConsentModalOpenedByButton(true);
+        setTimeout(() => {
+          setShowUPIConsentModal(true);
+        }, 0);
+      } else {
+        // Consent already given, safe to activate
+        console.log('✅ Consent already given, activating UPI mode');
+        setUpiMode(true);
+      }
+    }
+  };
+
   // Handle UPI PIN confirmation
   const handleUPIPinConfirm = async (pin) => {
     console.log('handleUPIPinConfirm called with pin:', pin);
@@ -727,137 +755,13 @@ const Chat = ({ session, onSignOut }) => {
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
               <div className="chat-header-actions">
-                {/* Voice Mode Indicator - Show tag when inactive, button when active */}
-                {!isVoiceModeEnabled && !checkingVoiceBinding && (
-                  isVoiceSecured ? (
-                    // Voice mode off but secured - show tag that activates voice mode on click
-                    <div
-                      className="profile-pill profile-pill--orange"
-                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleVoiceModeToggle();
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleVoiceModeToggle();
-                        }
-                      }}
-                    >
-                      <span className="status-dot status-dot--orange" />
-                      {pageStrings.profile.voiceMode}
-                    </div>
-                  ) : (
-                    // Voice mode off and unsecured - show tag that prompts to secure
-                    <div
-                      className="profile-pill profile-pill--unsecured"
-                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsVoiceEnrollmentModalOpen(true);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsVoiceEnrollmentModalOpen(true);
-                        }
-                      }}
-                    >
-                      <span className="status-dot status-dot--warning" />
-                      {pageStrings.profile.voiceSessionUnsecured}
-                    </div>
-                  )
-                )}
-                {/* Show button when voice mode is active */}
+                {/* Show hands-free indicator when voice mode is active */}
                 {isVoiceModeEnabled && (
-                  <VoiceModeToggle
-                    isEnabled={isVoiceModeEnabled}
-                    onToggle={handleVoiceModeToggle}
-                    disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
-                  />
+                  <div className="voice-mode-indicator">
+                    <span className="voice-mode-pulse"></span>
+                    <span className="voice-mode-status">Hands-free enabled</span>
+                  </div>
                 )}
-                {/* UPI Mode Indicator - Always show, inactive (yellow) by default, active (green) when UPI mode is on */}
-                <div 
-                  className={`profile-pill ${upiMode ? 'profile-pill--secured' : 'profile-pill--unsecured'}`} 
-                  style={{ marginLeft: '0.5rem', cursor: 'pointer' }}
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent any event bubbling
-                    if (upiMode) {
-                      // Deactivate UPI mode - just deactivate, don't show consent
-                      console.log('🔄 Deactivating UPI mode');
-                      setUpiMode(false);
-                      // Clear consent if user deactivates
-                      setUpiConsentGiven(false);
-                      localStorage.removeItem('upi_consent_given');
-                      sessionStorage.removeItem('upi_consent_given_session'); // Also clear session storage
-                      // Make sure consent modal is closed
-                      setShowUPIConsentModal(false);
-                      // Clear PIN modal and payment details when deactivating
-                      setShowUPIPinModal(false);
-                      setUpiPaymentDetails(null);
-                    } else {
-                      // Activate UPI mode - show consent modal FIRST if not given
-                      console.log('🔄 Attempting to activate UPI mode', { upiConsentGiven, showUPIConsentModal });
-                      if (!upiConsentGiven) {
-                        // Show consent modal first, don't activate yet
-                        console.log('📋 Showing consent modal before activation - consent not given');
-                        // Mark that modal was opened by button click
-                        setUpiConsentModalOpenedByButton(true);
-                        // Use setTimeout to ensure state update happens
-                        setTimeout(() => {
-                          setShowUPIConsentModal(true);
-                        }, 0);
-                        // Don't set UPI mode to true yet - wait for consent
-                      } else {
-                        // Consent already given, safe to activate
-                        console.log('✅ Consent already given, activating UPI mode');
-                        setUpiMode(true);
-                      }
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (upiMode) {
-                      setUpiMode(false);
-                      setUpiConsentGiven(false);
-                      localStorage.removeItem('upi_consent_given');
-                      sessionStorage.removeItem('upi_consent_given_session'); // Also clear session storage
-                      setShowUPIConsentModal(false);
-                      // Clear PIN modal and payment details when deactivating
-                      setShowUPIPinModal(false);
-                      setUpiPaymentDetails(null);
-                      } else {
-                        if (!upiConsentGiven) {
-                          // Show consent modal first, don't activate yet
-                          console.log('📋 Showing consent modal before activation (keyboard) - consent not given');
-                          // Use setTimeout to ensure state update happens
-                          setTimeout(() => {
-                            setShowUPIConsentModal(true);
-                          }, 0);
-                          // Don't set UPI mode to true yet - wait for consent
-                        } else {
-                          // Consent already given, safe to activate
-                          console.log('✅ Consent already given, activating UPI mode (keyboard)');
-                          setUpiMode(true);
-                        }
-                      }
-                    }
-                  }}
-                >
-                  <span className={`status-dot ${upiMode ? 'status-dot--online' : 'status-dot--warning'}`} />
-                  {upiMode ? upiStrings.upiModeActive : upiStrings.upiModeInactive}
-                </div>
                 <LanguageDropdown onSelect={handleLanguageChange} />
                 <button
                   type="button"
@@ -1208,31 +1112,21 @@ const Chat = ({ session, onSignOut }) => {
                 inputRef={inputRef}
                 copy={chatCopy.chatInput}
               />
-
-              {/* Debug panel - remove in production */}
-              {process.env.NODE_ENV === 'development' && isListening && (
-                <div style={{ 
-                  padding: '1rem', 
-                  background: '#f0f0f0', 
-                  fontSize: '0.85rem',
-                  borderTop: '1px solid #ddd'
-                }}>
-                  <strong>🐛 Debug Info:</strong><br/>
-                  Listening: {isListening ? '✅' : '❌'}<br/>
-                  Transcript: "{transcript}"<br/>
-                  Interim: "{interimTranscript}"<br/>
-                  Full: "{fullTranscript}"<br/>
-                  Input Text: "{inputText}"<br/>
-                  {speechError && <span style={{color: 'red'}}>Error: {speechError}</span>}
-                </div>
-              )}
             </div>
 
             <ChatSidebar 
               isSpeechSupported={isSpeechSupported} 
-              selectedLanguage={language}
               onQuickAction={handleQuickAction}
               copy={chatCopy}
+              upiMode={upiMode}
+              isVoiceModeEnabled={isVoiceModeEnabled}
+              isVoiceSecured={isVoiceSecured}
+              checkingVoiceBinding={checkingVoiceBinding}
+              onUPIModeToggle={handleUPIModeToggle}
+              onVoiceModeToggle={handleVoiceModeToggle}
+              onVoiceEnrollmentClick={() => setIsVoiceEnrollmentModalOpen(true)}
+              pageStrings={pageStrings}
+              upiStrings={upiStrings}
             />
           </main>
         </div>
