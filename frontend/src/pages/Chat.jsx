@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Navigate, useNavigate } from "react-router-dom";
 
@@ -11,15 +11,18 @@ import VoiceModeToggle from "../components/Chat/VoiceModeToggle.jsx";
 import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import UPIPinModal from "../components/UPIPinModal.jsx";
 import UPIConsentModal from "../components/UPIConsentModal.jsx";
+import VoiceEnrollmentModal from "../components/VoiceEnrollmentModal.jsx";
 import useSpeechRecognition from "../hooks/useSpeechRecognition.js";
 import useTextToSpeech from "../hooks/useTextToSpeech.js";
 import { useChatMessages } from "../hooks/useChatMessages.js";
 import { useVoiceMode } from "../hooks/useVoiceMode.js";
 import { useChatHandler } from "../hooks/useChatHandler.js";
+import { usePageLanguage } from "../hooks/usePageLanguage.js";
 import { DEFAULT_LANGUAGE, getLanguageByCode } from "../config/voiceConfig.js";
 import { getChatCopy } from "../config/chatCopy.js";
 import { getUPIStrings } from "../config/upiStrings.js";
 import { getPreferredLanguage, setPreferredLanguage, PREFERRED_LANGUAGE_KEY } from "../utils/preferences.js";
+import { listDeviceBindings } from "../api/client.js";
 import "./Chat.css";
 import "../components/Chat/VoiceModeToggle.css";
 import "../App.css";
@@ -45,6 +48,26 @@ const Chat = ({ session, onSignOut }) => {
   });
   const [pendingUPIMessage, setPendingUPIMessage] = useState(null); // Store pending message waiting for consent
   const inputRef = useRef(null);
+
+  // Voice binding status
+  const { strings: pageStrings } = usePageLanguage();
+  const [hasVoiceBinding, setHasVoiceBinding] = useState(false);
+  const [checkingVoiceBinding, setCheckingVoiceBinding] = useState(true);
+  const [isVoiceEnrollmentModalOpen, setIsVoiceEnrollmentModalOpen] = useState(false);
+
+  // Check if current session was logged in with voice
+  const loggedInWithVoice = useMemo(() => {
+    const detail = session?.detail ?? {};
+    return Boolean(detail.voiceLogin) || detail.loginMode === "voice";
+  }, [session?.detail]);
+
+  // Determine if voice session is secured
+  // Voice session is secured if:
+  // 1. User logged in with voice, OR
+  // 2. User has an active voice binding (even if logged in with password)
+  const isVoiceSecured = useMemo(() => {
+    return loggedInWithVoice || hasVoiceBinding;
+  }, [loggedInWithVoice, hasVoiceBinding]);
 
   const chatCopy = useMemo(() => getChatCopy(language), [language]);
   const upiStrings = useMemo(() => getUPIStrings(language), [language]);
@@ -313,6 +336,63 @@ const Chat = ({ session, onSignOut }) => {
       alert(speechError); // Show error to user
     }
   }, [speechError]);
+
+  // Function to check voice binding status
+  const checkVoiceBindingStatus = useCallback(() => {
+    if (!session?.accessToken) {
+      setCheckingVoiceBinding(false);
+      setHasVoiceBinding(false);
+      return;
+    }
+    let mounted = true;
+    setCheckingVoiceBinding(true);
+    listDeviceBindings({ accessToken: session.accessToken })
+      .then((data) => {
+        if (!mounted) return;
+        // Check if any ACTIVE (non-revoked) device binding has voice signature
+        // Only count bindings that are trusted (not revoked) and have voice signature
+        const hasVoice = data.some(
+          (binding) => 
+            binding.voiceSignaturePresent === true && 
+            binding.trustLevel !== "revoked"
+        );
+        setHasVoiceBinding(hasVoice);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        // Don't show error for voice check, just assume no voice
+        setHasVoiceBinding(false);
+      })
+      .finally(() => {
+        if (mounted) setCheckingVoiceBinding(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [session?.accessToken]);
+
+  // Check voice binding status on mount
+  useEffect(() => {
+    checkVoiceBindingStatus();
+  }, [checkVoiceBindingStatus]);
+
+  // Refresh voice binding status when page becomes visible (user returns from device binding page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && session?.accessToken) {
+        // Small delay to ensure any pending operations complete
+        const timeoutId = setTimeout(() => {
+          checkVoiceBindingStatus();
+        }, 500);
+        return () => clearTimeout(timeoutId);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkVoiceBindingStatus, session?.accessToken]);
 
   // Cleanup: Stop speech when voice mode is disabled
   useEffect(() => {
@@ -647,11 +727,62 @@ const Chat = ({ session, onSignOut }) => {
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
               <div className="chat-header-actions">
-                <VoiceModeToggle
-                  isEnabled={isVoiceModeEnabled}
-                  onToggle={handleVoiceModeToggle}
-                  disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
-                />
+                {/* Voice Mode Indicator - Show tag when inactive, button when active */}
+                {!isVoiceModeEnabled && !checkingVoiceBinding && (
+                  isVoiceSecured ? (
+                    // Voice mode off but secured - show tag that activates voice mode on click
+                    <div
+                      className="profile-pill profile-pill--orange"
+                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVoiceModeToggle();
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleVoiceModeToggle();
+                        }
+                      }}
+                    >
+                      <span className="status-dot status-dot--orange" />
+                      {pageStrings.profile.voiceMode}
+                    </div>
+                  ) : (
+                    // Voice mode off and unsecured - show tag that prompts to secure
+                    <div
+                      className="profile-pill profile-pill--unsecured"
+                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsVoiceEnrollmentModalOpen(true);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsVoiceEnrollmentModalOpen(true);
+                        }
+                      }}
+                    >
+                      <span className="status-dot status-dot--warning" />
+                      {pageStrings.profile.voiceSessionUnsecured}
+                    </div>
+                  )
+                )}
+                {/* Show button when voice mode is active */}
+                {isVoiceModeEnabled && (
+                  <VoiceModeToggle
+                    isEnabled={isVoiceModeEnabled}
+                    onToggle={handleVoiceModeToggle}
+                    disabled={!isSpeechSupported || !isTTSSupported || isLanguageComingSoon}
+                  />
+                )}
                 {/* UPI Mode Indicator - Always show, inactive (yellow) by default, active (green) when UPI mode is on */}
                 <div 
                   className={`profile-pill ${upiMode ? 'profile-pill--secured' : 'profile-pill--unsecured'}`} 
@@ -917,55 +1048,42 @@ const Chat = ({ session, onSignOut }) => {
                                     merchant_name: merchantName,
                                   };
                                   
-                                  // Check if we already have amount or recipient
-                                  const hasAmount = upiPaymentDetails?.amount;
-                                  const hasRecipient = upiPaymentDetails?.recipient;
+                                  // Clear all pending cards/messages from current session
+                                  // Keep only the initial greeting and user messages, remove all assistant cards
+                                  setMessages((prev) => {
+                                    return prev.map((msg) => {
+                                      // Remove structured data cards from assistant messages
+                                      if (msg.role === 'assistant' && msg.structuredData) {
+                                        const { structuredData, ...rest } = msg;
+                                        return rest;
+                                      }
+                                      return msg;
+                                    });
+                                  });
                                   
-                                  if (hasAmount && !hasRecipient) {
-                                    // We have amount, use QR address as recipient
-                                    const paymentMessage = language === 'hi-IN'
-                                      ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
-                                      : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
-                                    await sendMessage(paymentMessage);
-                                  } else if (hasRecipient && !hasAmount && result.amount) {
-                                    // We have recipient, use QR amount
-                                    const paymentMessage = language === 'hi-IN'
-                                      ? `₹${result.amount} ${upiPaymentDetails.recipient} को भेजें`
-                                      : `Send ₹${result.amount} to ${upiPaymentDetails.recipient}`;
-                                    await sendMessage(paymentMessage);
-                                  } else if (!hasAmount && !hasRecipient) {
-                                    // No amount or recipient, use QR data
-                                    if (result.amount) {
-                                      // We have both amount and address from QR
-                                      const paymentMessage = language === 'hi-IN'
-                                        ? `₹${result.amount} ${result.upi_address} को भेजें`
-                                        : `Send ₹${result.amount} to ${result.upi_address}`;
-                                      await sendMessage(paymentMessage);
-                                    } else {
-                                      // Only address extracted - show it to user and ask if they want to send money
-                                      const qrMessage = language === 'hi-IN'
-                                        ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}. क्या आप इस UPI ID पर पैसा भेजना चाहते हैं? कृपया राशि बताएं।`
-                                        : `UPI address extracted from QR code: ${result.upi_address}. Do you want to send money to this UPI ID? Please specify the amount.`;
-                                      addAssistantMessage(qrMessage);
-                                      // Don't add duplicate message - we already showed the QR extraction above
-                                    }
-                                  } else {
-                                    // Both amount and recipient exist, just use QR address
-                                    const paymentMessage = language === 'hi-IN'
-                                      ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
-                                      : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
-                                    await sendMessage(paymentMessage);
-                                  }
+                                  // Add user message showing QR was scanned
+                                  const qrScannedMessage = language === 'hi-IN'
+                                    ? `QR कोड स्कैन किया गया`
+                                    : `QR code scanned`;
+                                  addUserMessage(qrScannedMessage);
                                   
-                                  // Only show success message if we didn't already show a message above
-                                  // (i.e., only if we have amount or if we're using existing payment details)
-                                  if (result.amount || (hasAmount || hasRecipient)) {
-                                    addAssistantMessage(
-                                      language === 'hi-IN'
-                                        ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}${result.amount ? `, राशि: ₹${result.amount}` : ''}`
-                                        : `UPI address extracted from QR code: ${result.upi_address}${result.amount ? `, Amount: ₹${result.amount}` : ''}`
-                                    );
-                                  }
+                                  // Directly show UPI payment card with QR data pre-filled
+                                  // Don't send message to backend - just show the card
+                                  const qrResponseMessage = language === 'hi-IN'
+                                    ? `QR कोड से UPI पता प्राप्त किया${result.amount ? `, राशि: ₹${result.amount}` : ''}। कृपया भुगतान जारी रखें।`
+                                    : `UPI address extracted from QR code${result.amount ? `, Amount: ₹${result.amount}` : ''}. Please proceed with payment.`;
+                                  
+                                  addAssistantMessage(qrResponseMessage, null, {
+                                    type: 'upi_payment_card',
+                                    intent: 'upi_payment_request',
+                                    message: qrScannedMessage,
+                                    amount: result.amount || null,
+                                    recipient_identifier: result.upi_address,
+                                    remarks: result.merchant_name || null,
+                                    source_account_id: null, // Let user select account
+                                    source_account_number: null,
+                                    accounts: null, // Will be loaded by UPIPaymentFlow component
+                                  });
                                 } else {
                                   // Could not extract UPI address
                                   addAssistantMessage(
@@ -985,54 +1103,43 @@ const Chat = ({ session, onSignOut }) => {
                                   
                                   if (result?.success && result?.upi_address) {
                                     // QR code processed successfully
-                                    // Check if we already have amount or recipient
-                                    const hasAmount = upiPaymentDetails?.amount;
-                                    const hasRecipient = upiPaymentDetails?.recipient;
                                     
-                                    if (hasAmount && !hasRecipient) {
-                                      // We have amount, use QR address as recipient
-                                      const paymentMessage = language === 'hi-IN'
-                                        ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
-                                        : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
-                                      await sendMessage(paymentMessage);
-                                    } else if (hasRecipient && !hasAmount && result.amount) {
-                                      // We have recipient, use QR amount
-                                      const paymentMessage = language === 'hi-IN'
-                                        ? `₹${result.amount} ${upiPaymentDetails.recipient} को भेजें`
-                                        : `Send ₹${result.amount} to ${upiPaymentDetails.recipient}`;
-                                      await sendMessage(paymentMessage);
-                                    } else if (!hasAmount && !hasRecipient) {
-                                      // No amount or recipient, use QR data
-                                      if (result.amount) {
-                                        const paymentMessage = language === 'hi-IN'
-                                          ? `₹${result.amount} ${result.upi_address} को भेजें`
-                                          : `Send ₹${result.amount} to ${result.upi_address}`;
-                                        await sendMessage(paymentMessage);
-                                      } else {
-                                        // Only address extracted - show it to user and ask if they want to send money
-                                        const qrMessage = language === 'hi-IN'
-                                          ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}. क्या आप इस UPI ID पर पैसा भेजना चाहते हैं? कृपया राशि बताएं।`
-                                          : `UPI address extracted from QR code: ${result.upi_address}. Do you want to send money to this UPI ID? Please specify the amount.`;
-                                        addAssistantMessage(qrMessage);
-                                        // Don't add duplicate message - we already showed the QR extraction above
-                                      }
-                                    } else {
-                                      // Both amount and recipient exist, just use QR address
-                                      const paymentMessage = language === 'hi-IN'
-                                        ? `₹${upiPaymentDetails.amount} ${result.upi_address} को भेजें`
-                                        : `Send ₹${upiPaymentDetails.amount} to ${result.upi_address}`;
-                                      await sendMessage(paymentMessage);
-                                    }
+                                    // Clear all pending cards/messages from current session
+                                    // Keep only the initial greeting and user messages, remove all assistant cards
+                                    setMessages((prev) => {
+                                      return prev.map((msg) => {
+                                        // Remove structured data cards from assistant messages
+                                        if (msg.role === 'assistant' && msg.structuredData) {
+                                          const { structuredData, ...rest } = msg;
+                                          return rest;
+                                        }
+                                        return msg;
+                                      });
+                                    });
                                     
-                                    // Only show success message if we didn't already show a message above
-                                    // (i.e., only if we have amount or if we're using existing payment details)
-                                    if (result.amount || (hasAmount || hasRecipient)) {
-                                      addAssistantMessage(
-                                        language === 'hi-IN'
-                                          ? `QR कोड से UPI पता प्राप्त किया: ${result.upi_address}${result.amount ? `, राशि: ₹${result.amount}` : ''}`
-                                          : `UPI address extracted from QR code: ${result.upi_address}${result.amount ? `, Amount: ₹${result.amount}` : ''}`
-                                      );
-                                    }
+                                    // Add user message showing QR was scanned
+                                    const qrScannedMessage = language === 'hi-IN'
+                                      ? `QR कोड स्कैन किया गया`
+                                      : `QR code scanned`;
+                                    addUserMessage(qrScannedMessage);
+                                    
+                                    // Directly show UPI payment card with QR data pre-filled
+                                    // Don't send message to backend - just show the card
+                                    const qrResponseMessage = language === 'hi-IN'
+                                      ? `QR कोड से UPI पता प्राप्त किया${result.amount ? `, राशि: ₹${result.amount}` : ''}। कृपया भुगतान जारी रखें।`
+                                      : `UPI address extracted from QR code${result.amount ? `, Amount: ₹${result.amount}` : ''}. Please proceed with payment.`;
+                                    
+                                    addAssistantMessage(qrResponseMessage, null, {
+                                      type: 'upi_payment_card',
+                                      intent: 'upi_payment_request',
+                                      message: qrScannedMessage,
+                                      amount: result.amount || null,
+                                      recipient_identifier: result.upi_address,
+                                      remarks: result.merchant_name || null,
+                                      source_account_id: null, // Let user select account
+                                      source_account_number: null,
+                                      accounts: null, // Will be loaded by UPIPaymentFlow component
+                                    });
                                   } else {
                                     // QR code processing failed
                                     addAssistantMessage(
@@ -1153,6 +1260,23 @@ const Chat = ({ session, onSignOut }) => {
         language={language}
         onPaymentDetailsChange={(updatedDetails) => {
           setUpiPaymentDetails(updatedDetails);
+        }}
+      />
+
+      {/* Voice Enrollment Modal */}
+      <VoiceEnrollmentModal
+        isOpen={isVoiceEnrollmentModalOpen}
+        onClose={() => setIsVoiceEnrollmentModalOpen(false)}
+        onConfirm={() => {
+          setIsVoiceEnrollmentModalOpen(false);
+          navigate("/device-binding");
+        }}
+        strings={{
+          addVoiceToAccount: pageStrings.profile.addVoiceToAccount,
+          addVoicePrompt: pageStrings.profile.addVoicePrompt,
+          addVoicePromptDescription: pageStrings.profile.addVoicePromptDescription,
+          cancel: pageStrings.profile.cancel,
+          okay: pageStrings.profile.okay,
         }}
       />
     </div>

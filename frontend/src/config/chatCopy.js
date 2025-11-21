@@ -23,12 +23,12 @@ export const LANGUAGE_MODAL_COPY = {
 const CHAT_COPY = {
   "en-IN": {
     initialGreeting: "Hello! I'm Vaani, your voice banking assistant. How can I help you today?",
-    helperText: "Try: \"Check my account balance\" or \"Show recent transactions\"",
+    helperText: null,
     quickActionsTitle: "Quick Actions",
     quickActions: [
       { id: "balance", icon: "💰", label: "Check Balance", prompt: "Please share my latest account balance.", command: "Please share my latest account balance." },
       { id: "transfer", icon: "💸", label: "Transfer Funds", prompt: "Help me transfer funds to another account.", command: "Help me transfer funds to another account." },
-      { id: "upi", icon: "📱", label: "Transfer money using UPI", prompt: "Help me transfer money using UPI", command: "Help me transfer money using UPI" },
+      { id: "upi", icon: "📱", label: "UPI Transfer", prompt: "Help me transfer money using UPI", command: "Help me transfer money using UPI" },
       { id: "transactions", icon: "📊", label: "View Transactions", prompt: "Show my recent transactions.", command: "Show my recent transactions." },
       { id: "reminder", icon: "🔔", label: "Set Reminder", prompt: "I want to set a payment reminder.", command: "I want to set a payment reminder." },
     ],
@@ -102,7 +102,7 @@ const CHAT_COPY = {
   },
   "hi-IN": {
     initialGreeting: "नमस्ते! मैं वाणी हूँ, आपकी वॉइस बैंकिंग सहायक। आज मैं आपकी कैसे मदद कर सकती हूँ?",
-    helperText: "कोशिश करें: \"मेरा खाता बैलेंस बताओ\" या \"हाल के लेनदेन दिखाओ\"",
+    helperText: null,
     quickActionsTitle: "त्वरित क्रियाएँ",
     quickActions: [
       {

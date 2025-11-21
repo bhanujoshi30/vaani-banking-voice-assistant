@@ -115,7 +115,7 @@ def serialize_reminder(reminder) -> ReminderResource:
 )
 async def login_v1(
     userId: str = Form(...),
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
     deviceIdentifier: Optional[str] = Form(None),
     deviceFingerprint: Optional[str] = Form(None),
     deviceLabel: Optional[str] = Form(None),
@@ -139,7 +139,9 @@ async def login_v1(
                 code="otp_required",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-        if otp != "12345":
+        # Trim OTP to handle any whitespace issues
+        otp_clean = otp.strip() if otp else otp
+        if otp_clean != "12345":
             raise_http_error(
                 ctx,
                 message="Invalid one-time password.",
@@ -147,9 +149,12 @@ async def login_v1(
                 status_code=status.HTTP_401_UNAUTHORIZED,
             )
 
+    # Ensure password is trimmed and not empty for password login
+    password_clean = password.strip() if password and loginMode == "password" else password
+    
     result = auth_service.authenticate(
-        customer_number=userId,
-        password=password,
+        customer_number=userId.strip() if userId else userId,
+        password=password_clean,
         device_identifier=deviceIdentifier,
         fingerprint_hash=deviceFingerprint,
         platform=platform,
@@ -174,6 +179,9 @@ async def login_v1(
     if validate_only_flag:
         if not result.success:
             reason = result.reason or "invalid_credentials"
+            # For password login, don't return voice-related errors
+            if loginMode != "voice" and reason in ("voice_sample_invalid", "voice_mismatch", "voice_verification_required", "voice_enrollment_required"):
+                reason = "invalid_credentials"
             message = message_map.get(reason, "Authentication failed.")
             raise_http_error(
                 ctx,
@@ -200,7 +208,18 @@ async def login_v1(
         )
 
     if not result.success or result.user_profile is None or result.access_token is None:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"[Login Route] Authentication failed: success={result.success}, "
+            f"has_profile={result.user_profile is not None}, "
+            f"has_token={result.access_token is not None}, "
+            f"reason={result.reason}"
+        )
         reason = result.reason or "invalid_credentials"
+        # For password login, don't return voice-related errors
+        if loginMode != "voice" and reason in ("voice_sample_invalid", "voice_mismatch", "voice_verification_required", "voice_enrollment_required"):
+            reason = "invalid_credentials"
         message = message_map.get(reason, "Authentication failed.")
         raise_http_error(
             ctx,
@@ -210,7 +229,30 @@ async def login_v1(
             info=result.detail,
         )
 
-    profile = UserProfile(**result.user_profile)
+    # Validate and create profile - ensure all required fields are present
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        profile = UserProfile(**result.user_profile)
+        logger.info(
+            f"[Login Route] Profile created successfully: loginMode={loginMode}, "
+            f"profile_id={profile.id}, customer_id={profile.customerId}, "
+            f"has_accounts={len(profile.accountSummary) > 0}"
+        )
+    except Exception as e:
+        logger.error(
+            f"[Login Route] Failed to create UserProfile: error={type(e).__name__}: {str(e)}, "
+            f"profile_data_keys={list(result.user_profile.keys()) if result.user_profile else 'None'}, "
+            f"profile_data={result.user_profile}"
+        )
+        raise_http_error(
+            ctx,
+            message="Failed to create user profile.",
+            code="profile_creation_failed",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    
     meta = build_meta(ctx)
     data = LoginData(
         accessToken=result.access_token,
@@ -218,7 +260,22 @@ async def login_v1(
         profile=profile,
         detail=result.detail,
     )
-    return LoginResponse(meta=meta, data=data)
+    
+    logger.info(
+        f"[Login Route] Login successful: loginMode={loginMode}, "
+        f"has_profile={profile is not None}, has_token={bool(result.access_token)}, "
+        f"profile_id={profile.id if profile else 'N/A'}, "
+        f"access_token_length={len(result.access_token) if result.access_token else 0}"
+    )
+    
+    # Ensure the response structure is correct
+    response_data = LoginResponse(meta=meta, data=data)
+    logger.debug(
+        f"[Login Route] Response structure: has_data={response_data.data is not None}, "
+        f"has_profile={response_data.data.profile is not None if response_data.data else False}"
+    )
+    
+    return response_data
 
 
 @router.get(
@@ -256,6 +313,7 @@ async def create_device_binding_v1(
     session=CurrentSessionDep,
     device_binding_service: DeviceBindingService = DeviceBindingServiceDep,
     voice_verifier: VoiceVerificationService = VoiceVerificationServiceDep,
+    auth_service: AuthService = AuthServiceDep,
 ):
     voice_bytes = await voiceSample.read() if voiceSample else None
     if voice_bytes is None:
@@ -275,6 +333,15 @@ async def create_device_binding_v1(
                 code="voice_sample_invalid",
             )
         voice_vector = voice_verifier.serialize_embedding(embedding)
+    
+    # Check if user had any voice bindings BEFORE this registration
+    existing_bindings = device_binding_service.list_bindings(user_id=session.user_id)
+    had_voice_binding = any(b.get("voiceSignaturePresent", False) for b in existing_bindings)
+    had_trusted_voice_binding = any(
+        b.get("voiceSignaturePresent", False) and b.get("trustLevel") == "trusted" 
+        for b in existing_bindings
+    )
+    
     binding = device_binding_service.register_or_refresh_binding(
         user_id=session.user_id,
         device_identifier=deviceIdentifier,
@@ -285,8 +352,29 @@ async def create_device_binding_v1(
         voice_signature_hash=voice_hash,
         voice_signature_vector=voice_vector,
     )
+    
+    # Determine if session replacement is required and what type of replacement
+    session_replacement_required = False
+    is_voice_replacement = False
+    if binding.get("voiceSignaturePresent", False):
+        if not had_voice_binding:
+            # Password binding has been converted to voice binding (password-to-voice upgrade)
+            # Mark for replacement but don't force logout - user can continue with current session
+            session_replacement_required = True
+        elif had_trusted_voice_binding:
+            # User already has a trusted voice binding and is replacing/updating it
+            # This is a voice-to-voice replacement - should warn user
+            session_replacement_required = True
+            is_voice_replacement = True
+    
     meta = build_meta(ctx)
-    resource = DeviceBindingResource(**binding)
+    # Create resource with session replacement flag
+    # Note: isVoiceReplacement will be passed as extra data in the binding dict
+    # Frontend can access it via binding.isVoiceReplacement if needed
+    resource_data = {**binding}
+    if is_voice_replacement:
+        resource_data["isVoiceReplacement"] = True
+    resource = DeviceBindingResource(**resource_data, sessionReplacementRequired=session_replacement_required)
     return DeviceBindingResponse(meta=meta, data=resource)
 
 
@@ -311,7 +399,9 @@ def revoke_device_binding_v1(
             status_code=status.HTTP_404_NOT_FOUND,
         )
     meta = build_meta(ctx)
-    resource = DeviceBindingResource(**binding)
+    # Extract logoutRequired flag if present
+    logout_required = binding.pop("logoutRequired", False)
+    resource = DeviceBindingResource(**binding, logoutRequired=logout_required)
     return DeviceBindingResponse(meta=meta, data=resource)
 
 

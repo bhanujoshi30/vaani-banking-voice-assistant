@@ -162,8 +162,15 @@ const Login = ({ onAuthenticate, authenticated }) => {
     } else if (authMode !== "voice") {
       resetVoiceCapture(1);
       setIsVoiceEnrolled(false);
+      // Clear any voice-related errors when switching to password mode
+      if (error && error.toLowerCase().includes("voice")) {
+        setError("");
+      }
     }
-    setError("");
+    // Only clear error if switching modes, not on every userId change
+    if (authMode === "password" && error && error.toLowerCase().includes("voice")) {
+      setError("");
+    }
   }, [authMode, userId]);
 
   const resetVoiceCapture = (nextStep, flushEnrollment = false) => {
@@ -337,7 +344,12 @@ const Login = ({ onAuthenticate, authenticated }) => {
         });
 
         if (!preliminary?.success) {
-          setError(preliminary?.message || strings.errors.credentialsError);
+          // Filter out voice-related errors when in password mode
+          let errorMessage = preliminary?.message || strings.errors.credentialsError;
+          if (authMode === "password" && errorMessage.toLowerCase().includes("voice")) {
+            errorMessage = strings.errors.credentialsError;
+          }
+          setError(errorMessage);
           setRecordingStatus(""); // Clear status on error
           return;
         }
@@ -379,13 +391,46 @@ const Login = ({ onAuthenticate, authenticated }) => {
 
       const result = await onAuthenticate(authPayload);
 
-      if (!result?.success) {
-        setError(result?.message || strings.errors.authError);
-        setAwaitingOtp(false);
-      } else if (authMode === "voice" && userId.trim()) {
-        setIsVoiceEnrolled(true);
-        window.localStorage.setItem(`voiceEnrolled:${userId.trim()}`, "true");
+      // Debug logging for voice login OTP submission
+      if (authMode === "voice") {
+        console.log("[Voice Login] OTP submission result:", {
+          success: result?.success,
+          hasMessage: !!result?.message,
+          message: result?.message,
+          awaitingOtp,
+        });
       }
+
+      if (!result?.success) {
+        // Filter out voice-related errors when in password mode
+        let errorMessage = result?.message || strings.errors.authError;
+        if (authMode === "password" && errorMessage.toLowerCase().includes("voice")) {
+          errorMessage = strings.errors.authError;
+        }
+        console.error("[Voice Login] Authentication failed:", {
+          authMode,
+          errorMessage,
+          result,
+        });
+        setError(errorMessage);
+        setAwaitingOtp(false);
+        // Don't reset authMode - keep it as voice so user can try again
+        return;
+      }
+      
+      // Success - for voice login, the App component will handle navigation
+      if (authMode === "voice" && userId.trim()) {
+        console.log("[Voice Login] Authentication successful, setting enrolled flag");
+        setIsVoiceEnrolled(true);
+        try {
+          window.localStorage.setItem(`voiceEnrolled:${userId.trim()}`, "true");
+        } catch (storageError) {
+          console.warn("[Voice Login] Failed to save enrollment flag:", storageError);
+        }
+      }
+      
+      // Don't reset awaitingOtp on success - let App component handle navigation
+      // The App component will navigate to /profile, which will unmount this component
     } catch (authError) {
       setError(
         authError?.message || strings.errors.serverError,

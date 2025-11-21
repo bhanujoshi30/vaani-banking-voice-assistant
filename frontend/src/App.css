@@ -657,18 +657,34 @@
 }
 
 .profile-pill--unsecured {
-  background: rgba(255, 193, 7, 0.14);
-  color: #856404;
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  background: rgba(255, 149, 58, 0.14);
+  color: #cc5a1f;
+  border: 1px solid rgba(255, 149, 58, 0.3);
 }
 
 .profile-pill--unsecured:hover {
-  background: rgba(255, 193, 7, 0.2);
-  border-color: rgba(255, 193, 7, 0.4);
+  background: rgba(255, 149, 58, 0.2);
+  border-color: rgba(255, 149, 58, 0.4);
 }
 
 .profile-pill--unsecured:focus {
-  outline: 2px solid rgba(255, 193, 7, 0.5);
+  outline: 2px solid rgba(255, 149, 58, 0.5);
+  outline-offset: 2px;
+}
+
+.profile-pill--orange {
+  background: rgba(255, 149, 58, 0.14);
+  color: #cc5a1f;
+  border: 1px solid rgba(255, 149, 58, 0.3);
+}
+
+.profile-pill--orange:hover {
+  background: rgba(255, 149, 58, 0.2);
+  border-color: rgba(255, 149, 58, 0.4);
+}
+
+.profile-pill--orange:focus {
+  outline: 2px solid rgba(255, 149, 58, 0.5);
   outline-offset: 2px;
 }
 
@@ -684,8 +700,13 @@
 }
 
 .status-dot--warning {
-  background: #ffc107;
-  box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.2);
+  background: #ff7a59;
+  box-shadow: 0 0 0 4px rgba(255, 122, 89, 0.2);
+}
+
+.status-dot--orange {
+  background: #ff7a59;
+  box-shadow: 0 0 0 4px rgba(255, 122, 89, 0.2);
 }
 
 .profile-grid {

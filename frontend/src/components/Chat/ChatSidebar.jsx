@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import { DEFAULT_LANGUAGE, getLanguageByCode } from "../../config/voiceConfig.js";
 import { getChatCopy } from "../../config/chatCopy.js";
+import QuickActionIcon from "./QuickActionIcon.jsx";
 
 const FALLBACK_COPY = getChatCopy(DEFAULT_LANGUAGE);
 
@@ -30,7 +31,10 @@ const ChatSidebar = ({ isSpeechSupported, selectedLanguage, onQuickAction, copy 
               className="chat-quick-action"
               onClick={() => onQuickAction(action)}
             >
-              {`${action.icon} ${action.label}`}
+              <span className="chat-quick-action-icon">
+                <QuickActionIcon actionId={action.id} />
+              </span>
+              <span className="chat-quick-action-label">{action.label}</span>
             </button>
           ))}
         </div>

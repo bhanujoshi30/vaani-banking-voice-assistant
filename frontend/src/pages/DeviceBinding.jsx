@@ -320,10 +320,51 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
         const filtered = prev.filter((item) => item.id !== binding.id);
         return [binding, ...filtered];
       });
-      setStatus({
-        type: "success",
-        message: s.deviceBound,
-      });
+      
+      // Check if session replacement is required
+      if (binding.sessionReplacementRequired) {
+        // Determine the type of replacement
+        const isVoiceReplacement = binding.isVoiceReplacement || false;
+        
+        let logoutMessage;
+        if (isVoiceReplacement) {
+          // Voice-to-voice replacement: user is replacing existing voice binding
+          logoutMessage = s.voiceBindingReplaced || 
+            "You have updated your voice binding. For security reasons, you need to log out and sign in again with your new voice sample.";
+        } else {
+          // Password-to-voice conversion
+          logoutMessage = s.logoutDueToDeviceChange || 
+            "Your device binding has been changed from password to voice authentication. For security reasons, you need to log out and sign in again with voice authentication.";
+        }
+        
+        const userConfirmed = window.confirm(
+          `${logoutMessage}\n\nClick OK to log out now, or Cancel to continue (you'll need to log out later).`
+        );
+        if (userConfirmed) {
+          setStatus({
+            type: "warning",
+            message: isVoiceReplacement 
+              ? (s.voiceBindingReplaced || logoutMessage)
+              : (s.logoutDueToDeviceChange || logoutMessage),
+          });
+          // Log out after a short delay to show the message
+          setTimeout(() => {
+            onSignOut?.();
+          }, 1000);
+        } else {
+          setStatus({
+            type: "warning",
+            message: isVoiceReplacement
+              ? (s.voiceBindingReplaced || logoutMessage)
+              : (s.sessionReplacementRequired || s.deviceBound),
+          });
+        }
+      } else {
+        setStatus({
+          type: "success",
+          message: s.deviceBound,
+        });
+      }
     } catch (error) {
       if (handleSessionExpiry(error)) return;
       setStatus({ type: "error", message: error.message });
@@ -339,10 +380,23 @@ const DeviceBindingPage = ({ session, onSignOut }) => {
     try {
       const binding = await revokeDeviceBinding({ accessToken, bindingId });
       setBindings((prev) => prev.map((item) => (item.id === binding.id ? binding : item)));
-      setStatus({
-        type: "success",
-        message: s.deviceRevoked,
-      });
+      
+      // Check if logout is required (this was the only trusted device)
+      if (binding.logoutRequired) {
+        setStatus({
+          type: "warning",
+          message: s.logoutRequired || s.deviceRevoked,
+        });
+        // Show message for 3 seconds, then force logout
+        setTimeout(() => {
+          onSignOut?.();
+        }, 3000);
+      } else {
+        setStatus({
+          type: "success",
+          message: s.deviceRevoked,
+        });
+      }
     } catch (error) {
       if (handleSessionExpiry(error)) return;
       setStatus({ type: "error", message: error.message });

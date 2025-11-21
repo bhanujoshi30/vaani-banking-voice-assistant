@@ -499,8 +499,10 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
       );
       setHasVoiceBinding(hasVoice);
       
-      // Show force logout modal when device binding is revoked
-      setIsForceLogoutModalOpen(true);
+      // If this was the only trusted device, force logout
+      if (updated.logoutRequired) {
+        setIsForceLogoutModalOpen(true);
+      }
     } catch (error) {
       if (handleSessionExpiry(error, setDeviceError)) return;
       setDeviceError(error.message);

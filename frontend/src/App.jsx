@@ -81,7 +81,27 @@ const App = () => {
       otp,
       validateOnly,
     });
+    
+    // Debug logging for voice login
+    if (authMode === "voice") {
+      console.log("[Voice Login] Authentication result:", {
+        success: loginResult.success,
+        hasProfile: !!loginResult.profile,
+        hasToken: !!loginResult.accessToken,
+        tokenLength: loginResult.accessToken ? loginResult.accessToken.length : 0,
+        profileKeys: loginResult.profile ? Object.keys(loginResult.profile) : null,
+        validateOnly,
+      });
+    }
+    
     if (!loginResult.success || (!validateOnly && !loginResult.profile)) {
+      console.error("[Voice Login] Authentication failed:", {
+        success: loginResult.success,
+        hasProfile: !!loginResult.profile,
+        message: loginResult.message,
+        authMode,
+        validateOnly,
+      });
       return {
         success: false,
         message: loginResult.message || "Invalid user ID or password.",
@@ -93,9 +113,18 @@ const App = () => {
     }
 
     if (!loginResult.profile) {
+      console.error("[Voice Login] Profile missing in response:", loginResult);
       return {
         success: false,
         message: "Profile data unavailable from API.",
+      };
+    }
+
+    if (!loginResult.accessToken) {
+      console.error("[Voice Login] Access token missing in response:", loginResult);
+      return {
+        success: false,
+        message: "Access token unavailable from API.",
       };
     }
 
@@ -106,6 +135,24 @@ const App = () => {
     const expiresAt = loginResult.expiresIn
       ? Date.now() + Number(loginResult.expiresIn) * 1000
       : null;
+    
+    // Set session state FIRST before navigation
+    const sessionData = {
+      authenticated: true,
+      user: persona,
+      accessToken: loginResult.accessToken,
+      expiresAt,
+      meta: loginResult.meta ?? null,
+      detail: loginResult.detail ?? null,
+    };
+    
+    console.log("[Voice Login] Setting session state:", {
+      authenticated: sessionData.authenticated,
+      hasToken: !!sessionData.accessToken,
+      tokenLength: sessionData.accessToken ? sessionData.accessToken.length : 0,
+      hasUser: !!sessionData.user,
+    });
+    
     if (authMode === "voice") {
       try {
         window.localStorage.setItem(`voiceEnrolled:${userId}`, "true");
@@ -113,15 +160,18 @@ const App = () => {
         console.warn("Unable to persist voice enrollment flag", storageError);
       }
     }
-    setSession({
-      authenticated: true,
-      user: persona,
-      accessToken: loginResult.accessToken ?? null,
-      expiresAt,
-      meta: loginResult.meta ?? null,
-      detail: loginResult.detail ?? null,
+    
+    // Set session state - this will trigger a re-render
+    setSession(sessionData);
+    
+    // Navigate immediately - React Router will use the updated session state
+    // The Profile component will receive the updated accessToken prop on the next render
+    console.log("[Voice Login] Navigating to profile page with token:", {
+      hasToken: !!sessionData.accessToken,
+      tokenLength: sessionData.accessToken ? sessionData.accessToken.length : 0,
     });
     navigate("/profile", { replace: true });
+    
     return { success: true };
   };
 
@@ -148,13 +198,16 @@ const App = () => {
       <Route
         path="/profile"
         element={
-          session.authenticated ? (
+          session.authenticated && session.accessToken ? (
             <Profile
               user={session.user}
               accessToken={session.accessToken}
               sessionDetail={session.detail}
               onSignOut={signOut}
             />
+          ) : session.authenticated ? (
+            // Authenticated but no token yet - wait for token
+            <div>Loading...</div>
           ) : (
             <Navigate to="/" replace />
           )

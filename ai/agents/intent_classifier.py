@@ -124,6 +124,20 @@ async def classify_intent(state):
     # Check if message contains amount (numbers, rupees, etc.)
     has_amount = bool(re.search(r'\d+|rupees?|rs\.?|₹|hundred|thousand|lakh|crore', msg_lower))
     
+    # CRITICAL: Check for reminder keywords FIRST, regardless of UPI mode
+    # Reminder operations should always go to banking_operation, not UPI agent
+    reminder_keywords = ["reminder", "remind", "set reminder", "create reminder", "view reminder", "show reminder", "अनुस्मारक"]
+    has_reminder_keyword = any(keyword in msg_lower for keyword in reminder_keywords)
+    
+    if has_reminder_keyword:
+        intent = "banking_operation"
+        state["current_intent"] = intent
+        logger.info("reminder_keyword_detected", 
+                   message=last_message[:100], 
+                   upi_mode_active=upi_mode_active,
+                   intent=intent)
+        return state
+    
     # CRITICAL ROUTING: When UPI mode is active
     if upi_mode_active:
         logger.info("upi_mode_active_detected", 
@@ -197,14 +211,13 @@ Reply with ONLY the intent category name, nothing else."""
     if intent not in valid_intents:
         intent = "other"
     
-    # Final keyword-based fallback
+    # Final keyword-based fallback (reminder keywords already checked above)
     statement_keywords = [
         "statement", "स्टेटमेंट", "bank statement", "account statement", 
         "download", "डाउनलोड", "nikalna", "nikal", "export"
     ]
-    reminder_keywords = ["reminder", "remind", "set reminder", "create reminder", "view reminder", "show reminder", "अनुस्मारक"]
     
-    if any(keyword in msg_lower for keyword in statement_keywords + reminder_keywords):
+    if any(keyword in msg_lower for keyword in statement_keywords):
         intent = "banking_operation"
         logger.info("banking_keyword_detected", message=last_message, forced_intent=intent)
     

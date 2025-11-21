@@ -62,7 +62,32 @@ export async function authenticateUser({
 
   const data = payload?.data;
   if (!data) {
+    console.error("[Auth Client] Malformed response - no data:", payload);
     return { success: false, message: "Malformed response from server." };
+  }
+
+  // Debug logging for voice login
+  if (loginMode === "voice") {
+    console.log("[Auth Client] Voice login response:", {
+      hasData: !!data,
+      hasProfile: !!data.profile,
+      hasAccessToken: !!data.accessToken,
+      profileKeys: data.profile ? Object.keys(data.profile) : null,
+      accessTokenLength: data.accessToken ? data.accessToken.length : 0,
+    });
+  }
+
+  // Ensure profile exists for non-validateOnly requests
+  if (!data.profile && !validateOnly) {
+    console.error("[Auth Client] Missing profile in response:", {
+      data,
+      payload,
+      loginMode,
+    });
+    return {
+      success: false,
+      message: "Profile data missing from server response.",
+    };
   }
 
   return {

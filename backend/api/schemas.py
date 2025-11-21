@@ -332,6 +332,12 @@ class DeviceBindingResource(BaseModel):
     revokedAt: Optional[datetime] = None
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
+    logoutRequired: Optional[bool] = Field(default=False, description="If true, user must logout and re-authenticate with voice")
+    sessionReplacementRequired: Optional[bool] = Field(default=False, description="If true, password session should be replaced with voice session")
+    isVoiceReplacement: Optional[bool] = Field(default=False, description="If true, this is replacing an existing voice binding")
+    
+    class Config:
+        extra = "allow"  # Allow extra fields to be passed through
 
 
 class DeviceBindingCreateRequest(BaseModel):

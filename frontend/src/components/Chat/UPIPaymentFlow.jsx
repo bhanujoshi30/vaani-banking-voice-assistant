@@ -231,23 +231,44 @@ const UPIPaymentFlow = ({ session, language = 'en-IN', onPaymentReady, paymentDa
       </div>
 
       <div className="transfer-flow__content">
-        {accounts.length > 1 && selectedSourceAccount && (
-          <div className="transfer-flow__section">
-            <label className="transfer-flow__label">
-              {language === 'hi-IN' ? 'स्रोत खाता' : 'Source Account'}
-            </label>
+        {/* Always show account selection - required field */}
+        <div className="transfer-flow__section">
+          <label className="transfer-flow__label">
+            {language === 'hi-IN' ? 'स्रोत खाता' : 'Source Account'}
+          </label>
+          {selectedSourceAccount ? (
             <div className="transfer-flow__selected-account">
               <span>{selectedSourceAccount.accountNumber || selectedSourceAccount.account_number || selectedSourceAccount.id}</span>
-              <button
-                type="button"
-                className="transfer-flow__change-account"
-                onClick={() => setShowAccountSelection(true)}
-              >
-                {language === 'hi-IN' ? 'बदलें' : 'Change'}
-              </button>
+              {accounts.length > 1 && (
+                <button
+                  type="button"
+                  className="transfer-flow__change-account"
+                  onClick={() => setShowAccountSelection(true)}
+                >
+                  {language === 'hi-IN' ? 'बदलें' : 'Change'}
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="transfer-flow__accounts">
+              {accounts.map((account) => (
+                <button
+                  key={account.id || account.accountId}
+                  type="button"
+                  className="transfer-flow__account-card"
+                  onClick={() => handleAccountSelect(account)}
+                >
+                  <div className="transfer-flow__account-number">
+                    {account.accountNumber || account.account_number || account.id}
+                  </div>
+                  <div className="transfer-flow__account-balance">
+                    {account.currency || 'INR'} {parseFloat(account.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="transfer-flow__section">
           <label className="transfer-flow__label" htmlFor="upi-amount">
