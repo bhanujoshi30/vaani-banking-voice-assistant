@@ -301,6 +301,7 @@ const Login = ({ onAuthenticate, authenticated }) => {
   };
 
   const credentialInputsDisabled = awaitingOtp || isSubmitting || isVerifyingVoice;
+  const otpToggleDisabled = isSubmitting || isVerifyingVoice;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -614,7 +615,7 @@ const Login = ({ onAuthenticate, authenticated }) => {
                       className="input-with-toggle__btn"
                       onClick={() => setShowOtp((prev) => !prev)}
                       aria-label={showOtp ? strings.general.hideOtp : strings.general.showOtp}
-                      disabled={credentialInputsDisabled}
+                      disabled={otpToggleDisabled}
                     >
                       {showOtp ? strings.general.hideOtp : strings.general.showOtp}
                     </button>

@@ -9,7 +9,7 @@ A complete AI-powered banking assistant backend with:
 1. **LangGraph Multi-Agent System**
    - Intent classification (fast model)
    - Banking operations agent (with database tools)
-   - FAQ agent (general queries)
+   - RAG supervisor + specialists (general queries)
    - Smart routing between agents
 
 2. **Qwen 2.5 7B Integration**
@@ -181,7 +181,7 @@ Response: "Your balance is ₹10,000"
 | "Check balance" | banking_operation | Banking Agent | get_account_balance |
 | "Show transactions" | banking_operation | Banking Agent | get_transaction_history |
 | "Transfer ₹5000" | banking_operation | Banking Agent | transfer_funds |
-| "Interest rate?" | general_faq | FAQ Agent | None (LLM only) |
+| "Interest rate?" | general_faq | RAG Supervisor | None (LLM only) |
 | "मेरा बैलेंस?" | banking_operation | Banking Agent | get_account_balance |
 
 ---
@@ -238,7 +238,7 @@ Visit [smith.langchain.com](https://smith.langchain.com) to see:
 |-----------|-------|---------|---------|
 | Intent Classification | Llama 3.2 3B | 100-200ms | 90%+ |
 | Balance Query | Qwen 2.5 7B | 500ms | 95%+ |
-| General FAQ | Qwen 2.5 7B | 1-2s | 95%+ |
+| RAG Supervisor (general queries) | Qwen 2.5 7B | 1-2s | 95%+ |
 | Streaming (first token) | Qwen 2.5 7B | 200-400ms | - |
 | Voice Mode Response | Llama 3.2 3B | 300-800ms | 80%+ |
 

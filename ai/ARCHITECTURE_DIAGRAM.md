@@ -177,7 +177,7 @@ User Input: "Check my balance"
                   ▼
 ┌─────────────────────────────────────────────────────┐
 │  5. All agents now use new provider                 │
-│     Intent, Banking, FAQ agents → new LLM           │
+│     Intent, Banking, RAG supervisor → new LLM       │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -194,7 +194,8 @@ ai/
 ├── agents/
 │   ├── intent_classifier.py    ← Updated to use LLMService
 │   ├── banking_agent.py         ← Updated to use LLMService
-│   └── faq_agent.py             ← Updated to use LLMService
+│   ├── rag_agent.py             ← Supervisor using LLMService
+│   └── rag_agents/              ← Loan/Investment/Support specialists
 │
 ├── config.py                    ← Added OpenAI settings
 ├── .env                         ← LLM_PROVIDER setting

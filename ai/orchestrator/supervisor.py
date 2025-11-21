@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from agents.banking_agent import banking_agent
 from agents.feedback_agent import feedback_agent
-from agents.faq_agent import faq_agent
+from agents.rag_agent import rag_agent
 from agents.greeting_agent import greeting_agent
 from agents.upi_agent import upi_agent
 from utils import logger
@@ -20,7 +20,7 @@ from .state import ConversationState
 SPECIALIST_MAP = {
     "banking_agent": banking_agent,
     "upi_agent": upi_agent,
-    "faq_agent": faq_agent,
+    "rag_agent": rag_agent,
     "greeting_agent": greeting_agent,
     "feedback_agent": feedback_agent,
 }
@@ -131,7 +131,7 @@ class HybridSupervisor:
         return False
 
     async def _invoke_specialist(self, agent_key: str, context: ConversationState) -> None:
-        handler = SPECIALIST_MAP.get(agent_key, faq_agent)
+        handler = SPECIALIST_MAP.get(agent_key, rag_agent)
         logger.info("invoking_specialist", agent=agent_key)
         agent_state = await handler(context.to_agent_payload())
         context.apply_agent_state(agent_state)
@@ -139,8 +139,7 @@ class HybridSupervisor:
     def _build_response(self, context: ConversationState) -> Dict[str, Any]:
         last_message = context.messages[-1] if context.messages else AIMessage(content="")
         response_text = last_message.content if hasattr(last_message, "content") else str(last_message)
-
-        payload: Dict[str, any] = {
+        payload: Dict[str, Any] = {
             "success": True,
             "response": response_text,
             "intent": context.current_intent,

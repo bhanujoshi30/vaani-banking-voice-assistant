@@ -16,9 +16,15 @@ flowchart LR
     subgraph Specialists[Specialist Agents]
         BA[Banking Agent]
         UA[UPI Agent]
-        FAQ[FAQ Agent]
+        RAG[RAG Supervisor]
         GR[Greeting Agent]
         FB[Feedback Agent]
+    end
+
+    subgraph RAGSpecialists[RAG Domain Specialists]
+        Loan[Loan Specialist]
+        Invest[Investment Specialist]
+        CSAgent[Customer Support Specialist]
     end
 
     subgraph Services[Shared Services]
@@ -32,21 +38,32 @@ flowchart LR
     IR --> HS
     HS -->|route key| BA
     HS -->|route key| UA
-    HS -->|route key| FAQ
+    HS -->|route key| RAG
     HS -->|route key| GR
     HS -->|route key| FB
+
+    RAG --> Loan
+    RAG --> Invest
+    RAG --> CSAgent
+    Loan --> RAG
+    Invest --> RAG
+    CSAgent --> RAG
 
     BA --> LLM
     BA --> Tools
     UA --> LLM
     UA --> Tools
-    FAQ --> LLM
+    Loan --> LLM
+    Loan --> Tools
+    Invest --> LLM
+    Invest --> Tools
+    CSAgent --> LLM
     GR --> HS
     FB --> HS
 
     BA -->|structured_data / statement_data| HS
     UA -->|payment status| HS
-    FAQ -->|response| HS
+    RAG -->|response| HS
     GR -->|welcome| HS
     FB -->|acknowledgement| HS
     HS -->|final payload| Client

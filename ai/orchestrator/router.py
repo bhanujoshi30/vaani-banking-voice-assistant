@@ -9,14 +9,14 @@ from agents.intent_classifier import classify_intent
 from .state import ConversationState
 
 
-DEFAULT_ROUTE = "faq_agent"
+DEFAULT_ROUTE = "rag_agent"
 INTENT_TO_ROUTE: Dict[str, str] = {
     "upi_payment": "upi_agent",
     "banking_operation": "banking_agent",
-    "general_faq": "faq_agent",
+    "general_faq": "rag_agent",
     "greeting": "greeting_agent",
     "feedback": "feedback_agent",
-    "other": "faq_agent",
+    "other": "rag_agent",
 }
 
 

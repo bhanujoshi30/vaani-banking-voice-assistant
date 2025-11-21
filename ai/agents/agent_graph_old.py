@@ -13,7 +13,6 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from config import settings
 from .intent_classifier import classify_intent
 from .banking_agent import banking_agent
-from .faq_agent import faq_agent
 from .router import route_to_agent
 from utils import logger, AgentExecutionError
 
@@ -206,8 +205,8 @@ For transfers, ALWAYS confirm amount and recipient before executing."""
     return state
 
 
-# FAQ Agent
-async def faq_agent(state: AgentState) -> AgentState:
+# RAG Agent (legacy graph node)
+async def rag_agent_node(state: AgentState) -> AgentState:
     """
     Agent for general inquiries and FAQs
     Handles: Product info, interest rates, branch info, general questions
@@ -257,12 +256,12 @@ Provide concise, clear, and helpful answers. If you don't have information, say 
         state["messages"].append(ai_message)
         
         logger.info(
-            "faq_agent_response",
+            "rag_agent_response",
             response_length=len(response_content)
         )
         
     except Exception as e:
-        logger.error("faq_agent_error", error=str(e))
+        logger.error("rag_agent_error", error=str(e))
         error_msg = "मुझे खेद है, एक त्रुटि हुई।" if language == "hi-IN" else "I'm sorry, an error occurred."
         state["messages"].append(AIMessage(content=error_msg))
     
@@ -278,7 +277,7 @@ def create_agent_graph():
     # Add nodes
     workflow.add_node("classify_intent", classify_intent)
     workflow.add_node("banking_agent", banking_agent)
-    workflow.add_node("faq_agent", faq_agent)
+    workflow.add_node("rag_agent", rag_agent_node)
     
     # Add edges
     workflow.set_entry_point("classify_intent")
@@ -289,14 +288,14 @@ def create_agent_graph():
         route_to_agent,
         {
             "banking_agent": "banking_agent",
-            "faq_agent": "faq_agent",
+            "rag_agent": "rag_agent",
             "end": END,
         }
     )
     
     # Both agents end the conversation
     workflow.add_edge("banking_agent", END)
-    workflow.add_edge("faq_agent", END)
+    workflow.add_edge("rag_agent", END)
     
     return workflow.compile()
 

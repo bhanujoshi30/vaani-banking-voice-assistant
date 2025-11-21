@@ -21,7 +21,7 @@ The investment schemes RAG system has been successfully implemented, mirroring t
 
 ### 3. Backend Integration
 - ✅ **RAG Service Updated** - Supports both loan and investment documents
-- ✅ **FAQ Agent Updated** - Detects investment queries and returns structured data
+- ✅ **RAG Supervisor Updated** - Detects investment queries and returns structured data via specialists
 - ✅ **ChatMessage Updated** - Renders investment cards and selection tables
 
 ## How It Works
@@ -75,8 +75,9 @@ frontend/src/components/Chat/
 └── InvestmentSelectionTable.css
 
 ai/
-├── agents/faq_agent.py              # Updated with investment handling
-└── services/rag_service.py         # Updated to support investments
+├── agents/rag_agent.py              # Hybrid supervisor with investment routing
+├── agents/rag_agents/investment_agent.py  # Investment specialist logic
+└── services/rag_service.py          # Updated to support investments
 ```
 
 ## Testing
@@ -116,7 +117,7 @@ ai/
 - ✅ PDF Generation
 - ✅ Frontend Components
 - ✅ RAG Service Integration
-- ✅ FAQ Agent Integration
+- ✅ RAG Supervisor + Investment Specialist Integration
 - ✅ ChatMessage Integration
 - ✅ Hindi/English Support
 - ⏳ Quick Actions (can be added)

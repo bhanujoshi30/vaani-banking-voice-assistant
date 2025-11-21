@@ -63,15 +63,15 @@
   - `handle_transaction_query()` - Transaction history
 - **Features**: Multi-account support, Hindi/English responses
 
-#### `faq_agent.py`
-- **Purpose**: Handle general banking questions
-- **Function**: `faq_agent(state)`
-- **Uses**: Main LLM model for quality responses
+#### `rag_agent.py`
+- **Purpose**: Supervisor for knowledge/RAG-style conversations
+- **Function**: `rag_agent(state)` delegates to domain specialists
+- **Specialists**: Loan agent, investment schemes agent, and customer support agent
 
 #### `router.py`
 - **Purpose**: Route to appropriate agent based on intent
 - **Function**: `route_to_agent(state)`
-- **Routes**: banking_agent, faq_agent, end
+- **Routes**: banking_agent, rag_agent, end
 
 #### `agent_graph.py`
 - **Purpose**: LangGraph workflow orchestration
@@ -116,7 +116,8 @@ ai/
 ├── agents/
 │   ├── intent_classifier.py      # NEW: Intent classification
 │   ├── banking_agent.py          # NEW: Banking operations
-│   ├── faq_agent.py              # NEW: General questions
+│   ├── rag_agent.py             # NEW: Hybrid RAG supervisor
+│   ├── rag_agents/              # NEW: Loan/Investment/Support specialists
 │   ├── router.py                 # NEW: Agent routing
 │   ├── agent_graph.py            # REFACTORED: Orchestration only
 │   └── agent_graph_old.py        # Backup of original

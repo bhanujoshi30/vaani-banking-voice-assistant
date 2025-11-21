@@ -4,7 +4,7 @@ Complete AI-powered backend for Vaani Banking Voice Assistant using **LangGraph*
 
 ## 🎯 Features
 
-- **Multi-Agent System**: Intent classification, banking operations, and FAQ agents
+- **Multi-Agent System**: Intent classification, banking operations, and a RAG supervisor with loan/investment/support specialists
 - **LangGraph Orchestration**: Sophisticated conversation flow management
 - **Local LLM**: Qwen 2.5 7B via Ollama for privacy and speed
 - **Database Tools**: Safe banking operations (balance, transactions, transfers, reminders)
@@ -243,19 +243,19 @@ Router (based on intent)
     │    • get_reminders
     │    • set_reminder
     │
-    └──→ FAQ Agent (Qwen 2.5 7B)
-         • General banking questions
-         • Product information
-         • Interest rates
+    └──→ RAG Supervisor (Qwen 2.5 7B)
+      • Loan specialist (EMI, eligibility, comparisons)
+      • Investment specialist (PPF, NPS, schemes)
+      • Customer support specialist (general FAQs + redirection)
 ```
 
 ### Intents
 
 1. **banking_operation**: Balance, transactions, transfers, reminders
-2. **general_faq**: Interest rates, products, branch info
-3. **loan_inquiry**: Loan questions, EMI, eligibility
+2. **general_faq**: Interest rates, loans, investments, customer support (handled by RAG supervisor)
+3. **loan_inquiry**: Routed via `general_faq` to the RAG loan specialist
 4. **authentication**: Login, verify identity
-5. **chitchat**: Greetings, out of scope
+5. **chitchat**: Greetings, out of scope (handled by deterministic greeting/feedback agents)
 
 ## 🔧 Available Tools
 

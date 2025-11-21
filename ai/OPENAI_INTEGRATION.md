@@ -78,7 +78,7 @@ Successfully integrated **OpenAI GPT-3.5 Turbo** alongside existing Ollama, with
 ### Updated Agents (Now use unified service)
 - ✅ `agents/intent_classifier.py` - Changed from OllamaService to LLMService
 - ✅ `agents/banking_agent.py` - Changed from OllamaService to LLMService
-- ✅ `agents/faq_agent.py` - Changed from OllamaService to LLMService
+- ✅ `agents/rag_agent.py` + specialists - Changed from OllamaService to LLMService
 
 ### Updated Configuration
 - ✅ `config.py` - Added OpenAI settings + LLM_PROVIDER

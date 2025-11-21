@@ -59,9 +59,9 @@ def load_investment_documents(self) -> List[Document]:
     return documents
 ```
 
-### 4. FAQ Agent Updates Needed
+### 4. RAG Agent Updates Needed
 
-Add investment query detection and handling in `ai/agents/faq_agent.py`:
+Add investment query detection and handling in `ai/agents/rag_agent.py` (supervisor) and extend the specialist logic inside `ai/agents/rag_agents/investment_agent.py`:
 
 ```python
 # Add investment keywords
@@ -154,7 +154,7 @@ const investmentQuickActions = [
 1. ✅ Create PDF generation script
 2. ✅ Create frontend components
 3. ⏳ Update RAG service to load investment documents
-4. ⏳ Update FAQ agent to handle investment queries
+4. ⏳ Update RAG supervisor + investment specialist to handle investment queries
 5. ⏳ Update ChatMessage to render investment cards
 6. ⏳ Add quick actions
 7. ⏳ Generate PDFs: `python backend/documents/create_investment_scheme_docs.py`

@@ -1,14 +1,14 @@
 """
-Test script for RAG-enhanced FAQ agent
+Test script for the RAG supervisor agent
 """
 import asyncio
 from langchain_core.messages import HumanMessage
-from agents.faq_agent import faq_agent
+from agents.rag_agent import rag_agent
 from services.rag_service import initialize_rag
 
 
-async def test_faq_with_rag():
-    """Test the FAQ agent with RAG for loan queries"""
+async def test_rag_supervisor():
+    """Test the RAG supervisor with RAG for domain queries"""
     
     print("🔧 Initializing RAG service...")
     initialize_rag()
@@ -25,7 +25,7 @@ async def test_faq_with_rag():
     ]
     
     print("=" * 80)
-    print("TESTING RAG-ENHANCED FAQ AGENT")
+    print("TESTING HYBRID RAG SUPERVISOR AGENT")
     print("=" * 80 + "\n")
     
     for i, query in enumerate(test_queries, 1):
@@ -40,13 +40,13 @@ async def test_faq_with_rag():
             "user_id": "test_user",
             "session_id": "test_session"
         }
-        
-        # Call FAQ agent
-        result = await faq_agent(state)
-        
+
+        # Call RAG supervisor agent
+        result = await rag_agent(state)
+
         # Get AI response
         ai_response = result["messages"][-1].content
-        
+
         print(f"\n💬 RESPONSE:\n{ai_response}\n")
     
     print("=" * 80)
@@ -55,4 +55,4 @@ async def test_faq_with_rag():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_faq_with_rag())
+    asyncio.run(test_rag_supervisor())

@@ -2,14 +2,19 @@
 RAG (Retrieval-Augmented Generation) Service
 Handles document ingestion, vector storage, and retrieval for Q&A
 """
+import json
 import os
+import time
+from collections import OrderedDict
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from utils import logger
 
 
@@ -89,7 +94,10 @@ class RAGService:
         )
         
         # Vector store will be initialized when needed
-        self.vectorstore: Optional[Chroma] = None
+        self.vectorstore = None
+        self._context_cache: OrderedDict[str, Tuple[str, float]] = OrderedDict()
+        self._cache_max_size = 128
+        self._cache_ttl_seconds = 120
         
     def load_pdf_documents(self) -> List[Document]:
         """
@@ -290,18 +298,55 @@ class RAGService:
             logger.error("retrieval_error", error=str(e))
             return []
     
-    def get_context_for_query(self, query: str, k: int = 4) -> str:
+    def _normalize_query(self, query: str) -> str:
+        return " ".join(query.split()).lower()
+
+    def _make_cache_key(self, query: str, k: int, metadata_filter: Optional[Dict[str, Any]]) -> str:
+        filter_part = ""
+        if metadata_filter:
+            try:
+                filter_part = json.dumps(metadata_filter, sort_keys=True)
+            except TypeError:
+                filter_part = str(sorted(metadata_filter.items()))
+        return f"{self._normalize_query(query)}|k={k}|f={filter_part}"
+
+    def _get_cached_context(self, cache_key: str) -> Optional[str]:
+        cached = self._context_cache.get(cache_key)
+        if not cached:
+            return None
+        context, expires_at = cached
+        if time.time() < expires_at:
+            self._context_cache.move_to_end(cache_key)
+            logger.info("rag_context_cache_hit", cache_key=cache_key)
+            return context
+        self._context_cache.pop(cache_key, None)
+        return None
+
+    def _store_cached_context(self, cache_key: str, context: str) -> None:
+        self._context_cache[cache_key] = (context, time.time() + self._cache_ttl_seconds)
+        self._context_cache.move_to_end(cache_key)
+        if len(self._context_cache) > self._cache_max_size:
+            evicted_key, _ = self._context_cache.popitem(last=False)
+            logger.debug("rag_context_cache_evict", cache_key=evicted_key)
+
+    def get_context_for_query(self, query: str, k: int = 4, filter: Optional[Dict[str, Any]] = None) -> str:
         """
         Get formatted context string for a query
         
         Args:
             query: Search query
             k: Number of documents to retrieve
+            filter: Optional metadata filter to narrow retrieval scope
             
         Returns:
             Formatted context string
         """
-        documents = self.retrieve(query, k=k)
+        cache_key = self._make_cache_key(query, k, filter)
+        cached_context = self._get_cached_context(cache_key)
+        if cached_context is not None:
+            return cached_context
+
+        documents = self.retrieve(query, k=k, filter=filter)
         
         if not documents:
             return ""
@@ -315,10 +360,15 @@ class RAGService:
             )
         
         context = "\n".join(context_parts)
-        logger.info("context_generated", 
-                   query_length=len(query),
-                   context_length=len(context),
-                   sources=len(documents))
+        logger.info(
+            "context_generated",
+            query_length=len(query),
+            context_length=len(context),
+            sources=len(documents),
+            cache_hit=False,
+            metadata_filtered=bool(filter),
+        )
+        self._store_cached_context(cache_key, context)
         
         return context
 

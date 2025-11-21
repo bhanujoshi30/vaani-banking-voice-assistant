@@ -77,7 +77,7 @@ llm = get_llm_service(provider=LLMProvider.OPENAI)
 2. **Updated Agents:**
    - `agents/intent_classifier.py` - Uses unified service
    - `agents/banking_agent.py` - Uses unified service
-   - `agents/faq_agent.py` - Uses unified service
+   - `agents/rag_agent.py` + `agents/rag_agents/*` - Hybrid supervisor with specialists
 
 3. **Configuration:**
    - `config.py` - Added OpenAI settings

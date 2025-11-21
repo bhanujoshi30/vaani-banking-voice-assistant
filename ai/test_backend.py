@@ -131,9 +131,9 @@ async def test_hindi_chat():
         return False
 
 
-async def test_faq():
-    """Test FAQ agent"""
-    print_test("FAQ Agent")
+async def test_rag():
+    """Test RAG supervisor"""
+    print_test("RAG Supervisor")
     
     payload = {
         "message": "What is the interest rate for savings account?",
@@ -156,10 +156,10 @@ async def test_faq():
             print(f"Intent: {data.get('intent', 'unknown')}")
             
             if data.get("success") and data.get("intent") == "general_faq":
-                print_colored("✅ PASSED: FAQ agent works", "green")
+                print_colored("✅ PASSED: RAG supervisor works", "green")
                 return True
             else:
-                print_colored("❌ FAILED: FAQ agent issue", "red")
+                print_colored("❌ FAILED: RAG supervisor issue", "red")
                 return False
     except Exception as e:
         print_colored(f"❌ FAILED: {e}", "red")
@@ -250,7 +250,7 @@ async def main():
         ("Models Check", test_models),
         ("English Chat", test_english_chat),
         ("Hindi Chat", test_hindi_chat),
-        ("FAQ Agent", test_faq),
+    ("RAG Supervisor", test_rag),
         ("Voice Mode", test_voice_mode),
     ]
     
