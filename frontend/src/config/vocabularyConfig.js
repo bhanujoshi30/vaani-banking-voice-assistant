@@ -306,8 +306,14 @@ export const normalizeForTTS = (text, languageCode = 'en-IN') => {
   
   let normalized = text;
   
-  // For Hindi language, convert English numbers to Hindi words for proper pronunciation
-  if (languageCode === 'hi-IN') {
+  // CRITICAL: Detect actual language of text content, not just the languageCode parameter
+  // If text contains Hindi Devanagari characters, treat it as Hindi
+  // Otherwise, treat it as English (even if languageCode is 'hi-IN')
+  const hasHindiChars = /[\u0900-\u097F]/.test(text);
+  const actualLanguage = hasHindiChars ? 'hi-IN' : 'en-IN';
+  
+  // For Hindi language OR Hindi text content, convert English numbers to Hindi words for proper pronunciation
+  if (languageCode === 'hi-IN' && actualLanguage === 'hi-IN') {
     // Convert percentages to Hindi words for proper pronunciation
     // "11.00%" → "ग्यारह प्रतिशत" (simplified)
     // "11.50%" → "ग्यारह दशमलव पचास प्रतिशत"
@@ -394,8 +400,9 @@ export const normalizeForTTS = (text, languageCode = 'en-IN') => {
     return normalized;
   }
   
-  // For English language, ensure proper pronunciation of numbers and Indian currency terms
-  if (languageCode === 'en-IN') {
+  // For English language OR English text content, ensure proper pronunciation of numbers and Indian currency terms
+  // IMPORTANT: Even if languageCode is 'hi-IN' but text is English, use English normalization
+  if (languageCode === 'en-IN' || (languageCode === 'hi-IN' && actualLanguage === 'en-IN')) {
     // Remove any Hindi text that might have been included (Devanagari script) FIRST
     // This regex matches Devanagari characters (Unicode range: \u0900-\u097F)
     normalized = normalized.replace(/[\u0900-\u097F]+/g, '');

@@ -6,6 +6,7 @@ const FALLBACK_COPY = {
     listening: "Listening... speak now",
     voiceMode: "Voice mode active - speak your message...",
     speaking: "Assistant is speaking... please wait",
+    thinking: "Vaani is thinking...",
     comingSoon:
       "Voice input not available for this language yet. Type your message or switch to English/Hindi.",
   },
@@ -41,8 +42,11 @@ const ChatInput = ({
   isLanguageComingSoon = false,
   isSpeaking = false,
   isVoiceModeEnabled = false,
+  isVoiceSecured = false,
   onSubmit,
   onVoiceClick,
+  onVoiceModeToggle = null,
+  onVoiceEnrollmentClick = null,
   inputRef = null,
   copy = FALLBACK_COPY,
 }) => {
@@ -64,10 +68,34 @@ const ChatInput = ({
     ...(resolvedCopy.sendButtonTitle || {}),
   };
 
+  // Disable voice button if: speech not supported OR language coming soon
+  // Note: We DON'T disable when voice mode is off - we want it clickable to activate voice mode
   const isVoiceDisabled = !isSpeechSupported || isLanguageComingSoon;
   const isInputDisabled = isTyping || isSpeaking || isListening;
+  
+  // Handle voice button click - if voice mode is disabled, check voice security first
+  const handleVoiceButtonClick = () => {
+    if (!isVoiceModeEnabled) {
+      // Voice mode is disabled - check if user has trusted voice device
+      if (isVoiceSecured && onVoiceModeToggle) {
+        // User has trusted voice device - can activate voice mode directly
+        onVoiceModeToggle();
+      } else if (onVoiceEnrollmentClick) {
+        // User doesn't have trusted voice device - show enrollment modal
+        onVoiceEnrollmentClick();
+      } else if (onVoiceModeToggle) {
+        // Fallback: try to toggle (will show error if not supported)
+        onVoiceModeToggle();
+      }
+    } else {
+      // Voice mode is enabled - use normal voice input handler
+      onVoiceClick();
+    }
+  };
 
-  const placeholderText = isSpeaking
+  const placeholderText = isTyping
+    ? placeholders.thinking
+    : isSpeaking
     ? placeholders.speaking
     : isLanguageComingSoon
     ? placeholders.comingSoon
@@ -81,8 +109,10 @@ const ChatInput = ({
     ? micTooltip.unsupported
     : isLanguageComingSoon
     ? micTooltip.comingSoon
-    : isVoiceModeEnabled
-    ? micTooltip.voiceMode
+    : !isVoiceModeEnabled
+    ? (micTooltip.activateVoiceMode || "Activate voice mode to enable microphone")
+    : isSpeaking
+    ? "Click to stop assistant and start speaking"
     : isListening
     ? micTooltip.stop
     : micTooltip.start;
@@ -91,15 +121,17 @@ const ChatInput = ({
 
   return (
     <form className="chat-input-container" onSubmit={onSubmit}>
-      <div className={`chat-input-wrapper ${isSpeaking ? "chat-input-wrapper--disabled" : ""}`}>
+      <div className="chat-input-wrapper">
         <button
           type="button"
           className={`chat-input-icon ${isListening ? "chat-input-icon--listening" : ""} ${
             isVoiceDisabled ? "chat-input-icon--disabled" : ""
+          } ${isSpeaking ? "chat-input-icon--interrupt" : ""} ${
+            !isVoiceModeEnabled && !isVoiceDisabled ? "chat-input-icon--voice-mode-disabled" : ""
           }`}
-          onClick={onVoiceClick}
+          onClick={handleVoiceButtonClick}
           title={micTitle}
-          disabled={isVoiceDisabled || isSpeaking}
+          disabled={isVoiceDisabled}
         >
           <svg
             width="24"
@@ -185,6 +217,9 @@ const ChatInput = ({
               <path d="M12 6V12L16 14" stroke="white" strokeWidth="2" strokeLinecap="round" />
             </svg>
             {hints.speaking}
+            <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.9 }}>
+              (Click microphone to interrupt)
+            </span>
           </span>
         )}
         {!isSpeaking && isLanguageComingSoon && (
@@ -236,12 +271,12 @@ const ChatInput = ({
           </span>
         )}
         {!isSpeaking && !isLanguageComingSoon && !isVoiceModeEnabled && !isListening && (
-          <span className="chat-hint">
+          <span className="chat-hint chat-hint--voice-mode-disabled">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
               <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            {hints.idle}
+            {hints.activateVoiceMode || "Activate voice mode to enable microphone button"}
           </span>
         )}
       </div>
@@ -258,8 +293,11 @@ ChatInput.propTypes = {
   isLanguageComingSoon: PropTypes.bool,
   isSpeaking: PropTypes.bool,
   isVoiceModeEnabled: PropTypes.bool,
+  isVoiceSecured: PropTypes.bool,
   onSubmit: PropTypes.func.isRequired,
   onVoiceClick: PropTypes.func.isRequired,
+  onVoiceModeToggle: PropTypes.func,
+  onVoiceEnrollmentClick: PropTypes.func,
   inputRef: PropTypes.object,
   copy: PropTypes.shape({
     placeholders: PropTypes.object,

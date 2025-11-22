@@ -49,6 +49,9 @@ def _clean_english_text(text: str) -> str:
 
 def create_fallback_investment_info(investment_type: str) -> Optional[Dict[str, Any]]:
     """Create fallback investment info when RAG extraction fails."""
+    # Normalize investment_type for lookup
+    investment_type_normalized = investment_type.lower().replace(" ", "_")
+    
     fallback_data: Dict[str, Dict[str, Any]] = {
         "ppf": {
             "name": "PPF",
@@ -164,25 +167,41 @@ def create_fallback_investment_info(investment_type: str) -> Optional[Dict[str, 
         },
     }
 
-    return fallback_data.get(investment_type.lower()) if investment_type else None
+    investment_info = fallback_data.get(investment_type_normalized) if investment_type else None
+    
+    # Add scheme_type to investment_info for frontend to use for document download
+    if investment_info:
+        investment_info["scheme_type"] = investment_type_normalized.upper()
+    
+    return investment_info
 
 
 def handle_general_investment_query(state: Dict[str, Any], language: str) -> Dict[str, Any]:
     """Return interactive card for generic investment discovery."""
-    available_investments = [
-        {"type": "ppf", "name": "PPF", "description": "Long-term tax-saving scheme", "icon": "🏦"},
-        {"type": "nps", "name": "NPS", "description": "Market-linked retirement scheme", "icon": "👴"},
-        {"type": "ssy", "name": "Sukanya Samriddhi Yojana", "description": "Girl child savings scheme", "icon": "👧"},
-        {"type": "elss", "name": "ELSS", "description": "Tax-saving mutual funds", "icon": "📈"},
-        {"type": "fd", "name": "Fixed Deposit", "description": "Safe investment with fixed returns", "icon": "💎"},
-        {"type": "rd", "name": "Recurring Deposit", "description": "Regular monthly savings scheme", "icon": "💰"},
-        {"type": "nsc", "name": "NSC", "description": "Tax-saving savings certificate", "icon": "📜"},
-    ]
-
     if language == "hi-IN":
+        # Hindi investment names and descriptions
+        available_investments = [
+            {"type": "ppf", "name": "पीपीएफ", "description": "दीर्घकालिक कर बचत योजना", "icon": "🏦"},
+            {"type": "nps", "name": "एनपीएस", "description": "बाजार-लिंक्ड रिटायरमेंट योजना", "icon": "👴"},
+            {"type": "ssy", "name": "सुकन्या समृद्धि योजना", "description": "बालिका बचत योजना", "icon": "👧"},
+            {"type": "elss", "name": "ईएलएसएस", "description": "कर बचत म्यूचुअल फंड", "icon": "📈"},
+            {"type": "fd", "name": "फिक्स्ड डिपॉजिट", "description": "निश्चित रिटर्न के साथ सुरक्षित निवेश", "icon": "💎"},
+            {"type": "rd", "name": "रिकरिंग डिपॉजिट", "description": "नियमित मासिक बचत योजना", "icon": "💰"},
+            {"type": "nsc", "name": "एनएससी", "description": "कर बचत बचत प्रमाणपत्र", "icon": "📜"},
+        ]
         # Use simple North Indian Hindi with female gender
         response = "यहाँ उपलब्ध निवेश योजनाएं हैं। किसी भी योजना पर क्लिक करें या बोलें:"
     else:
+        # English investment names and descriptions
+        available_investments = [
+            {"type": "ppf", "name": "PPF", "description": "Long-term tax-saving scheme", "icon": "🏦"},
+            {"type": "nps", "name": "NPS", "description": "Market-linked retirement scheme", "icon": "👴"},
+            {"type": "ssy", "name": "Sukanya Samriddhi Yojana", "description": "Girl child savings scheme", "icon": "👧"},
+            {"type": "elss", "name": "ELSS", "description": "Tax-saving mutual funds", "icon": "📈"},
+            {"type": "fd", "name": "Fixed Deposit", "description": "Safe investment with fixed returns", "icon": "💎"},
+            {"type": "rd", "name": "Recurring Deposit", "description": "Regular monthly savings scheme", "icon": "💰"},
+            {"type": "nsc", "name": "NSC", "description": "Tax-saving savings certificate", "icon": "📜"},
+        ]
         response = "Here are the available investment schemes. Click or speak any scheme for detailed information:"
 
     state["structured_data"] = {"type": "investment_selection", "investments": available_investments}
@@ -193,6 +212,7 @@ def handle_general_investment_query(state: Dict[str, Any], language: str) -> Dic
         "rag_investment_selection_response",
         response_type="investment_selection_table",
         investments_count=len(available_investments),
+        language=language,
     )
     return state
 
@@ -373,10 +393,15 @@ IMPORTANT RULES:
                     # Return None to trigger fallback
                     return None
             
+            # Add scheme_type to investment_info for frontend to use for document download
+            if investment_type:
+                investment_info["scheme_type"] = investment_type.upper()
+            
             state["structured_data"] = {"type": "investment", "investmentInfo": investment_info}
             logger.info(
                 "investment_info_extracted",
                 scheme_name=investment_info.get("name", "unknown"),
+                scheme_type_added=investment_info.get("scheme_type"),
                 has_amount=bool(investment_info.get("min_amount") or investment_info.get("investment_amount")),
                 has_rate=bool(investment_info.get("interest_rate")),
             )

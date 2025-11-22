@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Hindi Document Ingestion Script (Combined)
-Processes Hindi loan product and investment scheme PDFs and creates vector databases for RAG
-Run this script to populate both Hindi loan and investment vector databases
+English Document Ingestion Script (Combined)
+Processes English loan product and investment scheme PDFs and creates vector databases for RAG
+Run this script to populate both English loan and investment vector databases
 
 This script processes:
-- Hindi Loan Products (Personal, Home, Auto, Education, Gold, Business, LAP)
-- Hindi Investment Schemes (PPF, NPS, SSY)
+- English Loan Products (Personal, Home, Auto, Education, Gold, Business, LAP)
+- English Investment Schemes (PPF, NPS, SSY)
+
+Usage:
+    python ingest_documents_english.py
 """
 import sys
 from pathlib import Path
@@ -19,24 +22,24 @@ from utils import logger
 
 
 def main():
-    """Main ingestion function for Hindi documents"""
+    """Main ingestion function for English documents (loans + investments)"""
     print("=" * 60)
-    print("हिंदी दस्तावेज इंगेस्शन")
-    print("HINDI DOCUMENTS INGESTION")
+    print("ENGLISH DOCUMENTS INGESTION (COMBINED)")
+    print("Processing both Loan Products and Investment Schemes")
     print("=" * 60)
     
     ai_dir = Path(__file__).parent
     base_docs_dir = ai_dir.parent / "backend" / "documents"
     
     # Process loan products
-    print("\n📚 Processing Hindi Loan Products...")
-    loan_docs_path = base_docs_dir / "loan_products_hindi"
-    loan_persist_dir = "./chroma_db/loan_products_hindi"
-    loan_collection = "loan_products_hindi"
+    print("\n📚 Processing English Loan Products...")
+    loan_docs_path = base_docs_dir / "loan_products"
+    loan_persist_dir = "./chroma_db/loan_products"
+    loan_collection = "loan_products"
     
     if not loan_docs_path.exists():
         print(f"❌ ERROR: Documents folder not found at {loan_docs_path}")
-        print("   Please run: python backend/documents/create_loan_product_docs_hindi.py")
+        print("   Please run: python backend/documents/create_loan_product_docs.py")
         return 1
     
     pdf_files = list(loan_docs_path.glob("*.pdf"))
@@ -73,18 +76,18 @@ def main():
             print(f"✅ Loan vector database created successfully!")
         except Exception as e:
             print(f"\n❌ ERROR during loan vector store creation: {e}")
-            logger.error("hindi_loan_ingestion_failed", error=str(e))
+            logger.error("english_loan_ingestion_failed", error=str(e))
             return 1
     
     # Process investment schemes
-    print("\n📚 Processing Hindi Investment Schemes...")
-    investment_docs_path = base_docs_dir / "investment_schemes_hindi"
-    investment_persist_dir = "./chroma_db/investment_schemes_hindi"
-    investment_collection = "investment_schemes_hindi"
+    print("\n📚 Processing English Investment Schemes...")
+    investment_docs_path = base_docs_dir / "investment_schemes"
+    investment_persist_dir = "./chroma_db/investment_schemes"
+    investment_collection = "investment_schemes"
     
     if not investment_docs_path.exists():
         print(f"❌ ERROR: Documents folder not found at {investment_docs_path}")
-        print("   Please run: python backend/documents/create_investment_scheme_docs_hindi.py")
+        print("   Please run: python backend/documents/create_investment_scheme_docs.py")
         return 1
     
     pdf_files = list(investment_docs_path.glob("*.pdf"))
@@ -121,7 +124,7 @@ def main():
             print(f"✅ Investment vector database created successfully!")
         except Exception as e:
             print(f"\n❌ ERROR during investment vector store creation: {e}")
-            logger.error("hindi_investment_ingestion_failed", error=str(e))
+            logger.error("english_investment_ingestion_failed", error=str(e))
             return 1
     
     # Comprehensive retrieval tests
@@ -130,17 +133,16 @@ def main():
     
     # ===== LOAN TESTS =====
     if loan_rag_service.vectorstore:
-        print("\n📚 LOAN RETRIEVAL TESTS (Hindi)")
+        print("\n📚 LOAN RETRIEVAL TESTS")
         print("-" * 60)
         
-        # Test 1: Multiple loan types with filters
+        # Test 1: Home Loan with filter
         test_queries_loans = [
-            ("होम लोन की ब्याज दर क्या है?", "HOME_LOAN", "Home Loan"),
-            ("पर्सनल लोन की पात्रता क्या है?", "PERSONAL_LOAN", "Personal Loan"),
-            ("MUDRA लोन क्या है?", "BUSINESS_LOAN_MUDRA", "Business Loan MUDRA"),
-            ("एजुकेशन लोन के लिए कौन से दस्तावेज चाहिए?", "EDUCATION_LOAN", "Education Loan"),
-            ("गोल्ड लोन की ब्याज दर क्या है?", "GOLD_LOAN", "Gold Loan"),
-            ("ऑटो लोन की जानकारी दें", "AUTO_LOAN", "Auto Loan"),
+            ("What is the interest rate for home loans?", "HOME_LOAN", "Home Loan"),
+            ("What are the eligibility criteria for personal loans?", "PERSONAL_LOAN", "Personal Loan"),
+            ("Tell me about business loan MUDRA scheme", "BUSINESS_LOAN_MUDRA", "Business Loan MUDRA"),
+            ("What documents are needed for education loan?", "EDUCATION_LOAN", "Education Loan"),
+            ("What is the interest rate for gold loans?", "GOLD_LOAN", "Gold Loan"),
         ]
         
         loan_test_results = []
@@ -172,13 +174,12 @@ def main():
         # Test 2: Metadata quality check
         print(f"\n📊 METADATA QUALITY CHECK")
         print("-" * 60)
-        all_loan_chunks = loan_rag_service.retrieve("लोन", k=50)  # Get many chunks
+        all_loan_chunks = loan_rag_service.retrieve("loan", k=50)  # Get many chunks
         if all_loan_chunks:
             loan_types_found = set()
             languages_found = set()
             sections_found = set()
             chunks_with_metadata = 0
-            chunks_with_keywords = 0
             
             for doc in all_loan_chunks:
                 loan_type = doc.metadata.get("loan_type")
@@ -195,15 +196,12 @@ def main():
                     sections_found.add(section)
                 if loan_type and language and section:
                     chunks_with_metadata += 1
-                if keywords:
-                    chunks_with_keywords += 1
             
             print(f"   Total chunks sampled: {len(all_loan_chunks)}")
             print(f"   Chunks with complete metadata: {chunks_with_metadata}/{len(all_loan_chunks)}")
-            print(f"   Chunks with keywords: {chunks_with_keywords}/{len(all_loan_chunks)}")
             print(f"   Loan types found: {sorted(loan_types_found)}")
             print(f"   Languages found: {sorted(languages_found)}")
-            print(f"   Sections found: {sorted(sections_found)[:10]}...")
+            print(f"   Sections found: {sorted(sections_found)[:10]}...")  # Show first 10
             
             # Check for UNKNOWN_LOAN
             unknown_count = sum(1 for doc in all_loan_chunks if doc.metadata.get("loan_type") == "UNKNOWN_LOAN")
@@ -212,18 +210,19 @@ def main():
             else:
                 print(f"   ✅ All chunks have valid loan types")
         
-        # Test 3: Sub-loan type detection
+        # Test 3: Sub-loan type detection (Business Loan sub-types)
         print(f"\n📝 Test: Business Loan Sub-Types")
-        print(f"   Query: \"MUDRA लोन क्या है?\"")
+        print(f"   Query: \"What is MUDRA loan?\"")
         mudra_results = loan_rag_service.retrieve(
-            "MUDRA लोन क्या है?",
+            "What is MUDRA loan?",
             k=3,
             filter={"loan_type": "BUSINESS_LOAN_MUDRA"}
         )
         if mudra_results:
             print(f"   ✅ PASS: Found {len(mudra_results)} MUDRA loan documents")
         else:
-            mudra_results_unfiltered = loan_rag_service.retrieve("MUDRA लोन", k=3)
+            # Try without filter to see what we get
+            mudra_results_unfiltered = loan_rag_service.retrieve("What is MUDRA loan?", k=3)
             if mudra_results_unfiltered:
                 print(f"   ⚠️  Found {len(mudra_results_unfiltered)} documents without filter")
                 print(f"   Loan types: {[doc.metadata.get('loan_type') for doc in mudra_results_unfiltered]}")
@@ -234,14 +233,14 @@ def main():
     
     # ===== INVESTMENT TESTS =====
     if investment_rag_service.vectorstore:
-        print("\n\n💼 INVESTMENT SCHEME RETRIEVAL TESTS (Hindi)")
+        print("\n\n💼 INVESTMENT SCHEME RETRIEVAL TESTS")
         print("-" * 60)
         
         # Test 1: All investment schemes
         test_queries_investments = [
-            ("पीपीएफ की ब्याज दर क्या है?", "PPF", "PPF"),
-            ("NPS योजना के बारे में बताएं", "NPS", "NPS"),
-            ("SSY की ब्याज दर क्या है?", "SSY", "SSY"),
+            ("What is PPF interest rate?", "PPF", "PPF"),
+            ("Tell me about NPS scheme", "NPS", "NPS"),
+            ("What is SSY interest rate?", "SSY", "SSY"),
         ]
         
         investment_test_results = []
@@ -282,19 +281,17 @@ def main():
         # Test 2: Metadata quality check
         print(f"\n📊 METADATA QUALITY CHECK")
         print("-" * 60)
-        all_investment_chunks = investment_rag_service.retrieve("योजना", k=50)
+        all_investment_chunks = investment_rag_service.retrieve("investment", k=50)
         if all_investment_chunks:
             scheme_types_found = set()
             languages_found = set()
             sections_found = set()
             chunks_with_metadata = 0
-            chunks_with_keywords = 0
             
             for doc in all_investment_chunks:
                 scheme_type = doc.metadata.get("scheme_type")
                 language = doc.metadata.get("language")
                 section = doc.metadata.get("section")
-                keywords = doc.metadata.get("keywords")
                 
                 if scheme_type:
                     scheme_types_found.add(scheme_type)
@@ -304,12 +301,9 @@ def main():
                     sections_found.add(section)
                 if scheme_type and language and section:
                     chunks_with_metadata += 1
-                if keywords:
-                    chunks_with_keywords += 1
             
             print(f"   Total chunks sampled: {len(all_investment_chunks)}")
             print(f"   Chunks with complete metadata: {chunks_with_metadata}/{len(all_investment_chunks)}")
-            print(f"   Chunks with keywords: {chunks_with_keywords}/{len(all_investment_chunks)}")
             print(f"   Scheme types found: {sorted(scheme_types_found)}")
             print(f"   Languages found: {sorted(languages_found)}")
             print(f"   Sections found: {sorted(sections_found)[:10]}...")
@@ -332,12 +326,12 @@ def main():
     print("=" * 60)
     
     print("\n" + "=" * 60)
-    print("✅ HINDI INGESTION COMPLETED SUCCESSFULLY!")
+    print("✅ ENGLISH INGESTION COMPLETED SUCCESSFULLY!")
     print("=" * 60)
     print(f"\n💡 Vector databases ready:")
     print(f"   • Loans: {loan_persist_dir}")
     print(f"   • Investments: {investment_persist_dir}")
-    print("\n🚀 Start the AI backend to use Hindi RAG:")
+    print("\n🚀 Start the AI backend to use English RAG:")
     print("   python main.py")
     
     return 0
@@ -345,4 +339,3 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
-

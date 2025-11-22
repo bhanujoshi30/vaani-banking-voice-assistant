@@ -89,8 +89,7 @@ if [ $MISSING_DBS -gt 0 ]; then
     echo ""
     echo "💡 Note: Vector databases will be created automatically on first use."
     echo "   To pre-create them, run:"
-    echo "   - python ingest_documents.py (for English loans)"
-    echo "   - python ingest_investment_documents.py (for English investments)"
+    echo "   - python ingest_documents_english.py (for English loans & investments)"
     echo "   - python ingest_documents_hindi.py (for Hindi loans & investments)"
     echo ""
 else

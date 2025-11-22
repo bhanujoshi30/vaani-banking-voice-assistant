@@ -347,6 +347,19 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
               />
             )}
             
+            {message.structuredData.type === 'loan_multiple' && message.structuredData.loanCards && (
+              <div className="loan-cards-multiple">
+                {message.structuredData.loanCards.map((loanInfo, index) => (
+                  <LoanInfoCard 
+                    key={index}
+                    loanInfo={loanInfo} 
+                    language={messageLanguage}
+                    accessToken={session?.accessToken}
+                  />
+                ))}
+              </div>
+            )}
+            
             {message.structuredData.type === 'loan_selection' && message.structuredData.loans && (
               <LoanSelectionTable 
                 loans={message.structuredData.loans} 

@@ -15,7 +15,9 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
     setIsDownloading(true);
     try {
       const loanName = loanInfo.name || loanInfo.title || '';
-      await downloadDocument('loan', loanName, language, accessToken);
+      // Pass loan_type to downloadDocument so sub-loans download parent document
+      const loanType = loanInfo.loan_type || null;
+      await downloadDocument('loan', loanName, language, accessToken, loanType);
     } catch (error) {
       console.error('Error downloading loan document:', error);
       alert(language === 'hi-IN' 
@@ -32,6 +34,20 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
 
   const formatAmount = (amount) => {
     if (!amount) return '—';
+    
+    // Handle objects with {min, max} structure - extract the value
+    if (typeof amount === 'object' && amount !== null) {
+      // If it's an object with min/max, use the appropriate value
+      if ('max' in amount && amount.max) {
+        return formatAmount(amount.max); // Use max for display
+      } else if ('min' in amount && amount.min) {
+        return formatAmount(amount.min); // Use min as fallback
+      } else if ('value' in amount && amount.value) {
+        return formatAmount(amount.value); // Use value if present
+      }
+      // If object doesn't have expected structure, return default
+      return '—';
+    }
     
     // If it's already a string with Rs. or ₹, return as is
     if (typeof amount === 'string') {
@@ -58,11 +74,29 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
       return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
     }
     
-    return amount;
+    // Fallback: convert to string to avoid React rendering error
+    return String(amount);
   };
 
   const formatLoanAmountRange = (amountRange) => {
     if (!amountRange) return '—';
+    
+    // Handle objects with {min, max} structure
+    if (typeof amountRange === 'object' && amountRange !== null) {
+      if ('min' in amountRange && 'max' in amountRange) {
+        // Format as range: min - max
+        const minFormatted = formatAmount(amountRange.min);
+        const maxFormatted = formatAmount(amountRange.max);
+        return `${minFormatted} - ${maxFormatted}`;
+      } else if ('max' in amountRange && amountRange.max) {
+        return formatAmount(amountRange.max);
+      } else if ('min' in amountRange && amountRange.min) {
+        return formatAmount(amountRange.min);
+      } else if ('value' in amountRange && amountRange.value) {
+        return formatAmount(amountRange.value);
+      }
+      return '—';
+    }
     
     // If it's already a string with Rs. or ₹, return as is
     if (typeof amountRange === 'string') {
@@ -103,9 +137,58 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
     return amountRange;
   };
 
+  // Helper function to safely convert any value to string for React rendering
+  const safeString = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'object' && value !== null) {
+      // If it's an object, try to extract a meaningful value
+      if ('value' in value) return safeString(value.value);
+      if ('text' in value) return safeString(value.text);
+      if ('max' in value) return safeString(value.max);
+      if ('min' in value) return safeString(value.min);
+      // Last resort: stringify the object (for debugging)
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   const formatRate = (rate) => {
     if (!rate) return '—';
-    return `${rate}%`;
+    
+    // Handle objects with {min, max} structure
+    if (typeof rate === 'object' && rate !== null) {
+      if ('min' in rate && 'max' in rate) {
+        // Format as range: min% - max%
+        const minVal = typeof rate.min === 'string' ? rate.min.replace('%', '') : rate.min;
+        const maxVal = typeof rate.max === 'string' ? rate.max.replace('%', '') : rate.max;
+        return `${minVal}% - ${maxVal}%`;
+      } else if ('max' in rate && rate.max) {
+        const maxVal = typeof rate.max === 'string' ? rate.max.replace('%', '') : rate.max;
+        return `${maxVal}%`;
+      } else if ('min' in rate && rate.min) {
+        const minVal = typeof rate.min === 'string' ? rate.min.replace('%', '') : rate.min;
+        return `${minVal}%`;
+      } else if ('value' in rate && rate.value) {
+        const val = typeof rate.value === 'string' ? rate.value.replace('%', '') : rate.value;
+        return `${val}%`;
+      }
+      return '—';
+    }
+    
+    // If it's a string, ensure it has % symbol
+    if (typeof rate === 'string') {
+      return rate.includes('%') ? rate : `${rate}%`;
+    }
+    
+    // If it's a number, add % symbol
+    if (typeof rate === 'number') {
+      return `${rate}%`;
+    }
+    
+    // Fallback: convert to string
+    return String(rate);
   };
 
   return (
@@ -174,7 +257,7 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
             <span className="loan-info-card__label">
               {language === 'hi-IN' ? 'अवधि' : 'Tenure'}
             </span>
-            <span className="loan-info-card__value">{loanInfo.tenure}</span>
+            <span className="loan-info-card__value">{safeString(loanInfo.tenure)}</span>
           </div>
         )}
 
@@ -183,13 +266,13 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
             <span className="loan-info-card__label">
               {language === 'hi-IN' ? 'पात्रता' : 'Eligibility'}
             </span>
-            <span className="loan-info-card__value">{loanInfo.eligibility}</span>
+            <span className="loan-info-card__value">{safeString(loanInfo.eligibility)}</span>
           </div>
         )}
 
         {loanInfo.description && (
           <div className="loan-info-card__description">
-            {loanInfo.description}
+            {safeString(loanInfo.description)}
           </div>
         )}
 
@@ -213,7 +296,7 @@ const LoanInfoCard = ({ loanInfo, language = 'en-IN', accessToken = null }) => {
                 </div>
                 <ul className="loan-info-card__features-list">
                   {featuresArray.map((feature, index) => (
-                    <li key={index}>{feature}</li>
+                    <li key={index}>{safeString(feature)}</li>
                   ))}
                 </ul>
               </div>

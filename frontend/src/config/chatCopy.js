@@ -34,6 +34,7 @@ const CHAT_COPY = {
       { id: "investment", icon: "📈", label: "Investment Schemes", prompt: "Show me available investment schemes.", command: "Show me available investment schemes." },
       { id: "reminder", icon: "🔔", label: "Set Reminder", prompt: "I want to set a payment reminder.", command: "I want to set a payment reminder." },
       { id: "support", icon: "💬", label: "Customer Support", prompt: "I need help with customer support.", command: "I need help with customer support." },
+      { id: "change_language", icon: "🌐", label: "Change Language", prompt: "I want to change the language", command: "I want to change the language" },
     ],
     recentTopicsTitle: "Recent Topics",
     recentTopics: ["Account balance inquiry", "Transaction history", "Fund transfer"],
@@ -58,6 +59,7 @@ const CHAT_COPY = {
         listening: "Listening... speak now",
         voiceMode: "Voice mode active - speak your message...",
         speaking: "Assistant is speaking... please wait",
+        thinking: "Vaani is thinking...",
         comingSoon: "Voice input not available for this language yet. Type your message or pick English/Hindi.",
       },
       micTooltip: {
@@ -66,6 +68,7 @@ const CHAT_COPY = {
         voiceMode: "Voice mode enabled - microphone stays on",
         stop: "Stop listening",
         start: "Start voice input",
+        activateVoiceMode: "Activate voice mode to enable microphone",
       },
       hints: {
         speaking: "Assistant is speaking...",
@@ -167,6 +170,13 @@ const CHAT_COPY = {
         prompt: "मुझे ग्राहक सहायता की आवश्यकता है।",
         command: "I need help with customer support.",
       },
+      {
+        id: "change_language",
+        icon: "🌐",
+        label: "भाषा बदलें",
+        prompt: "मैं भाषा बदलना चाहता हूं",
+        command: "I want to change the language",
+      },
     ],
     recentTopicsTitle: "हाल के विषय",
     recentTopics: ["खाता बैलेंस पूछताछ", "लेनदेन इतिहास", "फंड ट्रांसफ़र"],
@@ -191,6 +201,7 @@ const CHAT_COPY = {
         listening: "सुन रहा हूँ... अब बोलें",
         voiceMode: "वॉइस मोड सक्रिय है - अपना संदेश बोलें...",
         speaking: "सहायक बोल रहा है... कृपया प्रतीक्षा करें",
+        thinking: "वाणी सोच रही है...",
         comingSoon: "इस भाषा के लिए वॉइस इनपुट अभी उपलब्ध नहीं है। कृपया संदेश टाइप करें या अंग्रेज़ी/हिंदी चुनें।",
       },
       micTooltip: {
@@ -199,6 +210,7 @@ const CHAT_COPY = {
         voiceMode: "वॉइस मोड चालू है - माइक्रोफ़ोन सक्रिय रहेगा",
         stop: "सुनना बंद करें",
         start: "वॉइस इनपुट शुरू करें",
+        activateVoiceMode: "माइक्रोफ़ोन सक्षम करने के लिए वॉइस मोड सक्रिय करें",
       },
       hints: {
         speaking: "सहायक बोल रहा है... इनपुट बंद है",
@@ -207,6 +219,7 @@ const CHAT_COPY = {
         listening: "सुन रहा हूँ... साफ़ बोलें",
         idle: "कोशिश करें: \"मेरा खाता बैलेंस बताओ\" या \"हाल के लेनदेन दिखाओ\"",
         clickToRecord: "फिर से रिकॉर्ड करने के लिए माइक्रोफ़ोन पर क्लिक करें",
+        activateVoiceMode: "माइक्रोफ़ोन बटन सक्षम करने के लिए वॉइस मोड सक्रिय करें",
       },
       sendButtonTitle: {
         default: "संदेश भेजें",

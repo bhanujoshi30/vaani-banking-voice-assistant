@@ -156,6 +156,97 @@ def create_fallback_loan_info(loan_type: str, language: str = "en-IN") -> Option
                     "व्यवसाय या व्यक्तिगत उपयोग",
                 ],
             },
+            # Sub-loan types for business loans
+            "business_loan_mudra": {
+                "name": "MUDRA लोन",
+                "interest_rate": "7.50% - 10.00% प्रति वर्ष",
+                "min_amount": "Rs. 10,000",
+                "max_amount": "Rs. 10 लाख",
+                "tenure": "7 वर्ष तक",
+                "eligibility": "सूक्ष्म उद्यमों के लिए सरकारी योजना",
+                "description": "MSME के लिए छोटे व्यवसाय लोन",
+                "features": [
+                    "शिशु: Rs. 50,000 तक",
+                    "किशोर: Rs. 50,001 से Rs. 5 लाख",
+                    "तरुण: Rs. 5,00,001 से Rs. 10 लाख",
+                    "गारंटी की आवश्यकता नहीं (Rs. 10 लाख तक)",
+                ],
+            },
+            "business_loan_term": {
+                "name": "टर्म लोन",
+                "interest_rate": "10.00% - 14.00% प्रति वर्ष",
+                "min_amount": "Rs. 10 लाख",
+                "max_amount": "Rs. 50 करोड़",
+                "tenure": "10 वर्ष तक",
+                "eligibility": "पूंजीगत व्यय के लिए - मशीनरी, उपकरण, फैक्टरी सेटअप, विस्तार",
+                "description": "दीर्घकालिक व्यवसाय वित्तपोषण",
+                "features": [
+                    "मासिक/त्रैमासिक EMI के साथ निश्चित अवधि",
+                    "मशीनरी और उपकरण खरीद के लिए",
+                    "फैक्टरी सेटअप और विस्तार के लिए",
+                    "Rs. 25 लाख से ऊपर गारंटी आवश्यक",
+                ],
+            },
+            "business_loan_working_capital": {
+                "name": "वर्किंग कैपिटल लोन",
+                "interest_rate": "11.00% - 15.00% प्रति वर्ष",
+                "min_amount": "Rs. 5 लाख",
+                "max_amount": "Rs. 25 करोड़",
+                "tenure": "12 महीने (नवीकरणीय)",
+                "eligibility": "दैनिक संचालन के लिए - कच्चा माल, वेतन, किराया",
+                "description": "दैनिक व्यवसाय संचालन के लिए",
+                "features": [
+                    "ओवरड्राफ्ट या कैश क्रेडिट सीमा सुविधा",
+                    "केवल उपयोग की गई राशि पर ब्याज",
+                    "Rs. 50 लाख से ऊपर गारंटी आवश्यक",
+                    "12 महीने के लिए नवीकरणीय",
+                ],
+            },
+            "business_loan_equipment": {
+                "name": "इक्विपमेंट फाइनेंसिंग",
+                "interest_rate": "10.00% - 14.00% प्रति वर्ष",
+                "min_amount": "Rs. 10 लाख",
+                "max_amount": "Rs. 50 करोड़",
+                "tenure": "10 वर्ष तक",
+                "eligibility": "मशीनरी, वाहन, कंप्यूटर, उपकरण वित्तपोषण",
+                "description": "मशीनरी और उपकरण खरीद के लिए",
+                "features": [
+                    "उपकरण गारंटी के रूप में कार्य करता है",
+                    "90% तक वित्तपोषण",
+                    "मशीनरी, वाहन, कंप्यूटर, उपकरण के लिए",
+                    "Rs. 25 लाख से ऊपर गारंटी आवश्यक",
+                ],
+            },
+            "business_loan_invoice": {
+                "name": "इनवॉइस फाइनेंसिंग",
+                "interest_rate": "11.00% - 15.00% प्रति वर्ष",
+                "min_amount": "Rs. 5 लाख",
+                "max_amount": "Rs. 25 करोड़",
+                "tenure": "12 महीने (नवीकरणीय)",
+                "eligibility": "लंबित इनवॉइस/बिलों के खिलाफ तत्काल धन प्राप्त करें",
+                "description": "इनवॉइस के खिलाफ वित्तपोषण",
+                "features": [
+                    "इनवॉइस मूल्य का 80% तक",
+                    "केवल उपयोग की गई राशि पर ब्याज",
+                    "लंबित बिलों के खिलाफ तत्काल धन",
+                    "कार्यशील पूंजी प्रबंधन में मदद",
+                ],
+            },
+            "business_loan_overdraft": {
+                "name": "बिजनेस ओवरड्राफ्ट",
+                "interest_rate": "11.00% - 15.00% प्रति वर्ष",
+                "min_amount": "Rs. 5 लाख",
+                "max_amount": "Rs. 25 करोड़",
+                "tenure": "12 महीने (नवीकरणीय)",
+                "eligibility": "आवश्यकता के अनुसार धन निकालने के लिए",
+                "description": "लचीला क्रेडिट सुविधा",
+                "features": [
+                    "स्वीकृत सीमा तक आवश्यकतानुसार धन निकालें",
+                    "केवल उपयोग की गई राशि पर ब्याज, पूरी सीमा पर नहीं",
+                    "लचीला पुनर्भुगतान",
+                    "Rs. 50 लाख से ऊपर गारंटी आवश्यक",
+                ],
+            },
         }
     else:
         fallback_data: Dict[str, Dict[str, Any]] = {
@@ -264,9 +355,109 @@ def create_fallback_loan_info(loan_type: str, language: str = "en-IN") -> Option
                     "Business or personal use",
                 ],
             },
+            # Sub-loan types for business loans
+            "business_loan_mudra": {
+                "name": "MUDRA Loan",
+                "interest_rate": "7.50% - 10.00% p.a.",
+                "min_amount": "Rs. 10,000",
+                "max_amount": "Rs. 10 lakhs",
+                "tenure": "Up to 7 years",
+                "eligibility": "Government scheme for micro enterprises",
+                "description": "Small business loans for MSME",
+                "features": [
+                    "Shishu: Up to Rs. 50,000",
+                    "Kishore: Rs. 50,001 to Rs. 5 lakhs",
+                    "Tarun: Rs. 5,00,001 to Rs. 10 lakhs",
+                    "No collateral required (up to Rs. 10 lakhs)",
+                ],
+            },
+            "business_loan_term": {
+                "name": "Term Loan",
+                "interest_rate": "10.00% - 14.00% p.a.",
+                "min_amount": "Rs. 10 lakhs",
+                "max_amount": "Rs. 50 crores",
+                "tenure": "Up to 10 years",
+                "eligibility": "For capital expenditure - machinery, equipment, factory setup, expansion",
+                "description": "Long-term business financing",
+                "features": [
+                    "Fixed tenure with monthly/quarterly EMI",
+                    "For machinery and equipment purchase",
+                    "For factory setup and expansion",
+                    "Collateral required above Rs. 25 lakhs",
+                ],
+            },
+            "business_loan_working_capital": {
+                "name": "Working Capital Loan",
+                "interest_rate": "11.00% - 15.00% p.a.",
+                "min_amount": "Rs. 5 lakhs",
+                "max_amount": "Rs. 25 crores",
+                "tenure": "12 months (renewable)",
+                "eligibility": "For day-to-day operations - raw material, salaries, rent",
+                "description": "For daily business operations",
+                "features": [
+                    "Overdraft or cash credit limit facility",
+                    "Interest only on utilized amount",
+                    "Collateral required above Rs. 50 lakhs",
+                    "Renewable for 12 months",
+                ],
+            },
+            "business_loan_equipment": {
+                "name": "Equipment Financing",
+                "interest_rate": "10.00% - 14.00% p.a.",
+                "min_amount": "Rs. 10 lakhs",
+                "max_amount": "Rs. 50 crores",
+                "tenure": "Up to 10 years",
+                "eligibility": "Finance machinery, vehicles, computers, tools",
+                "description": "For machinery and equipment purchase",
+                "features": [
+                    "Equipment acts as collateral",
+                    "Up to 90% funding",
+                    "For machinery, vehicles, computers, tools",
+                    "Collateral required above Rs. 25 lakhs",
+                ],
+            },
+            "business_loan_invoice": {
+                "name": "Invoice Financing",
+                "interest_rate": "11.00% - 15.00% p.a.",
+                "min_amount": "Rs. 5 lakhs",
+                "max_amount": "Rs. 25 crores",
+                "tenure": "12 months (renewable)",
+                "eligibility": "Get instant funds against pending invoices/bills",
+                "description": "Financing against invoices",
+                "features": [
+                    "Up to 80% of invoice value",
+                    "Interest only on utilized amount",
+                    "Instant funds against pending bills",
+                    "Helps in working capital management",
+                ],
+            },
+            "business_loan_overdraft": {
+                "name": "Business Overdraft",
+                "interest_rate": "11.00% - 15.00% p.a.",
+                "min_amount": "Rs. 5 lakhs",
+                "max_amount": "Rs. 25 crores",
+                "tenure": "12 months (renewable)",
+                "eligibility": "Withdraw funds as needed up to sanctioned limit",
+                "description": "Flexible credit facility",
+                "features": [
+                    "Withdraw funds as needed up to sanctioned limit",
+                    "Interest only on utilized amount, not entire limit",
+                    "Flexible repayment",
+                    "Collateral required above Rs. 50 lakhs",
+                ],
+            },
         }
     
-    return fallback_data.get(loan_type)
+    # Normalize loan_type to lowercase for lookup
+    loan_type_normalized = loan_type.lower().replace(" ", "_")
+    loan_info = fallback_data.get(loan_type_normalized)
+    
+    # Add loan_type to loan_info for frontend to use for document download
+    if loan_info:
+        # Convert normalized type back to uppercase format (e.g., "business_loan_mudra" -> "BUSINESS_LOAN_MUDRA")
+        loan_info["loan_type"] = loan_type_normalized.upper().replace(" ", "_")
+    
+    return loan_info
 
 
 def handle_general_loan_query(state: Dict[str, Any], language: str) -> Dict[str, Any]:
@@ -318,6 +509,184 @@ def handle_general_loan_query(state: Dict[str, Any], language: str) -> Dict[str,
     return state
 
 
+def _extract_conversation_context(state: Dict[str, Any], max_pairs: int = 3) -> str:
+    """Extract conversation context from previous message pairs."""
+    messages = state.get("messages", [])
+    conversation_context = ""
+    
+    if len(messages) > 1:
+        # Get exactly the last max_pairs pairs (excluding current message)
+        recent_messages = []
+        pairs_collected = 0
+        i = len(messages) - 2  # Start from second-to-last message (skip current)
+        
+        while i >= 0 and pairs_collected < max_pairs:
+            msg = messages[i]
+            msg_type = msg.__class__.__name__
+            
+            # If this is an Assistant message, look for the preceding User message to form a pair
+            if msg_type == "AIMessage":
+                # Check if there's a User message before this Assistant message
+                if i > 0:
+                    prev_msg = messages[i - 1]
+                    prev_msg_type = prev_msg.__class__.__name__
+                    
+                    # If previous is User message, we have a complete pair
+                    if prev_msg_type == "HumanMessage":
+                        # Add both messages to recent_messages (in chronological order)
+                        recent_messages.insert(0, prev_msg)  # User message first
+                        recent_messages.insert(1, msg)  # Assistant message second
+                        pairs_collected += 1
+                        i -= 2  # Skip both messages
+                    else:
+                        # Previous is also Assistant, skip this one
+                        i -= 1
+                else:
+                    # No previous message, skip
+                    i -= 1
+            else:
+                # Current message is User, but we need pairs, so skip
+                i -= 1
+        
+        # Build conversation context from collected pairs
+        if recent_messages:
+            conversation_context = "\n\nPREVIOUS CONVERSATION CONTEXT (Last 3 pairs only):\n"
+            for msg in recent_messages:
+                role = "User" if hasattr(msg, "content") and msg.__class__.__name__ == "HumanMessage" else "Assistant"
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                conversation_context += f"{role}: {content}\n"
+            conversation_context += "\nIMPORTANT: Use the context from the previous conversation to understand what the user is referring to. If the user's current message is brief (like 'against property'), it likely refers to something mentioned in the previous conversation.\n"
+    
+    return conversation_context
+
+
+def _detect_sub_loan_types(rag_service, main_loan_type: str, language: str) -> List[str]:
+    """Detect all available sub-loan types for a main loan type from the RAG database.
+    
+    This queries the vector database intelligently to find all chunks that have sub-loan type loan_type values.
+    It queries multiple times with different search terms to ensure we find all sub-types.
+    """
+    # Normalize main_loan_type
+    main_loan_normalized = main_loan_type.lower().replace(" ", "_")
+    main_type_upper = main_loan_normalized.upper().replace(" ", "_")
+    
+    # Map main loan types to their possible sub-types (for reference and fallback)
+    expected_sub_types = {
+        "business_loan": ["BUSINESS_LOAN_MUDRA", "BUSINESS_LOAN_TERM", "BUSINESS_LOAN_WORKING_CAPITAL", 
+                          "BUSINESS_LOAN_INVOICE", "BUSINESS_LOAN_EQUIPMENT", "BUSINESS_LOAN_OVERDRAFT"],
+        "home_loan": ["HOME_LOAN_PURCHASE", "HOME_LOAN_CONSTRUCTION", "HOME_LOAN_PLOT_CONSTRUCTION",
+                      "HOME_LOAN_EXTENSION", "HOME_LOAN_RENOVATION", "HOME_LOAN_BALANCE_TRANSFER"],
+    }
+    
+    if main_loan_normalized not in expected_sub_types:
+        return []
+    
+    # Query the database with multiple search terms to find all related chunks
+    # Use language-specific queries
+    if language == "hi-IN":
+        query_terms = {
+            "business_loan": ["बिजनेस लोन", "business loan", "msme", "mudra", "term loan", "working capital", "invoice", "equipment"],
+            "home_loan": ["होम लोन", "home loan", "house loan", "property loan", "construction", "purchase"],
+        }
+    else:
+        query_terms = {
+            "business_loan": ["business loan", "msme", "mudra", "term loan", "working capital", "invoice financing", "equipment financing"],
+            "home_loan": ["home loan", "house loan", "property loan", "construction loan", "purchase loan"],
+        }
+    
+    # Collect all unique loan_type values from multiple queries
+    all_loan_types = set()
+    queries = query_terms.get(main_loan_normalized, [main_loan_normalized.replace("_", " ")])
+    
+    # Query with each search term to maximize coverage
+    for query_term in queries[:3]:  # Use first 3 queries to avoid too many calls
+        try:
+            results = rag_service.retrieve(query_term, k=30)
+            for doc in results:
+                loan_type = doc.metadata.get("loan_type", "")
+                if loan_type:
+                    all_loan_types.add(loan_type)
+        except Exception as e:
+            logger.warning("sub_loan_detection_query_failed", query=query_term, error=str(e))
+            continue
+    
+    # Extract sub-types (those that start with main_type + "_")
+    found_sub_types = set()
+    main_type_found = False
+    
+    for loan_type in all_loan_types:
+        if loan_type == main_type_upper:
+            main_type_found = True
+        elif loan_type.startswith(main_type_upper + "_"):
+            found_sub_types.add(loan_type)
+    
+    logger.info(
+        "sub_loan_types_detection",
+        main_type=main_loan_normalized,
+        all_loan_types_found=list(all_loan_types),
+        sub_types_found=list(found_sub_types),
+        main_type_found=main_type_found,
+        queries_used=queries[:3]
+    )
+    
+    # If main type exists, return all expected sub-types (they represent available product options)
+    # This ensures users see all available options, not just what's explicitly in the current PDF
+    if main_type_found or main_loan_normalized in ["business_loan", "home_loan"]:
+        # Double-check: query specifically for the main type to confirm it exists
+        try:
+            main_type_results = rag_service.retrieve(
+                main_loan_normalized.replace("_", " "), 
+                k=5,
+                filter={"loan_type": main_type_upper}
+            )
+            if main_type_results or main_loan_normalized in ["business_loan", "home_loan"]:
+                # Return all expected sub-types, but prioritize those found in database
+                expected = expected_sub_types[main_loan_normalized]
+                found_list = sorted(list(found_sub_types))
+                
+                # If we found some sub-types, log them but still return all expected ones
+                if found_list:
+                    logger.info(
+                        "sub_loan_types_detected_from_db",
+                        main_type=main_loan_normalized,
+                        count=len(found_list),
+                        sub_types=found_list,
+                        note="Returning all expected sub-types to show complete product options"
+                    )
+                
+                logger.info(
+                    "sub_loan_types_returning_all_expected",
+                    main_type=main_loan_normalized,
+                    found_in_db=found_list,
+                    returning_all=expected,
+                    reason="Main loan type exists. Showing all available product sub-types."
+                )
+                return expected
+        except Exception as e:
+            logger.warning("sub_loan_fallback_check_failed", error=str(e))
+            # Still return expected sub-types if it's business/home loan
+            if main_loan_normalized in ["business_loan", "home_loan"]:
+                return expected_sub_types[main_loan_normalized]
+    
+    # If we found sub-types but main type not confirmed, return what we found
+    if found_sub_types:
+        logger.info(
+            "sub_loan_types_detected_from_db",
+            main_type=main_loan_normalized,
+            count=len(found_sub_types),
+            sub_types=sorted(list(found_sub_types))
+        )
+        return sorted(list(found_sub_types))
+    
+    # No main type found - return empty
+    logger.warning(
+        "sub_loan_types_not_found",
+        main_type=main_loan_normalized,
+        message="Loan type not found in database"
+    )
+    return []
+
+
 async def handle_loan_query(
     state: Dict[str, Any],
     *,
@@ -329,15 +698,149 @@ async def handle_loan_query(
     """Answer loan questions using RAG context and structured cards."""
     from services.rag_service import get_rag_service
 
+    # Extract conversation context from previous messages
+    conversation_context = _extract_conversation_context(state, max_pairs=3)
+    
+    # Build enhanced query with conversation context for better RAG retrieval
+    enhanced_query = user_query
+    if conversation_context:
+        # Extract key loan-related terms from conversation context for better RAG matching
+        if "loan" in conversation_context.lower() or "लोन" in conversation_context:
+            # If previous context mentions loans, include it in the query
+            enhanced_query = f"{conversation_context}\n\nCurrent question: {user_query}"
+
+    rag_service = get_rag_service(documents_type="loan", language=language)
+    
+    # Normalize detected_loan_type for checking sub-types
+    normalized_loan_type = None
+    if detected_loan_type:
+        # Normalize to lowercase with underscores (e.g., "business_loan")
+        normalized_loan_type = detected_loan_type.lower().replace(" ", "_")
+    
+    # Check if user query mentions a SPECIFIC sub-loan type
+    # If yes, retrieve that specific sub-loan type instead of showing selection
+    user_query_lower = user_query.lower()
+    specific_sub_loan_mentioned = None
+    
+    # Map sub-loan type keywords to their normalized types
+    sub_loan_keywords = {
+        "business_loan": {
+            "mudra": "BUSINESS_LOAN_MUDRA",
+            "term loan": "BUSINESS_LOAN_TERM",
+            "term": "BUSINESS_LOAN_TERM",  # Check "term" after checking "term loan"
+            "working capital": "BUSINESS_LOAN_WORKING_CAPITAL",
+            "working": "BUSINESS_LOAN_WORKING_CAPITAL",  # Check "working" after checking "working capital"
+            "invoice": "BUSINESS_LOAN_INVOICE",
+            "equipment": "BUSINESS_LOAN_EQUIPMENT",
+            "overdraft": "BUSINESS_LOAN_OVERDRAFT",
+            # Hindi keywords
+            "मुद्रा": "BUSINESS_LOAN_MUDRA",
+            "टर्म": "BUSINESS_LOAN_TERM",
+            "कार्यशील": "BUSINESS_LOAN_WORKING_CAPITAL",
+        },
+        "home_loan": {
+            "purchase": "HOME_LOAN_PURCHASE",
+            "construction": "HOME_LOAN_CONSTRUCTION",
+            "plot": "HOME_LOAN_PLOT_CONSTRUCTION",
+            "extension": "HOME_LOAN_EXTENSION",
+            "renovation": "HOME_LOAN_RENOVATION",
+            "balance transfer": "HOME_LOAN_BALANCE_TRANSFER",
+        }
+    }
+    
+    # Check if user query mentions a specific sub-loan type
+    # First, check if normalized_loan_type is in sub_loan_keywords
+    if normalized_loan_type in sub_loan_keywords:
+        keywords = sub_loan_keywords[normalized_loan_type]
+        # Sort by length (longest first) to match "term loan" before "term"
+        sorted_keywords = sorted(keywords.items(), key=lambda x: len(x[0]), reverse=True)
+        for keyword, sub_type in sorted_keywords:
+            if keyword in user_query_lower:
+                specific_sub_loan_mentioned = sub_type
+                logger.info(
+                    "specific_sub_loan_type_detected_in_query",
+                    keyword=keyword,
+                    sub_type=sub_type,
+                    query=user_query
+                )
+                break
+    
+    # Also check ALL sub-loan keywords if normalized_loan_type is None or not found
+    # This handles cases like "Tell me about mudra loan" where business_loan wasn't detected
+    # Also handle cases where loan type is passed directly (e.g., "business_loan_mudra")
+    if not specific_sub_loan_mentioned:
+        # First, check if the query contains a direct sub-loan type (e.g., "business_loan_mudra")
+        # Normalize underscores to spaces for matching
+        query_normalized = user_query_lower.replace("_", " ").replace("-", " ")
+        
+        # Check all sub-loan keywords across all loan types
+        for loan_type, keywords in sub_loan_keywords.items():
+            sorted_keywords = sorted(keywords.items(), key=lambda x: len(x[0]), reverse=True)
+            for keyword, sub_type in sorted_keywords:
+                # Check both the keyword and the sub_type (normalized) in the query
+                sub_type_normalized = sub_type.lower().replace("_", " ")
+                if keyword in query_normalized or sub_type_normalized in query_normalized:
+                    specific_sub_loan_mentioned = sub_type
+                    # Also set normalized_loan_type to the parent loan type
+                    if not normalized_loan_type:
+                        normalized_loan_type = loan_type
+                        detected_loan_type = loan_type
+                    logger.info(
+                        "specific_sub_loan_type_detected_directly",
+                        keyword=keyword,
+                        sub_type=sub_type,
+                        parent_type=loan_type,
+                        query=user_query,
+                        query_normalized=query_normalized
+                    )
+                    break
+            if specific_sub_loan_mentioned:
+                break
+    
+    # Check if this loan type has multiple sub-types
+    # For business_loan and home_loan, show sub-type selection ONLY if no specific sub-type mentioned
+    sub_loan_types = []
+    if normalized_loan_type in ["business_loan", "home_loan"]:
+        sub_loan_types = _detect_sub_loan_types(rag_service, normalized_loan_type, language)
+        
+        # If user mentioned a specific sub-loan type, use that instead of showing selection
+        if specific_sub_loan_mentioned:
+            # Override detected_loan_type with the specific sub-loan type
+            detected_loan_type = specific_sub_loan_mentioned
+            logger.info(
+                "using_specific_sub_loan_type",
+                original_type=normalized_loan_type,
+                specific_sub_type=specific_sub_loan_mentioned,
+                query=user_query
+            )
+        # If we have sub-types but NO specific sub-type mentioned, show selection interface
+        elif sub_loan_types and len(sub_loan_types) > 0:
+            # Show selection interface for business/home loans when asked generically
+            # This matches user expectation to see all available options
+            logger.info(
+                "showing_sub_loan_selection",
+                main_type=normalized_loan_type,
+                sub_types=sub_loan_types,
+                query=user_query
+            )
+            return _create_sub_loan_selection(state, normalized_loan_type, sub_loan_types, language)
+    
     rag_context = ""
     try:
-        rag_service = get_rag_service(documents_type="loan", language=language)
         rag_filter = None
         if detected_loan_type:
-            rag_filter = {"loan_type": detected_loan_type}
+            # Use the detected loan type (which may be a specific sub-loan type)
+            # Convert to uppercase with underscores for metadata matching
+            rag_filter = {"loan_type": detected_loan_type.upper().replace(" ", "_")}
+            logger.info(
+                "rag_filter_set",
+                detected_loan_type=detected_loan_type,
+                filter_value=rag_filter["loan_type"]
+            )
+        
         rag_context = rag_service.get_context_for_query(
-            user_query,
-            k=2 if rag_filter else 3,
+            enhanced_query,
+            k=5 if rag_filter else 3,  # Increase k to get more relevant chunks when filtering
             filter=rag_filter,
         )
         logger.info(
@@ -345,6 +848,9 @@ async def handle_loan_query(
             query_length=len(user_query),
             context_length=len(rag_context),
             metadata_filtered=bool(rag_filter),
+            filter_value=rag_filter.get("loan_type") if rag_filter else None,
+            has_conversation_context=bool(conversation_context),
+            context_preview=rag_context[:300].replace("\n", " ") if rag_context else "EMPTY"
         )
     except Exception as exc:
         logger.error("rag_loan_retrieval_error", error=str(exc))
@@ -373,18 +879,39 @@ async def handle_loan_query(
 
     # Fallback: If extraction failed but we have detected_loan_type, use fallback data
     if detected_loan_type:
-        loan_info_fallback = create_fallback_loan_info(detected_loan_type, language)
+        # Normalize detected_loan_type for fallback lookup (handle both formats)
+        normalized_for_fallback = detected_loan_type.lower().replace(" ", "_")
+        loan_info_fallback = create_fallback_loan_info(normalized_for_fallback, language)
         if loan_info_fallback:
             state["structured_data"] = {"type": "loan", "loanInfo": loan_info_fallback}
             response = _build_loan_response_text(loan_info_fallback, language)
             state["messages"].append(AIMessage(content=response))
             state["next_action"] = "end"
-            logger.info("rag_loan_agent_response", has_structured=True, used_fallback=True)
+            logger.info(
+                "rag_loan_agent_response", 
+                has_structured=True, 
+                used_fallback=True,
+                detected_loan_type=detected_loan_type,
+                normalized_for_fallback=normalized_for_fallback,
+                fallback_available=True
+            )
             return state
+        else:
+            logger.warning(
+                "rag_loan_agent_fallback_not_found",
+                detected_loan_type=detected_loan_type,
+                normalized_for_fallback=normalized_for_fallback,
+                language=language
+            )
+
+    # Build user query with conversation context for LLM
+    user_query_with_context = user_query
+    if conversation_context:
+        user_query_with_context = f"{conversation_context}\n\nUser's current question: {user_query}"
 
     llm_messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_query},
+        {"role": "user", "content": user_query_with_context},
     ]
     response = await llm.chat(llm_messages, use_fast_model=False)
     
@@ -398,21 +925,220 @@ async def handle_loan_query(
     return state
 
 
+async def _handle_multiple_sub_loan_types(
+    state: Dict[str, Any],
+    main_loan_type: str,
+    sub_loan_types: List[str],
+    language: str,
+    user_query: str,
+    llm,
+) -> Dict[str, Any]:
+    """Handle queries for loan types with multiple sub-types - return multiple cards or selection."""
+    from services.rag_service import get_rag_service
+    
+    rag_service = get_rag_service(documents_type="loan", language=language)
+    
+    # Try to extract cards for all sub-types
+    all_loan_cards = []
+    
+    for sub_type in sub_loan_types:
+        # Retrieve context for this sub-type
+        rag_context = rag_service.get_context_for_query(
+            user_query,
+            k=2,
+            filter={"loan_type": sub_type}
+        )
+        
+        if rag_context:
+            # Extract card for this sub-type
+            temp_state = {"structured_data": {}}
+            loan_card = await _extract_loan_card(
+                temp_state,
+                llm,
+                rag_context,
+                sub_type,
+                language=language,
+            )
+            if loan_card:
+                all_loan_cards.append(loan_card)
+    
+    # If we got multiple cards, return them all
+    if len(all_loan_cards) > 1:
+        # Build response text mentioning all available options
+        if language == "hi-IN":
+            main_loan_name = {
+                "business_loan": "बिजनेस लोन",
+                "home_loan": "होम लोन",
+            }.get(main_loan_type, main_loan_type.replace("_", " ").title())
+            
+            sub_type_names = {
+                "BUSINESS_LOAN_MUDRA": "MUDRA लोन",
+                "BUSINESS_LOAN_TERM": "टर्म लोन",
+                "BUSINESS_LOAN_WORKING_CAPITAL": "वर्किंग कैपिटल लोन",
+                "BUSINESS_LOAN_INVOICE": "इनवॉइस फाइनेंसिंग",
+                "BUSINESS_LOAN_EQUIPMENT": "इक्विपमेंट फाइनेंसिंग",
+                "BUSINESS_LOAN_OVERDRAFT": "बिजनेस ओवरड्राफ्ट",
+                "HOME_LOAN_PURCHASE": "होम पर्चेज लोन",
+                "HOME_LOAN_CONSTRUCTION": "होम कंस्ट्रक्शन लोन",
+                "HOME_LOAN_PLOT_CONSTRUCTION": "प्लॉट कंस्ट्रक्शन लोन",
+                "HOME_LOAN_EXTENSION": "होम एक्सटेंशन लोन",
+                "HOME_LOAN_RENOVATION": "होम रेनोवेशन लोन",
+                "HOME_LOAN_BALANCE_TRANSFER": "बैलेंस ट्रांसफर लोन",
+            }
+            
+            sub_names_list = [sub_type_names.get(st, st.replace("_", " ")) for st in sub_loan_types if st in [c.get("name", "").upper().replace(" ", "_") for c in all_loan_cards]]
+            response_text = f"{main_loan_name} के लिए हमारे पास {len(all_loan_cards)} विकल्प उपलब्ध हैं: {', '.join(sub_names_list)}. नीचे दिए गए कार्ड में विस्तृत जानकारी देखें।"
+        else:
+            main_loan_name = main_loan_type.replace("_", " ").title()
+            sub_type_names = {
+                "BUSINESS_LOAN_MUDRA": "MUDRA Loan",
+                "BUSINESS_LOAN_TERM": "Term Loan",
+                "BUSINESS_LOAN_WORKING_CAPITAL": "Working Capital Loan",
+                "BUSINESS_LOAN_INVOICE": "Invoice Financing",
+                "BUSINESS_LOAN_EQUIPMENT": "Equipment Financing",
+                "BUSINESS_LOAN_OVERDRAFT": "Business Overdraft",
+                "HOME_LOAN_PURCHASE": "Home Purchase Loan",
+                "HOME_LOAN_CONSTRUCTION": "Home Construction Loan",
+                "HOME_LOAN_PLOT_CONSTRUCTION": "Plot Construction Loan",
+                "HOME_LOAN_EXTENSION": "Home Extension Loan",
+                "HOME_LOAN_RENOVATION": "Home Renovation Loan",
+                "HOME_LOAN_BALANCE_TRANSFER": "Balance Transfer Loan",
+            }
+            sub_names_list = [sub_type_names.get(st, st.replace("_", " ").title()) for st in sub_loan_types]
+            response_text = f"For {main_loan_name}, we have {len(all_loan_cards)} options available: {', '.join(sub_names_list)}. See detailed information in the cards below."
+        
+        state["structured_data"] = {"type": "loan_multiple", "loanCards": all_loan_cards}
+        state["messages"].append(AIMessage(content=response_text))
+        state["next_action"] = "end"
+        logger.info("rag_loan_agent_response", has_structured=True, multiple_cards=len(all_loan_cards))
+        return state
+    
+    # If extraction failed, fall back to selection interface
+    return _create_sub_loan_selection(state, main_loan_type, sub_loan_types, language)
+
+
+def _create_sub_loan_selection(state: Dict[str, Any], main_loan_type: str, sub_loan_types: List[str], language: str) -> Dict[str, Any]:
+    """Create a selection interface for sub-loan types."""
+    if language == "hi-IN":
+        main_loan_name = {
+            "business_loan": "बिजनेस लोन",
+            "home_loan": "होम लोन",
+        }.get(main_loan_type, main_loan_type.replace("_", " ").title())
+        
+        sub_loan_options = []
+        sub_type_names = {
+            "BUSINESS_LOAN_MUDRA": ("MUDRA लोन", "MSME के लिए छोटे व्यवसाय लोन"),
+            "BUSINESS_LOAN_TERM": ("टर्म लोन", "दीर्घकालिक व्यवसाय वित्तपोषण"),
+            "BUSINESS_LOAN_WORKING_CAPITAL": ("वर्किंग कैपिटल लोन", "दैनिक व्यवसाय संचालन के लिए"),
+            "BUSINESS_LOAN_INVOICE": ("इनवॉइस फाइनेंसिंग", "इनवॉइस के खिलाफ वित्तपोषण"),
+            "BUSINESS_LOAN_EQUIPMENT": ("इक्विपमेंट फाइनेंसिंग", "मशीनरी और उपकरण खरीद के लिए"),
+            "BUSINESS_LOAN_OVERDRAFT": ("बिजनेस ओवरड्राफ्ट", "लचीला क्रेडिट सुविधा"),
+            "HOME_LOAN_PURCHASE": ("होम पर्चेज लोन", "नया घर खरीदने के लिए"),
+            "HOME_LOAN_CONSTRUCTION": ("होम कंस्ट्रक्शन लोन", "घर बनाने के लिए"),
+            "HOME_LOAN_PLOT_CONSTRUCTION": ("प्लॉट कंस्ट्रक्शन लोन", "प्लॉट और निर्माण के लिए"),
+            "HOME_LOAN_EXTENSION": ("होम एक्सटेंशन लोन", "घर का विस्तार करने के लिए"),
+            "HOME_LOAN_RENOVATION": ("होम रेनोवेशन लोन", "घर की मरम्मत और सुधार के लिए"),
+            "HOME_LOAN_BALANCE_TRANSFER": ("बैलेंस ट्रांसफर लोन", "मौजूदा होम लोन ट्रांसफर करने के लिए"),
+        }
+        
+        for sub_type in sub_loan_types:
+            name, desc = sub_type_names.get(sub_type, (sub_type.replace("_", " "), ""))
+            sub_loan_options.append({
+                "type": sub_type.lower(),
+                "name": name,
+                "description": desc,
+                "icon": "💼" if "BUSINESS" in sub_type else "🏠"
+            })
+        
+        response = f"{main_loan_name} के लिए हमारे पास {len(sub_loan_types)} विकल्प उपलब्ध हैं। कृपया अपनी आवश्यकता के अनुसार चुनें:"
+    else:
+        main_loan_name = main_loan_type.replace("_", " ").title()
+        
+        sub_loan_options = []
+        sub_type_names = {
+            "BUSINESS_LOAN_MUDRA": ("MUDRA Loan", "Small business loans for MSME"),
+            "BUSINESS_LOAN_TERM": ("Term Loan", "Long-term business financing"),
+            "BUSINESS_LOAN_WORKING_CAPITAL": ("Working Capital Loan", "For daily business operations"),
+            "BUSINESS_LOAN_INVOICE": ("Invoice Financing", "Financing against invoices"),
+            "BUSINESS_LOAN_EQUIPMENT": ("Equipment Financing", "For machinery and equipment purchase"),
+            "BUSINESS_LOAN_OVERDRAFT": ("Business Overdraft", "Flexible credit facility"),
+            "HOME_LOAN_PURCHASE": ("Home Purchase Loan", "To buy a new home"),
+            "HOME_LOAN_CONSTRUCTION": ("Home Construction Loan", "To build a home"),
+            "HOME_LOAN_PLOT_CONSTRUCTION": ("Plot Construction Loan", "For plot and construction"),
+            "HOME_LOAN_EXTENSION": ("Home Extension Loan", "To extend your home"),
+            "HOME_LOAN_RENOVATION": ("Home Renovation Loan", "For home repair and improvement"),
+            "HOME_LOAN_BALANCE_TRANSFER": ("Balance Transfer Loan", "To transfer existing home loan"),
+        }
+        
+        for sub_type in sub_loan_types:
+            name, desc = sub_type_names.get(sub_type, (sub_type.replace("_", " ").title(), ""))
+            sub_loan_options.append({
+                "type": sub_type.lower(),
+                "name": name,
+                "description": desc,
+                "icon": "💼" if "BUSINESS" in sub_type else "🏠"
+            })
+        
+        response = f"For {main_loan_name}, we have {len(sub_loan_types)} options available. Please select based on your requirement:"
+    
+    state["structured_data"] = {"type": "loan_selection", "loans": sub_loan_options}
+    state["messages"].append(AIMessage(content=response))
+    state["next_action"] = "end"
+    logger.info("rag_loan_agent_response", has_structured=True, sub_loan_selection=True, count=len(sub_loan_types))
+    return state
+
+
 async def _extract_loan_card(state, llm, rag_context: str, detected_loan_type: Optional[str], language: str = "en-IN") -> Optional[Dict[str, Any]]:
     import json
 
-    loan_type_hint = ""
+    # Build explicit loan type instruction
+    loan_type_instruction = ""
     if detected_loan_type:
-        loan_type_hint = f"\nNote: The user is asking about {detected_loan_type.replace('_', ' ').title()}."
+        # Convert loan type to readable format
+        loan_type_readable = detected_loan_type.replace("_", " ").title()
+        
+        # Map specific sub-loan types to their common names
+        loan_type_mapping = {
+            "BUSINESS_LOAN_MUDRA": "MUDRA Loan",
+            "BUSINESS_LOAN_TERM": "Term Loan or SME Term Loan",
+            "BUSINESS_LOAN_WORKING_CAPITAL": "Working Capital Loan",
+            "BUSINESS_LOAN_INVOICE": "Invoice Financing",
+            "BUSINESS_LOAN_EQUIPMENT": "Equipment Financing",
+            "BUSINESS_LOAN_OVERDRAFT": "Business Overdraft",
+            "HOME_LOAN_PURCHASE": "Home Purchase Loan",
+            "HOME_LOAN_CONSTRUCTION": "Home Construction Loan",
+            "HOME_LOAN_PLOT_CONSTRUCTION": "Plot Construction Loan",
+            "HOME_LOAN_EXTENSION": "Home Extension Loan",
+            "HOME_LOAN_RENOVATION": "Home Renovation Loan",
+            "HOME_LOAN_BALANCE_TRANSFER": "Balance Transfer Loan",
+        }
+        
+        # Use mapped name if available, otherwise use readable format
+        loan_name = loan_type_mapping.get(detected_loan_type.upper(), loan_type_readable)
+        
+        if language == "hi-IN":
+            # For Hindi, use the Hindi name from mapping
+            hindi_loan_names = {
+                "BUSINESS_LOAN_MUDRA": "MUDRA लोन",
+                "BUSINESS_LOAN_TERM": "टर्म लोन",
+                "BUSINESS_LOAN_WORKING_CAPITAL": "वर्किंग कैपिटल लोन",
+                "BUSINESS_LOAN_EQUIPMENT": "इक्विपमेंट फाइनेंसिंग",
+                "BUSINESS_LOAN_INVOICE": "इनवॉइस फाइनेंसिंग",
+                "BUSINESS_LOAN_OVERDRAFT": "बिजनेस ओवरड्राफ्ट",
+            }
+            hindi_loan_name = hindi_loan_names.get(detected_loan_type.upper(), loan_name)
+            loan_type_instruction = f"\nCRITICAL: आपको केवल \"{hindi_loan_name}\" के बारे में जानकारी निकालनी है। संदर्भ में अन्य ऋण प्रकारों (जैसे Loan Against Property, Gold Loan, आदि) की जानकारी को अनदेखा करें। 'name' फ़ील्ड में \"{hindi_loan_name}\" या इसका करीबी रूप होना चाहिए।"
+        else:
+            loan_type_instruction = f"\nCRITICAL: You MUST extract information ONLY about \"{loan_name}\". Ignore any information about other loan types (such as Loan Against Property, Gold Loan, etc.) that may appear in the context. The 'name' field MUST be \"{loan_name}\" or a close variation (e.g., 'MUDRA Loan', 'Mudra Loan', 'mudra loan' are all acceptable for MUDRA)."
 
     # Language-specific extraction instructions
     if language == "hi-IN":
         extraction_prompt = f"""निम्नलिखित संदर्भ से ऋण जानकारी निकालें और JSON के रूप में लौटाएं:
 {rag_context}
-{loan_type_hint}
+{loan_type_instruction}
 
 निम्नलिखित फ़ील्ड निकालें:
-- name: ऋण उत्पाद का नाम (उदाहरण: \"होम लोन\", \"पर्सनल लोन\") - आवश्यक
+- name: ऋण उत्पाद का नाम (उदाहरण: \"होम लोन\", \"पर्सनल लोन\", \"इक्विपमेंट फाइनेंसिंग\", \"टर्म लोन\") - आवश्यक
 - interest_rate: ब्याज दर स्ट्रिंग के रूप में (उदाहरण: \"8.35% - 9.50% प्रति वर्ष\" या \"10.49% - 18.00% प्रति वर्ष\")
 - min_amount: न्यूनतम ऋण राशि \"Rs.\" उपसर्ग के साथ (उदाहरण: \"Rs. 5 लाख\" या \"Rs. 50,000\")
 - max_amount: अधिकतम ऋण राशि \"Rs.\" उपसर्ग के साथ (उदाहरण: \"Rs. 5 करोड़\" या \"Rs. 25 लाख\")
@@ -428,14 +1154,16 @@ async def _extract_loan_card(state, llm, rag_context: str, detected_loan_type: O
 3. यदि कोई फ़ील्ड नहीं मिला, इसे छोड़ दें (null या खाली मान शामिल न करें)
 4. केवल वैध JSON ऑब्जेक्ट लौटाएं, कोई markdown या code blocks नहीं
 5. सभी पाठ हिंदी (देवनागरी लिपि) में होना चाहिए
+6. CRITICAL: यदि संदर्भ में तालिका है जिसमें कई ऋण प्रकार हैं (जैसे MUDRA, Term Loan, Working Capital), तो केवल उस ऋण प्रकार की कॉलम जानकारी निकालें जिसके बारे में पूछा गया है। अन्य कॉलमों की जानकारी को पूरी तरह से अनदेखा करें।
+7. CRITICAL: यदि संदर्भ में कई ऋण प्रकारों की जानकारी है, तो केवल उस ऋण प्रकार की जानकारी निकालें जो 'name' फ़ील्ड में निर्दिष्ट है। अन्य ऋण प्रकारों की जानकारी को अनदेखा करें।
 """
     else:
         extraction_prompt = f"""Extract loan information from the following context and return as JSON:
 {rag_context}
-{loan_type_hint}
+{loan_type_instruction}
 
 Extract the following fields:
-- name: Loan product name (e.g., \"Home Loan\", \"Personal Loan\") - REQUIRED
+- name: Loan product name (e.g., \"Home Loan\", \"Personal Loan\", \"Working Capital Loan\") - REQUIRED
 - interest_rate: Interest rate as string (e.g., \"8.35% - 9.50% p.a.\" or \"10.49% - 18.00% p.a.\")
 - min_amount: Minimum loan amount with \"Rs.\" prefix (e.g., \"Rs. 5 lakhs\" or \"Rs. 50,000\")
 - max_amount: Maximum loan amount with \"Rs.\" prefix (e.g., \"Rs. 5 crores\" or \"Rs. 25 lakhs\")
@@ -475,10 +1203,100 @@ IMPORTANT RULES:
                     elif isinstance(value, list):
                         loan_info[key] = [_clean_english_text(str(v)) if isinstance(v, str) else v for v in value]
             
+            # Validate extracted loan name matches expected type
+            extracted_name = loan_info.get("name", "").lower().strip()
+            if detected_loan_type:
+                # Map expected loan types to their common names (both English and Hindi)
+                expected_names = {
+                    "BUSINESS_LOAN_MUDRA": ["mudra", "mudra loan", "mudra लोन", "मुद्रा लोन", "मुद्रा"],
+                    "BUSINESS_LOAN_TERM": ["term loan", "sme term loan", "term", "टर्म लोन", "टर्म"],
+                    "BUSINESS_LOAN_WORKING_CAPITAL": ["working capital", "working capital loan", "वर्किंग कैपिटल", "वर्किंग कैपिटल लोन"],
+                    "BUSINESS_LOAN_EQUIPMENT": ["equipment", "equipment financing", "equipment loan", "इक्विपमेंट", "इक्विपमेंट फाइनेंसिंग"],
+                    "BUSINESS_LOAN_INVOICE": ["invoice", "invoice financing", "इनवॉइस", "इनवॉइस फाइनेंसिंग"],
+                    "BUSINESS_LOAN_OVERDRAFT": ["overdraft", "business overdraft", "ओवरड्राफ्ट", "बिजनेस ओवरड्राफ्ट"],
+                    "HOME_LOAN_PURCHASE": ["purchase", "home purchase"],
+                    "HOME_LOAN_CONSTRUCTION": ["construction", "home construction"],
+                    "HOME_LOAN_PLOT_CONSTRUCTION": ["plot", "plot construction"],
+                    "HOME_LOAN_EXTENSION": ["extension", "home extension"],
+                    "HOME_LOAN_RENOVATION": ["renovation", "home renovation"],
+                    "HOME_LOAN_BALANCE_TRANSFER": ["balance transfer"],
+                }
+                
+                expected_loan_type_upper = detected_loan_type.upper()
+                expected_name_list = expected_names.get(expected_loan_type_upper, [])
+                
+                # Check if extracted name matches expected type
+                name_matches = any(
+                    expected_name in extracted_name 
+                    for expected_name in expected_name_list
+                ) if expected_name_list else True
+                
+                if not name_matches and expected_name_list:
+                    logger.warning(
+                        "extracted_loan_name_mismatch",
+                        expected_type=detected_loan_type,
+                        expected_names=expected_name_list,
+                        extracted_name=extracted_name,
+                        action="Will use extracted data but name doesn't match expected type"
+                    )
+                    # Try to fix the name if we can identify it
+                    for expected_name in expected_name_list:
+                        if expected_name.lower() in extracted_name or any(
+                            word.lower() in extracted_name for word in expected_name.split()
+                        ):
+                            # Update name to match expected format
+                            if language == "hi-IN":
+                                # Use Hindi name from mapping
+                                hindi_loan_names = {
+                                    "BUSINESS_LOAN_MUDRA": "MUDRA लोन",
+                                    "BUSINESS_LOAN_TERM": "टर्म लोन",
+                                    "BUSINESS_LOAN_WORKING_CAPITAL": "वर्किंग कैपिटल लोन",
+                                    "BUSINESS_LOAN_EQUIPMENT": "इक्विपमेंट फाइनेंसिंग",
+                                    "BUSINESS_LOAN_INVOICE": "इनवॉइस फाइनेंसिंग",
+                                    "BUSINESS_LOAN_OVERDRAFT": "बिजनेस ओवरड्राफ्ट",
+                                }
+                                loan_info["name"] = hindi_loan_names.get(expected_loan_type_upper, loan_info.get("name", ""))
+                            else:
+                                # Use the expected name format
+                                loan_info["name"] = expected_name.title() if "loan" in expected_name.lower() else f"{expected_name.title()} Loan"
+                            name_matches = True
+                            logger.info(
+                                "loan_name_corrected",
+                                original=extracted_name,
+                                corrected=loan_info.get("name")
+                            )
+                            break
+                
+                # CRITICAL: If name is still missing or empty after validation, use fallback
+                if not loan_info.get("name") or loan_info.get("name", "").strip() == "":
+                    logger.warning(
+                        "extracted_loan_name_still_missing",
+                        expected_type=detected_loan_type,
+                        action="Using fallback loan name"
+                    )
+                    if language == "hi-IN":
+                        hindi_fallback_names = {
+                            "BUSINESS_LOAN_MUDRA": "MUDRA लोन",
+                            "BUSINESS_LOAN_TERM": "टर्म लोन",
+                            "BUSINESS_LOAN_WORKING_CAPITAL": "वर्किंग कैपिटल लोन",
+                            "BUSINESS_LOAN_EQUIPMENT": "इक्विपमेंट फाइनेंसिंग",
+                            "BUSINESS_LOAN_INVOICE": "इनवॉइस फाइनेंसिंग",
+                            "BUSINESS_LOAN_OVERDRAFT": "बिजनेस ओवरड्राफ्ट",
+                        }
+                        loan_info["name"] = hindi_fallback_names.get(expected_loan_type_upper, loan_type_readable)
+                    else:
+                        loan_info["name"] = loan_type_readable
+            
+            # Add loan_type to loan_info for frontend to use for document download
+            if detected_loan_type:
+                loan_info["loan_type"] = detected_loan_type.upper()
+            
             state["structured_data"] = {"type": "loan", "loanInfo": loan_info}
             logger.info(
                 "loan_info_extracted",
                 loan_name=loan_info.get("name", "unknown"),
+                expected_type=detected_loan_type,
+                loan_type_added=loan_info.get("loan_type"),
                 has_amount=bool(loan_info.get("min_amount") or loan_info.get("loan_amount")),
                 has_rate=bool(loan_info.get("interest_rate")),
             )
@@ -580,6 +1398,8 @@ def _build_rag_system_prompt(rag_context: str, user_name: Optional[str] = None, 
         language_instruction = ""
         if language == "hi-IN":
             language_instruction = "\n\nCRITICAL: The user is asking in Hindi. You MUST respond ONLY in Hindi (Devanagari script). NEVER respond in English or any other language."
+        elif language == "en-IN":
+            language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
         return f"""You are Vaani, a helpful AI assistant for Sun National Bank (an Indian bank).
 
 The user has asked a question about banking products/loans. Below is relevant information from our official product documentation:
@@ -597,6 +1417,12 @@ IMPORTANT GUIDELINES:
 - If mentioning interest rates or fees, include the range (e.g., "8.50% - 11.50% p.a.")
 - For eligibility or documents, distinguish between salaried and self-employed if relevant
 
+ENGLISH LANGUAGE GUIDELINES (when responding in English):
+- CRITICAL: Use ONLY English. NEVER use Hindi, Devanagari script, or any other language
+- Use clear, professional English
+- Keep sentences simple and conversational
+- ALWAYS use the user's actual name from user_context if available
+
 HINDI LANGUAGE GUIDELINES (when responding in Hindi):
 - CRITICAL: Use ONLY Hindi (Devanagari script). NEVER use Gujarati, Punjabi, Haryanvi, Rajasthani, or any other regional language
 - Use FEMALE gender: "मैं" (I), "मैं कर सकती हूँ" (I can), "मैं बता सकती हूँ" (I can tell)
@@ -613,6 +1439,8 @@ Keep your response helpful and professional."""
     language_instruction = ""
     if language == "hi-IN":
         language_instruction = "\n\nCRITICAL: The user is asking in Hindi. You MUST respond ONLY in Hindi (Devanagari script). NEVER respond in English or any other language."
+    elif language == "en-IN":
+        language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
 IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}{language_instruction}

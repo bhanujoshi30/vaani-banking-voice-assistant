@@ -8,6 +8,18 @@
   box-shadow: 0 2px 8px rgba(15, 27, 42, 0.04);
 }
 
+/* Multiple Loan Cards Container */
+.loan-cards-multiple {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.loan-cards-multiple .loan-info-card {
+  margin-top: 0;
+}
+
 .loan-info-card__header {
   display: flex;
   align-items: center;

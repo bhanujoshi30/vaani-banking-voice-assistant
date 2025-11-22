@@ -140,7 +140,17 @@ export const useSpeechRecognition = (options = {}) => {
 
     // Handle errors
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      // Check if this is a manual stop (aborted) - don't log or show error
+      if (event.error === 'aborted' && isManualStopRef.current) {
+        console.log('✅ Speech recognition manually stopped (no error)');
+        setIsListening(false);
+        return; // Exit early - no error to show
+      }
+      
+      // Log error only if it's not a manual abort
+      if (event.error !== 'aborted' || !isManualStopRef.current) {
+        console.error('❌ Speech recognition error:', event.error);
+      }
       
       let errorMessage = 'Voice input failed. ';
       
@@ -158,7 +168,7 @@ export const useSpeechRecognition = (options = {}) => {
           errorMessage = 'Network error occurred. Please check your connection.';
           break;
         case 'aborted':
-          // Don't show error if manually stopped
+          // Don't show error if manually stopped (should have returned early above, but double-check)
           if (!isManualStopRef.current) {
             errorMessage = 'Voice input was aborted.';
           } else {
@@ -177,7 +187,8 @@ export const useSpeechRecognition = (options = {}) => {
 
     // Handle end of recognition
     recognition.onend = () => {
-      console.log('Speech recognition ended');
+      // Only log in verbose mode to reduce console noise
+      // console.log('Speech recognition ended');
       setIsListening(false);
       
       // Clear all timeouts
@@ -205,7 +216,8 @@ export const useSpeechRecognition = (options = {}) => {
 
     // Handle start of recognition
     recognition.onstart = () => {
-      console.log('Speech recognition started');
+      // Only log in verbose mode to reduce console noise
+      // console.log('Speech recognition started');
       setIsListening(true);
       setError(null);
       
@@ -280,6 +292,9 @@ export const useSpeechRecognition = (options = {}) => {
       
       if (recognitionRef.current) {
         try {
+          // Set manual stop flag before aborting to prevent error message
+          // This happens during language changes or component unmount
+          isManualStopRef.current = true;
           recognitionRef.current.abort();
         } catch (err) {
           console.log('Cleanup error:', err);
@@ -322,13 +337,15 @@ export const useSpeechRecognition = (options = {}) => {
 
   // Stop listening
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current || !isListening) {
-      console.log('Cannot stop: not listening or recognition not initialized');
+    // CRITICAL: Always try to stop, even if isListening is false
+    // This ensures we can stop recognition even if state is out of sync
+    if (!recognitionRef.current) {
+      console.log('Cannot stop: recognition not initialized');
       return;
     }
 
     try {
-      console.log('🛑 Manually stopping speech recognition...');
+      // Set manual stop flag FIRST before aborting to prevent error message
       isManualStopRef.current = true;
       isManuallyStoppedRef.current = true; // Mark as manually stopped to prevent auto-restart
       
@@ -342,7 +359,21 @@ export const useSpeechRecognition = (options = {}) => {
         inactivityTimeoutRef.current = null;
       }
       
-      recognitionRef.current.stop();
+      // CRITICAL: Use abort() instead of stop() for immediate termination
+      // abort() immediately stops recognition, while stop() waits for current result
+      try {
+        recognitionRef.current.abort();
+        // Only log in verbose mode or if there's an issue
+        // Don't log successful manual stops to reduce console noise
+      } catch (abortErr) {
+        // If abort fails, try stop() as fallback
+        console.warn('⚠️ Abort failed, trying stop()...', abortErr);
+        try {
+          recognitionRef.current.stop();
+        } catch (stopErr) {
+          console.error('❌ Both abort() and stop() failed:', stopErr);
+        }
+      }
     } catch (err) {
       console.error('Error stopping speech recognition:', err);
     }
