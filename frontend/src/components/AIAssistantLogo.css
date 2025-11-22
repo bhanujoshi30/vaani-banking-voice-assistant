@@ -12,9 +12,23 @@
   vertical-align: middle;
 }
 
-/* Rotating sun rays - handled by SVG animateTransform for better compatibility */
+/* Rotating sun rays - using CSS animation for immediate start */
+@keyframes rotateSunRays {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .ai-assistant-logo-animated .sun-rays {
   transform-origin: 0 0;
+  animation: rotateSunRays 20s linear infinite;
+  will-change: transform;
+  /* Force GPU acceleration and immediate rendering */
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 /* Pulsing central bubble - breathing effect */

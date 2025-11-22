@@ -25,6 +25,9 @@ def create_db_engine(config: DatabaseConfig) -> Engine:
     connect_args = {}
     if config.backend == "sqlite":
         connect_args["check_same_thread"] = False
+        # Set timeout to handle concurrent access (default is 5 seconds)
+        # This prevents "readonly database" errors when multiple connections try to write
+        connect_args["timeout"] = 20.0
 
     engine_kwargs = {
         "echo": config.echo,
@@ -32,10 +35,16 @@ def create_db_engine(config: DatabaseConfig) -> Engine:
         "connect_args": connect_args,
     }
 
-    if config.pool_size is not None:
-        engine_kwargs["pool_size"] = config.pool_size
-    if config.max_overflow is not None:
-        engine_kwargs["max_overflow"] = config.max_overflow
+    # SQLite doesn't benefit from connection pooling - use NullPool for SQLite
+    if config.backend == "sqlite":
+        from sqlalchemy.pool import NullPool
+        engine_kwargs["poolclass"] = NullPool
+    else:
+        # For other databases, use configured pool settings
+        if config.pool_size is not None:
+            engine_kwargs["pool_size"] = config.pool_size
+        if config.max_overflow is not None:
+            engine_kwargs["max_overflow"] = config.max_overflow
 
     engine = create_engine(
         config.database_url,
