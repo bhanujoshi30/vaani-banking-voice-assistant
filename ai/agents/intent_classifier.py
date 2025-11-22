@@ -124,6 +124,48 @@ async def classify_intent(state):
     # Check if message contains amount (numbers, rupees, etc.)
     has_amount = bool(re.search(r'\d+|rupees?|rs\.?|₹|hundred|thousand|lakh|crore', msg_lower))
     
+    # CRITICAL: Check for language change keywords FIRST, before other routing
+    # BUT: Be strict - only match full phrases, not partial matches
+    # This prevents "मुद्रा" (Mudra) from matching "हिंदी में" or other false positives
+    
+    # FIRST: Check if message contains loan/product keywords - if yes, NEVER treat as language change
+    loan_product_keywords = [
+        "loan", "लोन", "ऋण", "mudra", "मुद्रा", "business", "बिजनेस",
+        "home", "होम", "personal", "पर्सनल", "gold", "गोल्ड", "interest", "ब्याज",
+        "ke baare", "के बारे", "bataiye", "बताइए", "batao", "बताओ"
+    ]
+    has_loan_product_keyword = any(term in msg_lower for term in loan_product_keywords)
+    
+    # Only check for language change if NO loan/product keywords are present
+    if not has_loan_product_keyword:
+        language_change_keywords_en = [
+            "change language", "switch language", "set language", "language to english", 
+            "language to hindi", "english please", "hindi please", "speak english", "speak hindi",
+            "change to english", "change to hindi", "switch to english", "switch to hindi",
+            "i want to change the language", "i want to switch language"
+        ]
+        language_change_keywords_hi = [
+            "भाषा बदलें", "भाषा बदलो", "अंग्रेजी में बोलें", "हिंदी में बोलें",
+            "भाषा अंग्रेजी करें", "भाषा हिंदी करें", "अंग्रेजी में बात करें", "हिंदी में बात करें"
+        ]
+        
+        # Check for explicit language change phrases
+        has_language_change = any(keyword in msg_lower for keyword in language_change_keywords_en + language_change_keywords_hi)
+        
+        if has_language_change:
+            intent = "language_change"
+            state["current_intent"] = intent
+            logger.info("language_change_detected", 
+                       message=last_message[:100], 
+                       current_language=language,
+                       intent=intent)
+            return state
+    else:
+        # Has loan/product keywords - explicitly NOT a language change
+        logger.info("language_change_prevented_by_loan_keywords", 
+                   message=last_message[:100],
+                   detected_keywords=[term for term in loan_product_keywords if term in msg_lower])
+    
     # CRITICAL: Check for reminder keywords FIRST, regardless of UPI mode
     # Reminder operations should always go to banking_operation, not UPI agent
     reminder_keywords = ["reminder", "remind", "set reminder", "create reminder", "view reminder", "show reminder", "अनुस्मारक"]
@@ -213,6 +255,7 @@ async def classify_intent(state):
     
     # For other queries, use LLM classification
     intent_prompt = f"""You are a banking assistant. Classify the user's intent into ONE of these categories:
+    - language_change: User wants to change language (e.g., "change language to Hindi", "switch to English", "भाषा बदलें", "अंग्रेजी में बोलें", "हिंदी में बोलें")
     - upi_payment: UPI payments, sending money via UPI, "pay via UPI", "UPI payment", "send money via UPI", "pay ₹X to Y via UPI", "यूपीआई से पैसे ट्रांसफर", "यूपीआई से भुगतान", or explicitly mentions UPI/यूपीआई
     - banking_operation: Balance check (when UPI mode is NOT active), transactions, transfers (non-UPI), account operations, setting reminders, viewing reminders, managing reminders, downloading statements, account statements, bank statements
     - general_faq: Questions about interest rates, products, services, branches
@@ -236,7 +279,7 @@ Reply with ONLY the intent category name, nothing else."""
     intent = intent.strip().lower()
     
     # Validate intent
-    valid_intents = ["upi_payment", "banking_operation", "general_faq", "greeting", "feedback", "other"]
+    valid_intents = ["language_change", "upi_payment", "banking_operation", "general_faq", "greeting", "feedback", "other"]
     if intent not in valid_intents:
         intent = "other"
     

@@ -1076,15 +1076,41 @@ def verify_upi_pin(
             # Check if recipient is a UPI ID (contains @)
             if "@" in recipient_identifier:
                 # If it's a UPI ID format, ONLY match by UPI ID - don't fall back to phone/beneficiary
-                stmt = select(User).where(User.upi_id == recipient_identifier)
+                # Trim whitespace and use case-insensitive comparison
+                trimmed_upi_id = recipient_identifier.strip()
+                # Use func.lower() for case-insensitive comparison
+                # SQLite string comparison is case-insensitive by default, but be explicit
+                from sqlalchemy import func, or_
+                
+                # First, try to find by User.upi_id
+                stmt = select(User).where(
+                    func.lower(User.upi_id) == func.lower(trimmed_upi_id)
+                ).where(User.upi_id.isnot(None))  # Exclude NULL values
                 recipient_user = db.execute(stmt).scalars().first()
-                if recipient_user:
+                
+                # If not found in User table, try Account table
+                if not recipient_user:
+                    account_stmt = select(Account).where(
+                        func.lower(Account.upi_id) == func.lower(trimmed_upi_id)
+                    ).where(Account.upi_id.isnot(None))  # Exclude NULL values
+                    recipient_account = db.execute(account_stmt).scalars().first()
+                    
+                    if recipient_account:
+                        # Found account with UPI ID - get the user
+                        recipient_user = recipient_account.user
+                        destination_account_number = recipient_account.account_number
+                        beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
+                
+                # If found via User table, get the account
+                if recipient_user and not destination_account_number:
                     accounts = account_repo.list_accounts_for_user(db, recipient_user.id)
                     primary_account = next(iter(accounts), None)
                     if primary_account:
                         destination_account_number = primary_account.account_number
                         beneficiary_name = f"{recipient_user.first_name} {recipient_user.last_name}"
-                else:
+                
+                # If still not found, raise error
+                if not recipient_user or not destination_account_number:
                     # UPI ID not found - raise error immediately (don't try phone/beneficiary lookup)
                     raise_http_error(
                         ctx,

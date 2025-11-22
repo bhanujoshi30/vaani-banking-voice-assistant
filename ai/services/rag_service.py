@@ -16,6 +16,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from utils import logger
+from services.semantic_chunker import SemanticChunker
 
 
 class OllamaEmbeddings(Embeddings):
@@ -85,12 +86,18 @@ class RAGService:
             logger.error("embeddings_init_failed", error=str(e))
             raise
         
-        # Initialize text splitter
+        # Initialize text splitter (fallback for simple splitting)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
             separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+        )
+        
+        # Initialize semantic chunker for intelligent chunking
+        self.semantic_chunker = SemanticChunker(
+            min_chunk_size=200,
+            max_chunk_size=2000
         )
         
         # Vector store will be initialized when needed
@@ -136,20 +143,29 @@ class RAGService:
         
         return documents
     
-    def chunk_documents(self, documents: List[Document]) -> List[Document]:
+    def chunk_documents(self, documents: List[Document], use_semantic: bool = True) -> List[Document]:
         """
-        Split documents into chunks
+        Split documents into chunks using semantic chunking
         
         Args:
             documents: List of documents to chunk
+            use_semantic: If True, use semantic chunking; otherwise use character-based splitting
             
         Returns:
-            List of chunked documents
+            List of chunked documents with enriched metadata
         """
-        chunks = self.text_splitter.split_documents(documents)
-        logger.info("documents_chunked", 
-                   original_count=len(documents),
-                   chunk_count=len(chunks))
+        if use_semantic:
+            # Use semantic chunker for intelligent, section-based chunking
+            chunks = self.semantic_chunker.chunk_documents(documents)
+            logger.info("documents_chunked_semantic", 
+                       original_count=len(documents),
+                       chunk_count=len(chunks))
+        else:
+            # Fallback to character-based splitting
+            chunks = self.text_splitter.split_documents(documents)
+            logger.info("documents_chunked_character", 
+                       original_count=len(documents),
+                       chunk_count=len(chunks))
         return chunks
     
     def create_vector_store(self, documents: List[Document]) -> Chroma:
@@ -163,9 +179,15 @@ class RAGService:
             Chroma vector store instance
         """
         try:
+            # Filter complex metadata (lists, dicts) that ChromaDB doesn't support
+            from langchain_community.vectorstores.utils import filter_complex_metadata
+            
+            # Filter metadata to only include simple types (str, int, float, bool, None)
+            filtered_documents = filter_complex_metadata(documents)
+            
             # Create new vector store
             vectorstore = Chroma.from_documents(
-                documents=documents,
+                documents=filtered_documents,
                 embedding=self.embeddings,
                 collection_name=self.collection_name,
                 persist_directory=self.persist_directory
@@ -256,9 +278,45 @@ class RAGService:
         
         try:
             if filter:
+                # Log filter details for debugging
+                logger.info(
+                    "retrieval_with_filter",
+                    query_preview=query[:100],
+                    filter=filter,
+                    k=k
+                )
                 results = self.vectorstore.similarity_search(
                     query, k=k, filter=filter
                 )
+                
+                # Log retrieved document metadata for verification
+                if results:
+                    retrieved_loan_types = [doc.metadata.get("loan_type", "N/A") for doc in results]
+                    retrieved_sources = [doc.metadata.get("source", "N/A") for doc in results]
+                    logger.info(
+                        "retrieval_results_with_filter",
+                        query_length=len(query),
+                        results_count=len(results),
+                        expected_filter=filter.get("loan_type", "N/A"),
+                        retrieved_loan_types=retrieved_loan_types,
+                        retrieved_sources=retrieved_sources[:3],  # First 3 sources
+                        content_previews=[doc.page_content[:150].replace("\n", " ") for doc in results[:2]]
+                    )
+                    
+                    # Verify filter worked correctly
+                    expected_loan_type = filter.get("loan_type", "").upper()
+                    mismatched = [
+                        (i, doc.metadata.get("loan_type", ""))
+                        for i, doc in enumerate(results)
+                        if doc.metadata.get("loan_type", "").upper() != expected_loan_type
+                    ]
+                    if mismatched:
+                        logger.warning(
+                            "filter_mismatch_detected",
+                            expected=expected_loan_type,
+                            mismatched_indices_and_types=mismatched,
+                            query=query[:100]
+                        )
             else:
                 results = self.vectorstore.similarity_search(query, k=k)
             
@@ -266,7 +324,7 @@ class RAGService:
             return results
             
         except Exception as e:
-            logger.error("retrieval_error", error=str(e))
+            logger.error("retrieval_error", error=str(e), filter=filter)
             return []
     
     def retrieve_with_scores(

@@ -43,55 +43,46 @@ export const useTextToSpeech = (options = {}) => {
           
           let voice = null;
           
-          // Select voice based on current language
-          if (lang === 'hi-IN') {
-            // For Hindi, prioritize Hindi voices
-            const hindiVoicePreferences = [
-              { name: 'Google हिन्दी', lang: 'hi-IN' },
-              { name: 'Google हिंदी', lang: 'hi-IN' },
-              { name: 'Google भारत', lang: 'hi-IN' },
-              { name: 'Microsoft Swara Online (Natural) - Hindi (India)', lang: 'hi-IN' },
-              { name: 'Microsoft Swara - Hindi (India)', lang: 'hi-IN' },
-              { name: 'Swara', lang: 'hi-IN' },
-            ];
-            
-            // Try exact name matches for Hindi voices
-            for (const pref of hindiVoicePreferences) {
-              voice = voices.find(v => v.name.includes(pref.name));
-              if (voice) {
-                console.log('✅ Found preferred Hindi voice:', voice.name, voice.lang);
-                break;
-              }
+          // Use Hindi voice (Swara) for both Hindi and English languages
+          // This ensures consistent voice quality across languages
+          const hindiVoicePreferences = [
+            { name: 'Microsoft Swara Online (Natural) - Hindi (India)', lang: 'hi-IN' },
+            { name: 'Microsoft Swara - Hindi (India)', lang: 'hi-IN' },
+            { name: 'Swara', lang: 'hi-IN' },
+            { name: 'Google हिन्दी', lang: 'hi-IN' },
+            { name: 'Google हिंदी', lang: 'hi-IN' },
+            { name: 'Google भारत', lang: 'hi-IN' },
+          ];
+          
+          // Try exact name matches for Hindi voices (preferred for both languages)
+          for (const pref of hindiVoicePreferences) {
+            voice = voices.find(v => v.name.includes(pref.name));
+            if (voice) {
+              console.log('✅ Found preferred Hindi voice (using for both languages):', voice.name, voice.lang);
+              break;
             }
-            
-            // Try any Hindi voice
-            if (!voice) {
-              voice = voices.find(v => v.lang.startsWith('hi-IN') || v.lang.startsWith('hi'));
-              if (voice) console.log('✅ Found Hindi voice:', voice.name, voice.lang);
-            }
-          } else {
-            // For English, prioritize Indian English voices
+          }
+          
+          // Try any Hindi voice
+          if (!voice) {
+            voice = voices.find(v => v.lang.startsWith('hi-IN') || v.lang.startsWith('hi'));
+            if (voice) console.log('✅ Found Hindi voice (using for both languages):', voice.name, voice.lang);
+          }
+          
+          // Fallback: If no Hindi voice found, try Indian English voices
+          if (!voice) {
             const englishVoicePreferences = [
               { name: 'Microsoft Heera Online (Natural) - English (India)', lang: 'en-IN' },
               { name: 'Microsoft Heera - English (India)', lang: 'en-IN' },
               { name: 'Heera', lang: 'en-IN' },
-              { name: 'Google UK English Female', lang: 'en-GB' },
-              { name: 'Google US English Female', lang: 'en-US' },
             ];
             
-            // Try exact name matches for Indian English voices
             for (const pref of englishVoicePreferences) {
               voice = voices.find(v => v.name.includes(pref.name));
               if (voice) {
-                console.log('✅ Found preferred English voice:', voice.name, voice.lang);
+                console.log('⚠️ Using fallback English voice:', voice.name, voice.lang);
                 break;
               }
-            }
-            
-            // Try any Indian English voice
-            if (!voice) {
-              voice = voices.find(v => v.lang.startsWith('en-IN'));
-              if (voice) console.log('✅ Found Indian English voice:', voice.name);
             }
           }
           
@@ -154,27 +145,52 @@ export const useTextToSpeech = (options = {}) => {
     }
 
     // Normalize text for TTS pronunciation (e.g., "UPI" → "U P I")
-    const normalizedText = normalizeForTTS(text, lang);
+    // CRITICAL: Detect actual text language - if text is English, use English normalization
+    // even if lang parameter is 'hi-IN' (user might be in Hindi mode but response is in English)
+    const hasHindiChars = /[\u0900-\u097F]/.test(text);
+    const textLanguage = hasHindiChars ? 'hi-IN' : 'en-IN';
+    
+    // Use detected text language for normalization, not the lang parameter
+    // This ensures English text gets English number pronunciation even if user is in Hindi mode
+    const normalizedText = normalizeForTTS(text, textLanguage);
     
     console.log('🔊 Starting TTS:', {
       language: lang,
       original: text.substring(0, 100) + '...',
       normalized: normalizedText.substring(0, 100) + '...',
       hasHindiChars: /[\u0900-\u097F]/.test(text),
-      hasPercentages: /(\d+\.?\d*)\s*%/.test(text)
+      hasPercentages: /(\d+\.?\d*)\s*%/.test(text),
+      voiceName: selectedVoice?.name,
+      voiceLang: selectedVoice?.lang
     });
 
     const utterance = new SpeechSynthesisUtterance(normalizedText);
     
-    // Use selected Indian female voice if available
+    // Use selected Hindi voice (Swara) for both Hindi and English
+    // CRITICAL: Use detected text language for utterance.lang
+    // If text contains Hindi Devanagari characters, set utterance.lang to 'hi-IN'
+    // Otherwise, use 'en-IN' for English text (even if user is in Hindi mode)
+    
     if (selectedVoice) {
       utterance.voice = selectedVoice;
-      console.log('🎤 Using voice:', selectedVoice.name, 'Language:', selectedVoice.lang);
+      
+      // Use detected text language (hasHindiChars already detected above)
+      utterance.lang = textLanguage;
+      console.log('🎤 Using Hindi voice with text language:', selectedVoice.name, 'Text Language:', textLanguage, 'Has Hindi Chars:', hasHindiChars);
+    } else {
+      // No voice selected, use detected text language
+      utterance.lang = textLanguage;
+      console.log('⚠️ No voice selected, using text language:', textLanguage);
     }
     
-    // Ensure utterance language matches the selected language
-    utterance.lang = lang;
-    console.log('🎤 TTS utterance language set to:', utterance.lang);
+    console.log('🎤 TTS utterance final settings:', {
+      voice: selectedVoice?.name || 'none',
+      voiceLang: selectedVoice?.lang || 'none',
+      utteranceLang: utterance.lang,
+      textLang: lang,
+      hasHindiChars: hasHindiChars,
+      textPreview: text.substring(0, 50)
+    });
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;

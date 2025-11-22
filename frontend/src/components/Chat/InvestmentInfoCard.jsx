@@ -33,6 +33,20 @@ const InvestmentInfoCard = ({ investmentInfo, language = 'en-IN', accessToken = 
   const formatAmount = (amount) => {
     if (!amount) return '—';
     
+    // Handle objects with {min, max} structure - extract the value
+    if (typeof amount === 'object' && amount !== null) {
+      // If it's an object with min/max, use the appropriate value
+      if ('max' in amount && amount.max) {
+        return formatAmount(amount.max); // Use max for display
+      } else if ('min' in amount && amount.min) {
+        return formatAmount(amount.min); // Use min as fallback
+      } else if ('value' in amount && amount.value) {
+        return formatAmount(amount.value); // Use value if present
+      }
+      // If object doesn't have expected structure, return default
+      return '—';
+    }
+    
     // If it's already a string with Rs. or ₹, return as is
     if (typeof amount === 'string') {
       const trimmed = amount.trim();
@@ -58,16 +72,45 @@ const InvestmentInfoCard = ({ investmentInfo, language = 'en-IN', accessToken = 
       return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
     }
     
-    return amount;
+    // Fallback: convert to string to avoid React rendering error
+    return String(amount);
   };
 
   const formatRate = (rate) => {
     if (!rate) return '—';
+    
+    // Handle objects with {min, max} structure
+    if (typeof rate === 'object' && rate !== null) {
+      if ('min' in rate && 'max' in rate) {
+        // Format as range: min% - max%
+        const minVal = typeof rate.min === 'string' ? rate.min.replace('%', '') : rate.min;
+        const maxVal = typeof rate.max === 'string' ? rate.max.replace('%', '') : rate.max;
+        return `${minVal}% - ${maxVal}%`;
+      } else if ('max' in rate && rate.max) {
+        const maxVal = typeof rate.max === 'string' ? rate.max.replace('%', '') : rate.max;
+        return `${maxVal}%`;
+      } else if ('min' in rate && rate.min) {
+        const minVal = typeof rate.min === 'string' ? rate.min.replace('%', '') : rate.min;
+        return `${minVal}%`;
+      } else if ('value' in rate && rate.value) {
+        const val = typeof rate.value === 'string' ? rate.value.replace('%', '') : rate.value;
+        return `${val}%`;
+      }
+      return '—';
+    }
+    
     // If rate already contains %, don't add another one
     if (typeof rate === 'string' && rate.includes('%')) {
       return rate;
     }
-    return `${rate}%`;
+    
+    // If it's a number, add % symbol
+    if (typeof rate === 'number') {
+      return `${rate}%`;
+    }
+    
+    // Fallback: convert to string
+    return String(rate);
   };
 
   return (

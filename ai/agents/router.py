@@ -19,6 +19,7 @@ def route_to_agent(state) -> Literal["banking_agent", "upi_agent", "rag_agent", 
     intent = state.get("current_intent", "other")
     
     routing_map = {
+        "language_change": "rag_agent",  # Handle language change in rag_agent
         "upi_payment": "upi_agent",
         "banking_operation": "banking_agent",
         "general_faq": "rag_agent",

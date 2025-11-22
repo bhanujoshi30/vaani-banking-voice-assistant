@@ -58,8 +58,37 @@ def resolve_upi_id(upi_identifier: str) -> Dict[str, Any]:
         with get_db() as db:
             # Try to find by UPI ID first
             if "@" in upi_identifier:
-                stmt = select(User).where(User.upi_id == upi_identifier)
+                # Trim whitespace and use case-insensitive comparison
+                trimmed_upi_id = upi_identifier.strip()
+                from sqlalchemy import func
+                
+                # First, try to find by User.upi_id
+                stmt = select(User).where(
+                    func.lower(User.upi_id) == func.lower(trimmed_upi_id)
+                ).where(User.upi_id.isnot(None))  # Exclude NULL values
                 user = db.execute(stmt).scalars().first()
+                
+                # If not found in User table, try Account table
+                if not user:
+                    account_stmt = select(Account).where(
+                        func.lower(Account.upi_id) == func.lower(trimmed_upi_id)
+                    ).where(Account.upi_id.isnot(None))  # Exclude NULL values
+                    account = db.execute(account_stmt).scalars().first()
+                    
+                    if account:
+                        # Found account with UPI ID - get the user
+                        user = account.user
+                        return {
+                            "success": True,
+                            "user_id": str(user.id),
+                            "account_number": account.account_number,
+                            "account_id": str(account.id),
+                            "name": f"{user.first_name} {user.last_name}",
+                            "upi_id": account.upi_id,  # Use account's UPI ID
+                            "phone_number": user.phone_number,
+                        }
+                
+                # If found via User table, get the account
                 if user:
                     # Get user's primary account (first active account)
                     accounts = account_repo.list_accounts_for_user(db, user.id)
@@ -71,7 +100,7 @@ def resolve_upi_id(upi_identifier: str) -> Dict[str, Any]:
                             "account_number": primary_account.account_number,
                             "account_id": str(primary_account.id),
                             "name": f"{user.first_name} {user.last_name}",
-                            "upi_id": user.upi_id,
+                            "upi_id": user.upi_id or primary_account.upi_id,  # Prefer user's UPI ID, fallback to account's
                             "phone_number": user.phone_number,
                         }
             

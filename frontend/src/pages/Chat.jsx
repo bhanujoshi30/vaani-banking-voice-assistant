@@ -47,6 +47,8 @@ const Chat = ({ session, onSignOut }) => {
   });
   const [pendingUPIMessage, setPendingUPIMessage] = useState(null); // Store pending message waiting for consent
   const inputRef = useRef(null);
+  // Track when PIN modal was opened by user action (via Proceed button) to prevent auto-closing
+  const pinModalOpenedByUserRef = useRef(false);
 
   // Voice binding status
   const { strings: pageStrings } = usePageLanguage();
@@ -160,7 +162,7 @@ const Chat = ({ session, onSignOut }) => {
   };
 
   // Voice mode orchestration
-  useVoiceMode({
+  const { resetManualStop } = useVoiceMode({
     isVoiceModeEnabled,
     isLanguageComingSoon,
     isSpeaking,
@@ -174,6 +176,9 @@ const Chat = ({ session, onSignOut }) => {
     resetTranscript,
     setInputText,
     onAutoSend: handleSendMessage,
+    upiMode, // Pass UPI mode state to voice mode hook
+    showUPIConsentModal, // Pass UPI consent modal state
+    showUPIPinModal, // Pass UPI PIN modal state
   });
 
   // Note: UPI mode activation is now handled by backend response via structured_data
@@ -187,6 +192,9 @@ const Chat = ({ session, onSignOut }) => {
     }
   }, [fullTranscript, isSpeaking]);
 
+  // Track processed message IDs to avoid re-processing
+  const processedMessageIdsRef = useRef(new Set());
+  
   // Handle UPI mode activation and payment structured data
   // This now only handles messages that are already in chat (after consent)
   useEffect(() => {
@@ -219,6 +227,37 @@ const Chat = ({ session, onSignOut }) => {
     // Handle UPI payment card - show card for entering UPI ID and amount
     // BUT: Only if consent has been given (consent check happens in useChatHandler)
     if (lastAssistantMessage?.structuredData?.type === 'upi_payment_card') {
+      const messageId = lastAssistantMessage.id;
+      const isNewMessage = !processedMessageIdsRef.current.has(messageId);
+      
+      // CRITICAL: Stop recording immediately when UPI payment card appears
+      // This prevents AI from recording its own statement about UPI payment
+      if (isListening) {
+        console.log('🛑 UPI payment card detected - stopping recording immediately');
+        stopListening();
+        // Clear transcript to prevent AI's statement from being captured
+        resetTranscript();
+        setInputText('');
+      }
+      
+      // IMPORTANT: Only stop TTS if this is NOT a new message (i.e., user is interacting)
+      // For new messages, allow TTS to complete so the user hears the instruction
+      if (isSpeaking && !isNewMessage) {
+        console.log('🛑 UPI payment card detected - stopping TTS (not a new message)');
+        stopSpeaking();
+        // Mark as processed when stopping TTS for non-new messages
+        processedMessageIdsRef.current.add(messageId);
+      } else if (isNewMessage) {
+        console.log('✅ UPI payment card detected - allowing TTS to complete for new message');
+        // CRITICAL: Don't mark as processed immediately - let useVoiceMode.js handle TTS first
+        // Mark it as processed after a delay to ensure TTS has started and completed
+        // This prevents the effect from running again and interfering with TTS
+        setTimeout(() => {
+          processedMessageIdsRef.current.add(messageId);
+          console.log('✅ Marked UPI payment card message as processed after TTS delay');
+        }, 2000); // Longer delay to allow TTS to start and complete
+      }
+      
       // Only activate UPI mode if consent has been given
       // If consent not given, the message should be pending and not reach here
       if (!upiMode && upiConsentGiven) {
@@ -227,10 +266,21 @@ const Chat = ({ session, onSignOut }) => {
       
       // Card will be displayed by ChatMessage component - no PIN modal needed here
       // PIN modal will be shown when user clicks "Proceed" in the card
-      // Make sure PIN modal is closed if it was open from previous state
-      if (showUPIPinModal) {
+      // IMPORTANT: Only close PIN modal if it was open from a PREVIOUS payment card
+      // Don't close it if user just clicked Proceed (that would be a race condition)
+      // We check if this is a new message - if it's new, don't close modal
+      // Also check if modal was opened by user action - if so, don't close it
+      if (showUPIPinModal && !isNewMessage && !pinModalOpenedByUserRef.current) {
+        console.log('🔄 Closing PIN modal from previous payment card state');
         setShowUPIPinModal(false);
         setUpiPaymentDetails(null);
+      }
+      // Reset the user action flag after a delay to allow for normal flow
+      // This prevents the effect from closing the modal immediately after user opens it
+      if (pinModalOpenedByUserRef.current) {
+        setTimeout(() => {
+          pinModalOpenedByUserRef.current = false;
+        }, 500);
       }
       return;
     }
@@ -305,7 +355,22 @@ const Chat = ({ session, onSignOut }) => {
         setShowUPIPinModal(true);
       }
     }
-  }, [messages, upiConsentGiven, upiMode]);
+    
+    // Handle language change request
+    if (lastAssistantMessage?.structuredData?.type === 'language_change') {
+      const languageData = lastAssistantMessage.structuredData;
+      
+      // If language was actually changed, update the language state
+      if (languageData.changed && languageData.requested_language) {
+        // Use the handleLanguageChange function which properly handles stopping TTS/listening
+        const newLang = languageData.requested_language;
+        if (newLang !== language) {
+          handleLanguageChange(newLang);
+        }
+      }
+      // If user requested current language, response already handled by backend
+    }
+  }, [messages, upiConsentGiven, upiMode, language, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging, showUPIPinModal, resetTranscript, setInputText]);
 
   // Handle pending UPI message - show consent modal when pending message exists
   useEffect(() => {
@@ -458,19 +523,27 @@ const Chat = ({ session, onSignOut }) => {
       return;
     }
 
-    // Stop speaking when user starts/stops recording
+    // CRITICAL: User manually clicked mic button - this is a user override
+    // Stop speaking/thinking and start recording immediately (user wants to interrupt)
+    const wasSpeaking = isSpeaking;
+    const wasTyping = isTyping;
+    
     if (isSpeaking && stopSpeaking) {
-      console.log('🛑 Stopping TTS - user interacting with microphone');
+      console.log('🛑 User override: Stopping TTS - user wants to speak');
       stopSpeaking();
     }
-
+    
+    // Note: We can't stop typing directly, but we'll start listening anyway
+    // The voice mode hook will handle stopping listening if typing continues
+    
     // NORMAL MODE: Simple toggle - completely independent of voice mode
     if (!isVoiceModeEnabled) {
       if (isListening) {
         console.log('🛑 Normal mode: Stopping recording');
         stopListening();
       } else {
-        console.log('🎤 Normal mode: Starting recording');
+        console.log('🎤 Normal mode: Starting recording (user override - ignoring AI state)');
+        // User override: start recording even if AI is thinking/speaking
         startListening();
       }
       return;
@@ -483,8 +556,20 @@ const Chat = ({ session, onSignOut }) => {
       return;
     }
 
-    // In voice mode, if user clicks to start, reset and start
-    console.log('🎤 Voice mode: User manually starting recording');
+    // In voice mode, if user clicks to start (or interrupt), reset manual stop flag and start
+    // This allows user to override AI thinking/speaking state
+    if (resetManualStop) {
+      resetManualStop(); // Clear manual stop flag so auto-start can work again
+    }
+    
+    if (wasSpeaking || wasTyping) {
+      console.log('🎤 Voice mode: User interrupted assistant (thinking/speaking), starting recording');
+    } else {
+      console.log('🎤 Voice mode: User manually starting recording');
+    }
+    
+    // User override: start recording immediately, even if AI is thinking/speaking
+    // The voice mode hook will handle stopping if needed, but user intent takes priority
     startListening();
   };
 
@@ -513,6 +598,7 @@ const Chat = ({ session, onSignOut }) => {
       setShowUPIConsentModal(false);
       setShowUPIPinModal(false);
       setUpiPaymentDetails(null);
+      pinModalOpenedByUserRef.current = false;
     } else {
       // Activate UPI mode - show consent modal FIRST if not given
       console.log('🔄 Attempting to activate UPI mode', { upiConsentGiven, showUPIConsentModal });
@@ -573,6 +659,7 @@ const Chat = ({ session, onSignOut }) => {
         if (errorCode === 'upi_id_not_found' || errorCode === 'recipient_not_found') {
           setShowUPIPinModal(false);
           setUpiPaymentDetails(null);
+          pinModalOpenedByUserRef.current = false;
           
           const errorMsg = language === 'hi-IN'
             ? `UPI ID नहीं मिला: ${upiPaymentDetails?.recipient || ''}. कृपया UPI ID जांचें और पुनः प्रयास करें।`
@@ -599,6 +686,7 @@ const Chat = ({ session, onSignOut }) => {
       // Close PIN modal immediately on success
       setShowUPIPinModal(false);
       setUpiPaymentDetails(null); // Clear payment details
+      pinModalOpenedByUserRef.current = false; // Reset user action flag
       
       // Handle balance check operation FIRST (before payment handling)
       if (paymentDetails.operation === 'balance_check') {
@@ -761,21 +849,28 @@ const Chat = ({ session, onSignOut }) => {
     sessionStorage.removeItem('upi_consent_given_session'); // Also remove from session storage
   };
 
-  const handleLanguageChange = (newLang) => {
+  const handleLanguageChange = useCallback((newLang) => {
     // If language hasn't changed, do nothing
     if (newLang === language) {
       return;
     }
 
-    // Stop any ongoing speech/listening first
+    // CRITICAL: Stop any ongoing speech/listening FIRST before changing language
+    // This prevents the voice mode from recording while AI is speaking
+    console.log('🛑 Language change: Stopping TTS and listening');
+    
+    // Stop listening first to prevent recording
     if (isListening) {
       stopListening();
     }
+    
+    // Stop speaking if active
     if (isSpeaking) {
       stopSpeaking();
     }
     
     // Mark that we're changing language to prevent hook interference
+    // This will prevent voice mode from auto-starting during language change
     markLanguageChanging();
     
     // Set the new language preference
@@ -785,7 +880,7 @@ const Chat = ({ session, onSignOut }) => {
     
     // Dispatch event to notify other components
     window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
-  };
+  }, [language, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging]);
 
   return (
     <div className="app-shell">
@@ -795,13 +890,6 @@ const Chat = ({ session, onSignOut }) => {
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
               <div className="chat-header-actions">
-                {/* Show hands-free indicator when voice mode is active */}
-                {isVoiceModeEnabled && (
-                  <div className="voice-mode-indicator">
-                    <span className="voice-mode-pulse"></span>
-                    <span className="voice-mode-status">{chatPageStrings.handsFreeEnabled || "Hands-free enabled"}</span>
-                  </div>
-                )}
                 <LanguageDropdown onSelect={handleLanguageChange} />
                 <button
                   type="button"
@@ -864,11 +952,17 @@ const Chat = ({ session, onSignOut }) => {
                     }}
                     onAddAssistantMessage={addAssistantMessage}
                     onSendMessage={sendMessage}
-                    onShowUPIPinModal={setShowUPIPinModal}
+                    onShowUPIPinModal={(show) => {
+                      if (show) {
+                        // Mark that modal was opened by user action
+                        pinModalOpenedByUserRef.current = true;
+                      }
+                      setShowUPIPinModal(show);
+                    }}
                     onSetUpiPaymentDetails={setUpiPaymentDetails}
                   />
                 ))}
-                {isTyping && <TypingIndicator />}
+                {isTyping && <TypingIndicator language={language} />}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -1160,8 +1254,11 @@ const Chat = ({ session, onSignOut }) => {
                 isLanguageComingSoon={isLanguageComingSoon}
                 isSpeaking={isSpeaking}
                 isVoiceModeEnabled={isVoiceModeEnabled}
+                isVoiceSecured={isVoiceSecured}
                 onSubmit={handleSendMessage}
                 onVoiceClick={handleVoiceInput}
+                onVoiceModeToggle={handleVoiceModeToggle}
+                onVoiceEnrollmentClick={() => setIsVoiceEnrollmentModalOpen(true)}
                 inputRef={inputRef}
                 copy={chatCopy.chatInput}
               />
@@ -1200,6 +1297,7 @@ const Chat = ({ session, onSignOut }) => {
         onClose={() => {
           setShowUPIPinModal(false);
           setUpiPaymentDetails(null);
+          pinModalOpenedByUserRef.current = false;
         }}
         onConfirm={handleUPIPinConfirm}
         paymentDetails={upiPaymentDetails}

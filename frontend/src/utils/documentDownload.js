@@ -5,10 +5,48 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 /**
+ * Map sub-loan types to their parent loan types (for document download)
+ * Sub-loans should download the parent document
+ */
+const getParentLoanType = (loanType) => {
+  if (!loanType) return null;
+  
+  const normalizedType = loanType.toUpperCase();
+  
+  // Map sub-loan types to parent loan types
+  const subLoanToParent = {
+    // Business loan sub-types -> business_loan
+    'BUSINESS_LOAN_MUDRA': 'business_loan',
+    'BUSINESS_LOAN_TERM': 'business_loan',
+    'BUSINESS_LOAN_WORKING_CAPITAL': 'business_loan',
+    'BUSINESS_LOAN_INVOICE': 'business_loan',
+    'BUSINESS_LOAN_EQUIPMENT': 'business_loan',
+    'BUSINESS_LOAN_OVERDRAFT': 'business_loan',
+    // Home loan sub-types -> home_loan
+    'HOME_LOAN_PURCHASE': 'home_loan',
+    'HOME_LOAN_CONSTRUCTION': 'home_loan',
+    'HOME_LOAN_PLOT_CONSTRUCTION': 'home_loan',
+    'HOME_LOAN_EXTENSION': 'home_loan',
+    'HOME_LOAN_RENOVATION': 'home_loan',
+    'HOME_LOAN_BALANCE_TRANSFER': 'home_loan',
+  };
+  
+  return subLoanToParent[normalizedType] || null;
+};
+
+/**
  * Map loan product names to document identifiers
  */
-const mapLoanNameToDocumentId = (loanName) => {
+const mapLoanNameToDocumentId = (loanName, loanType = null) => {
   if (!loanName) return null;
+  
+  // If loanType is provided and it's a sub-loan type, map to parent
+  if (loanType) {
+    const parentLoanType = getParentLoanType(loanType);
+    if (parentLoanType) {
+      return parentLoanType;
+    }
+  }
   
   const normalizedName = loanName.toLowerCase().trim();
   
@@ -30,6 +68,21 @@ const mapLoanNameToDocumentId = (loanName) => {
     'loan_against_property': 'loan_against_property',
     'property loan': 'loan_against_property',
     'lap': 'loan_against_property',
+    // Sub-loan types -> parent documents
+    'mudra loan': 'business_loan',
+    'mudra': 'business_loan',
+    'term loan': 'business_loan',
+    'working capital': 'business_loan',
+    'working capital loan': 'business_loan',
+    'invoice financing': 'business_loan',
+    'equipment financing': 'business_loan',
+    'business overdraft': 'business_loan',
+    'home purchase loan': 'home_loan',
+    'home construction loan': 'home_loan',
+    'plot construction loan': 'home_loan',
+    'home extension loan': 'home_loan',
+    'home renovation loan': 'home_loan',
+    'balance transfer loan': 'home_loan',
     // Hindi names
     'होम लोन': 'home_loan',
     'पर्सनल लोन': 'personal_loan',
@@ -38,6 +91,15 @@ const mapLoanNameToDocumentId = (loanName) => {
     'बिजनेस लोन': 'business_loan',
     'गोल्ड लोन': 'gold_loan',
     'प्रॉपर्टी के खिलाफ लोन': 'loan_against_property',
+    // Hindi sub-loan types -> parent documents
+    'मुद्रा लोन': 'business_loan',
+    'मुद्रा': 'business_loan',
+    'टर्म लोन': 'business_loan',
+    'वर्किंग कैपिटल': 'business_loan',
+    'वर्किंग कैपिटल लोन': 'business_loan',
+    'इनवॉइस फाइनेंसिंग': 'business_loan',
+    'इक्विपमेंट फाइनेंसिंग': 'business_loan',
+    'बिजनेस ओवरड्राफ्ट': 'business_loan',
   };
   
   // Check direct match
@@ -105,13 +167,14 @@ const mapInvestmentNameToDocumentId = (investmentName) => {
  * @param {string} documentName - Product/scheme name
  * @param {string} language - Language code (en-IN or hi-IN)
  * @param {string} accessToken - Authentication token (optional, for protected endpoints)
+ * @param {string} loanType - Optional loan type (e.g., 'BUSINESS_LOAN_MUDRA') for sub-loans
  */
-export const downloadDocument = async (documentType, documentName, language = 'en-IN', accessToken = null) => {
+export const downloadDocument = async (documentType, documentName, language = 'en-IN', accessToken = null, loanType = null) => {
   try {
     // Map the name to document ID
     let documentId;
     if (documentType === 'loan') {
-      documentId = mapLoanNameToDocumentId(documentName);
+      documentId = mapLoanNameToDocumentId(documentName, loanType);
     } else if (documentType === 'investment') {
       documentId = mapInvestmentNameToDocumentId(documentName);
     } else {
