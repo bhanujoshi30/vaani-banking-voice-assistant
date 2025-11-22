@@ -51,6 +51,28 @@ async def rag_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             # Language change was successful, return
             return result
 
+    # CRITICAL: Check for customer support queries FIRST, before loan/investment detection
+    # This prevents customer support queries from being misclassified as loan/investment queries
+    query_lower = user_query.lower()
+    customer_support_keywords = [
+        "customer support", "customer care", "contact", "phone number", "phone", "helpline",
+        "email", "email address", "address", "headquarters", "head office", "branch address",
+        "website", "contact us", "reach us", "get in touch", "support", "customer service",
+        "call", "number", "location", "office address", "help with customer", "need help with",
+        "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "फोन नंबर", "हेल्पलाइन", "ईमेल", "वेबसाइट"
+    ]
+    
+    is_customer_support_query = any(keyword in query_lower for keyword in customer_support_keywords)
+    
+    if is_customer_support_query:
+        logger.info(
+            "customer_support_query_detected_early",
+            query=user_query,
+            matched_keywords=[kw for kw in customer_support_keywords if kw in query_lower]
+        )
+        await handle_customer_support_query(state, user_query=user_query, llm=llm)
+        return state
+
     # Extract conversation context to help detect loan/investment queries
     conversation_context = _extract_conversation_context(state, max_pairs=3)
     
@@ -71,8 +93,48 @@ async def rag_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if signals.is_general_investment_query and not signals.detected_investment_type:
         return handle_general_investment_query(state, language)
 
+    # Also check if investment query is asking for options/choices but no specific type detected
+    # This handles queries like "I want to do investment, what options do I have?"
+    if signals.is_investment_query and not signals.detected_investment_type:
+        query_lower = user_query.lower()
+        option_keywords = [
+            "options", "option", "choices", "choice", "what do i have", "what are",
+            "show me", "list", "available", "विकल्प", "क्या", "दिखाएं", "सूची"
+        ]
+        has_option_keywords = any(keyword in query_lower for keyword in option_keywords)
+        
+        # If query contains investment keywords and option keywords but no specific type,
+        # treat it as a general investment query
+        if has_option_keywords:
+            logger.info(
+                "investment_query_detected_as_general_due_to_options",
+                query=user_query,
+                has_option_keywords=True
+            )
+            return handle_general_investment_query(state, language)
+
     if signals.is_general_loan_query and not signals.detected_loan_type:
         return handle_general_loan_query(state, language)
+
+    # Also check if loan query is asking for options/choices but no specific type detected
+    # This handles queries like "I want to borrow money, what options do I have?"
+    if signals.is_loan_query and not signals.detected_loan_type:
+        query_lower = user_query.lower()
+        option_keywords = [
+            "options", "option", "choices", "choice", "what do i have", "what are",
+            "show me", "list", "available", "विकल्प", "क्या", "दिखाएं", "सूची"
+        ]
+        has_option_keywords = any(keyword in query_lower for keyword in option_keywords)
+        
+        # If query contains loan keywords and option keywords but no specific type,
+        # treat it as a general loan query
+        if has_option_keywords:
+            logger.info(
+                "loan_query_detected_as_general_due_to_options",
+                query=user_query,
+                has_option_keywords=True
+            )
+            return handle_general_loan_query(state, language)
 
     if signals.is_investment_query:
         await handle_investment_query(
@@ -214,6 +276,23 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "show me loans",
         "list loans",
         "all loans",
+        "i want to borrow",
+        "i want to borrow money",
+        "want to borrow",
+        "want to borrow money",
+        "i need a loan",
+        "i need loan",
+        "need a loan",
+        "need loan",
+        "what options do i have",
+        "what options",
+        "what choices",
+        "what are my options",
+        "what are the options",
+        "show me options",
+        "show options",
+        "list loans",
+        "loan list",
         # Hindi general loan queries (only when NO specific loan type is mentioned)
         "कौन से लोन",
         "कौन सी लोन",
@@ -240,6 +319,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "लोन जानकारी",
         "ऋण की जानकारी",
         "ऋण जानकारी",
+        "मुझे पैसे चाहिए",
+        "मुझे पैसा चाहिए",
+        "क्या विकल्प हैं",
+        "क्या विकल्प",
+        "कौन से विकल्प",
     ]
 
     investment_keywords = [
@@ -300,6 +384,20 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "tax saving schemes",
         "show me investment",
         "investment options available",
+        "i want to invest",
+        "i want to do investment",
+        "want to invest",
+        "want to do investment",
+        "what options do i have",
+        "what options",
+        "what choices",
+        "what are my options",
+        "what are the options",
+        "show me options",
+        "show options",
+        "list investments",
+        "list investment",
+        "investment list",
         # Hindi general investment queries
         "कौन सी योजना",
         "कौन सी स्कीम",
@@ -320,6 +418,12 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "निवेश की जानकारी",
         "योजना की जानकारी",
         "स्कीम की जानकारी",
+        "मुझे निवेश करना चाहिए",
+        "मैं निवेश करना चाहता",
+        "मैं निवेश करना चाहती",
+        "क्या विकल्प हैं",
+        "क्या विकल्प",
+        "कौन से विकल्प",
     ]
 
     specific_loan_types = {
@@ -459,6 +563,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
                         )
                         break
 
+    # CRITICAL: Check if this is a general investment query FIRST
+    # If it's a general query, don't use conversation context to detect investment types
+    # This prevents showing previous investment/loan details when user asks for investment list again
+    is_general_investment_query = any(phrase in query_lower for phrase in general_investment_queries)
+    
     # IMPORTANT: Check for specific investment types FIRST (before general queries)
     # PRIORITIZE CURRENT QUERY over conversation context to avoid false matches
     # Sort by length (longest first) to match longer phrases first (e.g., "sukanya samriddhi yojana" before "sukanya")
@@ -477,9 +586,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
             )
             break
     
-    # SECOND: If not found in current query, check combined text (with context) for context-aware matches
+    # SECOND: If not found in current query AND it's NOT a general investment query,
+    # check combined text (with context) for context-aware matches
     # This handles follow-up queries like "tell me more" after "ppf"
-    if not detected_investment_type:
+    # BUT: Skip context check if user is asking for general investment information (fresh start)
+    if not detected_investment_type and not is_general_investment_query:
         for investment_name, investment_type in sorted_investment_types:
             if investment_name in combined_text:
                 detected_investment_type = investment_type
@@ -504,9 +615,14 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
 
     # Check loan keywords in combined text (with context) for better detection
     # Special handling for context-aware keywords
+    # IMPORTANT: Prioritize current query intent - if current query is clearly about investments,
+    # don't mark as loan query based on conversation context alone
     is_loan_query = False
+    current_query_has_investment_keywords = any(keyword in query_lower for keyword in investment_keywords)
+    
+    # First check current query for loan keywords (prioritize what user is asking NOW)
     for keyword in loan_keywords:
-        if keyword in combined_text:
+        if keyword in query_lower:
             # For "against property", only match if there's loan context
             if keyword == "against property":
                 if "loan" in conversation_context or "लोन" in conversation_context or "ऋण" in conversation_context:
@@ -516,9 +632,26 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
                 is_loan_query = True
                 break
     
+    # Only check combined_text (with context) if:
+    # 1. Current query doesn't have loan keywords AND
+    # 2. Current query doesn't have investment keywords (to avoid conflicts)
+    if not is_loan_query and not current_query_has_investment_keywords:
+        for keyword in loan_keywords:
+            if keyword in combined_text:
+                # For "against property", only match if there's loan context
+                if keyword == "against property":
+                    if "loan" in conversation_context or "लोन" in conversation_context or "ऋण" in conversation_context:
+                        is_loan_query = True
+                        break
+                else:
+                    is_loan_query = True
+                    break
+    
     # Also check if conversation context mentions loans and current query is brief follow-up
-    # BUT: Skip this if it's a general loan query (user wants fresh start, not follow-up)
-    if not is_loan_query and conversation_context and not is_general_loan_query:
+    # BUT: Skip this if:
+    # 1. It's a general loan query (user wants fresh start, not follow-up) OR
+    # 2. Current query has investment keywords (prioritize investment intent)
+    if not is_loan_query and conversation_context and not is_general_loan_query and not current_query_has_investment_keywords:
         # If previous context has loans and current query is brief (likely a follow-up)
         has_loan_context = any(word in conversation_context for word in ["loan", "लोन", "ऋण", "loans", "products", "options"])
         is_brief_followup = len(user_query.split()) <= 3  # 3 words or less
@@ -547,10 +680,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
                     detected_loan_type = "auto_loan"
 
     # Check if it's a general investment query (only if no specific investment type was detected)
+    # Use the pre-computed is_general_investment_query value
     is_general_investment = False
     if not detected_investment_type:
         # Only check general queries if no specific investment type was found
-        is_general_investment = any(phrase in query_lower for phrase in general_investment_queries)
+        is_general_investment = is_general_investment_query
     else:
         # If specific investment type detected, don't treat as general query
         is_general_investment = False
