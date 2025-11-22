@@ -2,13 +2,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 2rem;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 1.75rem 2rem;
+  background: #ffffff;
   backdrop-filter: blur(12px);
-  border-radius: 24px;
-  box-shadow: 0 18px 40px -28px rgba(15, 27, 42, 0.3);
-  border: 1px solid rgba(255, 190, 110, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 27, 42, 0.08), 0 1px 3px rgba(15, 27, 42, 0.04);
+  border: 1px solid rgba(15, 27, 42, 0.08);
   gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Chat page specific: reduce header margin */
+.app-gradient--fullwidth .sun-header {
+  margin-bottom: 0.5rem;
+}
+
+/* Profile page specific: reduce header margin */
+.app-gradient:has(.profile-surface) .sun-header {
+  margin-bottom: 0.75rem;
 }
 
 .sun-header__identity {
@@ -24,15 +35,17 @@
 
 .sun-header__title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: -0.01em;
+  color: #0f1b2a;
 }
 
 .sun-header__subtitle {
-  margin: 0.15rem 0 0;
-  color: rgba(15, 27, 42, 0.6);
+  margin: 0.2rem 0 0;
+  color: rgba(15, 27, 42, 0.65);
   font-size: 0.95rem;
+  font-weight: 400;
 }
 
 .sun-header__actions {
@@ -45,12 +58,17 @@
   .sun-header {
     flex-direction: column;
     align-items: flex-start;
-    padding: 1.25rem 1.5rem;
-    gap: 1rem;
+    padding: 1.5rem 1.5rem;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
   }
 
   .sun-header__identity {
     gap: 1rem;
+  }
+
+  .sun-header__title {
+    font-size: 1.25rem;
   }
 }
 

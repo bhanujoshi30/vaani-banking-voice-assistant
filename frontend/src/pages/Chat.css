@@ -31,7 +31,7 @@
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  padding: 1rem;
+  padding: 1rem 1rem 0.75rem;
 }
 
 .chat-container {
@@ -45,7 +45,7 @@
   overflow: hidden;
   flex: 1;
   min-height: 0;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .chat-main {

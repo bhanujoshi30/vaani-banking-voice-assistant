@@ -4,6 +4,7 @@ import { Link, Navigate } from "react-router-dom";
 
 import SunHeader from "../components/SunHeader.jsx";
 import LanguageDropdown from "../components/LanguageDropdown.jsx";
+import AIAssistantLogo from "../components/AIAssistantLogo.jsx";
 import { getLoginStrings, getVoicePhrase } from "../config/loginStrings.js";
 import { getPreferredLanguage, setPreferredLanguage } from "../utils/preferences.js";
 
@@ -454,6 +455,29 @@ const Login = ({ onAuthenticate, authenticated }) => {
 
   return (
     <div className="app-shell">
+      {/* Hero Section with Image */}
+      <div className="login-hero-section">
+        <div className="login-hero-image">
+          <div className="login-hero-overlay"></div>
+        </div>
+        <div className="login-hero-content">
+          <h1 className="login-hero-title">
+            <span className="login-hero-title__english">Voice-First Banking</span>
+            <span className="login-hero-title__hindi">आवाज़-पहली बैंकिंग</span>
+          </h1>
+          <div className="login-hero-languages">
+            <span className="language-tag language-tag--primary">English</span>
+            <span className="language-tag language-tag--primary">हिंदी</span>
+            <span className="language-tag language-tag--extendable">+ More languages</span>
+          </div>
+          <p className="login-hero-subtitle">
+            <span className="login-hero-subtitle__text">Currently available in English & Hindi</span>
+            <span className="login-hero-subtitle__hint">Extensible to any language worldwide</span>
+          </p>
+          <p className="login-hero-tagline">Secure, smart, and seamless banking for Bharat</p>
+        </div>
+      </div>
+
       <div className="app-content">
         <div className="app-gradient">
           <SunHeader subtitle="Voice-first banking, made human." />
@@ -466,25 +490,27 @@ const Login = ({ onAuthenticate, authenticated }) => {
                   onSelect={handleLanguageChange}
                 />
               </div>
-              <p>{strings.general.welcomeSubtitle}</p>
+              <p className="card-hero__subtitle">{strings.general.welcomeSubtitle}</p>
             </div>
-            <div className="login-mode-switch">
-              <button
-                type="button"
-                className={`mode-chip ${authMode === "password" ? "mode-chip--active" : ""}`}
-                onClick={() => !credentialInputsDisabled && setAuthMode("password")}
-                disabled={credentialInputsDisabled}
-              >
-                {strings.general.passwordLabel}
-              </button>
-              <button
-                type="button"
-                className={`mode-chip ${authMode === "voice" ? "mode-chip--active" : ""}`}
-                onClick={() => !credentialInputsDisabled && setAuthMode("voice")}
-                disabled={credentialInputsDisabled}
-              >
-                {strings.general.voiceLabel}
-              </button>
+            <div className="login-mode-switch-wrapper">
+              <div className="login-mode-switch">
+                <button
+                  type="button"
+                  className={`mode-chip ${authMode === "password" ? "mode-chip--active" : ""}`}
+                  onClick={() => !credentialInputsDisabled && setAuthMode("password")}
+                  disabled={credentialInputsDisabled}
+                >
+                  {strings.general.passwordLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`mode-chip ${authMode === "voice" ? "mode-chip--active" : ""}`}
+                  onClick={() => !credentialInputsDisabled && setAuthMode("voice")}
+                  disabled={credentialInputsDisabled}
+                >
+                  {strings.general.voiceLabel}
+                </button>
+              </div>
             </div>
             <form className="card-form" onSubmit={handleSubmit} noValidate>
               <label htmlFor="userId">
@@ -653,6 +679,248 @@ const Login = ({ onAuthenticate, authenticated }) => {
           </main>
         </div>
       </div>
+      
+      {/* Products and Services Sections */}
+      <div className="products-services-container">
+        {/* Vaani AI Assistant Highlight Section */}
+        <section className="feature-section vaani-highlight">
+          <div className="feature-section__content">
+            <div className="feature-section__text">
+              <span className="feature-section__badge">What's New</span>
+              <h2 className="feature-section__title">Experience Banking with Vaani AI Assistant</h2>
+              <p className="feature-section__description">
+                Your intelligent voice-first banking companion. Ask questions, get instant answers about loans, investments, and banking services in English or Hindi.
+              </p>
+              <ul className="feature-section__features">
+                <li>
+                  <svg className="feature-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#ff8f42"/>
+                  </svg>
+                  Voice-first interaction for seamless banking
+                </li>
+                <li>
+                  <svg className="feature-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ff8f42"/>
+                  </svg>
+                  AI-powered intelligent responses
+                </li>
+                <li>
+                  <svg className="feature-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="#ff8f42"/>
+                  </svg>
+                  Multi-language support (English & Hindi)
+                </li>
+                <li>
+                  <svg className="feature-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6l-2 2V4h16v10z" fill="#ff8f42"/>
+                  </svg>
+                  Natural conversation interface
+                </li>
+              </ul>
+            </div>
+            <div className="feature-section__visual">
+              <div className="vaani-visual-card">
+                <AIAssistantLogo size={120} showAssistant={true} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Loan Products Section */}
+        <section className="products-section">
+          <div className="products-section__header">
+            <h2 className="products-section__title">Our Loan Products</h2>
+            <p className="products-section__subtitle">Choose from a wide range of loan options tailored to your needs</p>
+          </div>
+          <div className="products-grid">
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Home Loan</h3>
+              <p className="product-card__rate">8.35% - 9.50% p.a.</p>
+              <p className="product-card__description">Up to ₹5 crores | Up to 30 years</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Auto Loan</h3>
+              <p className="product-card__rate">8.75% - 12% p.a.</p>
+              <p className="product-card__description">Up to ₹50 lakhs | Up to 7 years</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Personal Loan</h3>
+              <p className="product-card__rate">10.5% - 24% p.a.</p>
+              <p className="product-card__description">Up to ₹40 lakhs | Up to 5 years</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Education Loan</h3>
+              <p className="product-card__rate">8.5% - 11.5% p.a.</p>
+              <p className="product-card__description">Up to ₹1 crore | Up to 15 years</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  {/* Shop/Store building */}
+                  <path d="M5 8h14v13H5V8z" fill="#ff8f42" opacity="0.2"/>
+                  <path d="M5 8h14v13H5V8z" stroke="#ff8f42" strokeWidth="1.5" fill="none"/>
+                  {/* Roof */}
+                  <path d="M3 8l9-4 9 4v2H3V8z" fill="#ff8f42"/>
+                  {/* Door */}
+                  <rect x="10" y="14" width="4" height="7" rx="0.5" fill="#ff8f42"/>
+                  {/* Windows */}
+                  <rect x="6" y="10" width="2.5" height="2.5" rx="0.3" fill="#ff8f42" opacity="0.6"/>
+                  <rect x="15.5" y="10" width="2.5" height="2.5" rx="0.3" fill="#ff8f42" opacity="0.6"/>
+                  {/* Sign board */}
+                  <rect x="8" y="6" width="8" height="2" rx="0.5" fill="#ff8f42" opacity="0.8"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Business Loan</h3>
+              <p className="product-card__rate">11% - 18% p.a.</p>
+              <p className="product-card__description">Up to ₹50 lakhs | MSME/SME</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  {/* Gold coin/ornament */}
+                  <circle cx="12" cy="12" r="8" fill="#ff8f42" opacity="0.3"/>
+                  <circle cx="12" cy="12" r="6.5" fill="#ff8f42"/>
+                  {/* Decorative pattern - Indian style */}
+                  <circle cx="12" cy="12" r="4" fill="none" stroke="#ffffff" strokeWidth="1.5" opacity="0.8"/>
+                  <circle cx="12" cy="12" r="2.5" fill="#ffffff" opacity="0.9"/>
+                  {/* Small decorative dots */}
+                  <circle cx="12" cy="7" r="0.8" fill="#ffffff" opacity="0.8"/>
+                  <circle cx="12" cy="17" r="0.8" fill="#ffffff" opacity="0.8"/>
+                  <circle cx="7" cy="12" r="0.8" fill="#ffffff" opacity="0.8"/>
+                  <circle cx="17" cy="12" r="0.8" fill="#ffffff" opacity="0.8"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Gold Loan</h3>
+              <p className="product-card__rate">10% - 15% p.a.</p>
+              <p className="product-card__description">Up to ₹25 lakhs | Quick approval</p>
+            </div>
+            <div className="product-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Loan Against Property</h3>
+              <p className="product-card__rate">9.5% - 12.5% p.a.</p>
+              <p className="product-card__description">Up to ₹5 crores | Up to 15 years</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Investment Schemes Section */}
+        <section className="products-section investment-section">
+          <div className="products-section__header">
+            <h2 className="products-section__title">Investment Schemes</h2>
+            <p className="products-section__subtitle">Grow your wealth with our diverse investment options</p>
+          </div>
+          <div className="products-grid">
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  {/* Piggy bank / Savings jar */}
+                  <path d="M8 4h8c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" fill="#ff8f42" opacity="0.2"/>
+                  <path d="M8 4h8c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#ff8f42" strokeWidth="1.5" fill="none"/>
+                  {/* Top opening */}
+                  <ellipse cx="12" cy="6" rx="3" ry="1.5" fill="#ff8f42" opacity="0.4"/>
+                  {/* Coin slot */}
+                  <rect x="11" y="3" width="2" height="4" rx="1" fill="#ff8f42"/>
+                  {/* Coins inside */}
+                  <circle cx="10" cy="11" r="1.5" fill="#ff8f42" opacity="0.6"/>
+                  <circle cx="14" cy="13" r="1.5" fill="#ff8f42" opacity="0.6"/>
+                  <circle cx="12" cy="16" r="1.5" fill="#ff8f42" opacity="0.6"/>
+                  {/* Base */}
+                  <ellipse cx="12" cy="20" rx="4" ry="1" fill="#ff8f42" opacity="0.3"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">PPF</h3>
+              <p className="product-card__rate">7.1% p.a.</p>
+              <p className="product-card__description">₹500 - ₹1.5L/year | 15 years | Tax-free</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#ff8f42"/>
+                  <circle cx="12" cy="12" r="10" stroke="#ff8f42" strokeWidth="2" fill="none"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">NPS</h3>
+              <p className="product-card__rate">8-12% p.a.</p>
+              <p className="product-card__description">Market-linked | Retirement scheme | Extra ₹50K tax deduction</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">SSY</h3>
+              <p className="product-card__rate">8.2% p.a.</p>
+              <p className="product-card__description">₹250 - ₹1.5L/year | Girl child scheme | 21 years</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">ELSS</h3>
+              <p className="product-card__rate">Market-linked</p>
+              <p className="product-card__description">₹500+ | 3-year lock-in | Tax saving mutual fund</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Fixed Deposit</h3>
+              <p className="product-card__rate">6-8% p.a.</p>
+              <p className="product-card__description">₹1000+ | 7 days-10 years | Safe investment</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">Recurring Deposit</h3>
+              <p className="product-card__rate">6-7.5% p.a.</p>
+              <p className="product-card__description">₹100/month | Regular savings</p>
+            </div>
+            <div className="product-card investment-card">
+              <div className="product-card__icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" fill="#ff8f42"/>
+                </svg>
+              </div>
+              <h3 className="product-card__title">NSC</h3>
+              <p className="product-card__rate">7-9% p.a.</p>
+              <p className="product-card__description">₹1000+ | 5 years | Government backed</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <footer className="app-footer">
         © {new Date().getFullYear()} Sun National Bank · RBI compliant · Made for Bharat
       </footer>

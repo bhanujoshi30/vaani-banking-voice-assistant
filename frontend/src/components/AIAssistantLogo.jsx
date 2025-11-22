@@ -1,12 +1,14 @@
 import PropTypes from "prop-types";
+import "./AIAssistantLogo.css";
 
 /**
  * AI Assistant Logo Component
  * Displays the Sun National Bank AI Assistant logo
  * - Central orange speech bubble with "AI" text
  * - Outer radiating sun pattern with 8 prominent teardrop elements
+ * - Animated with continuous motion for enhanced appeal
  */
-const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, className = "" }) => {
+const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, className = "", animated = true }) => {
   const viewBoxSize = 100;
   const padding = 8; // Padding to prevent cropping of sun rays
   const centerX = viewBoxSize / 2;
@@ -21,15 +23,18 @@ const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, c
   const adjustedCenterX = centerX + padding;
   const adjustedCenterY = centerY + padding;
   
+  const animationClass = animated ? "ai-assistant-logo-animated" : "";
+  
   return (
-    <svg
-      width={size}
-      height={showAssistant ? size * 1.2 : size}
-      viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-label="Sun National Bank AI Assistant"
-    >
+    <div className={animationClass}>
+      <svg
+        width={size}
+        height={showAssistant ? size * 1.2 : size}
+        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        aria-label="Sun National Bank AI Assistant"
+      >
       <defs>
         {/* Orange/golden-orange gradient */}
         <linearGradient id={`orangeGradient-${uniqueId}`} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -39,72 +44,88 @@ const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, c
         </linearGradient>
       </defs>
       
-      {/* Outer radiating pattern - thin rays */}
-      <g>
-        {[...Array(24)].map((_, i) => {
-          const angle = (i * 360) / 24;
-          const rad = (angle * Math.PI) / 180;
-          const innerRadius = speechBubbleRadius + 5;
-          const outerRadiusRay = outerRadius - 3;
-          const x1 = adjustedCenterX + Math.cos(rad) * innerRadius;
-          const y1 = adjustedCenterY + Math.sin(rad) * innerRadius;
-          const x2 = adjustedCenterX + Math.cos(rad) * outerRadiusRay;
-          const y2 = adjustedCenterY + Math.sin(rad) * outerRadiusRay;
-          return (
-            <line
-              key={`ray-${i}`}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={`url(#orangeGradient-${uniqueId})`}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              fill="none"
+      {/* All elements centered together - speech bubble stays stationary, rays and teardrops rotate */}
+      <g transform={`translate(${adjustedCenterX}, ${adjustedCenterY})`}>
+        {/* Rotating elements - rays and teardrops */}
+        <g className="sun-rays">
+          {animated && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              values="0;360"
+              dur="20s"
+              repeatCount="indefinite"
             />
-          );
-        })}
-      </g>
-      
-      {/* 8 prominent teardrop-shaped elements at cardinal and diagonal positions */}
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
-        const rad = (angle * Math.PI) / 180;
-        const distance = outerRadius - 2;
-        const x = adjustedCenterX + Math.cos(rad) * distance;
-        const y = adjustedCenterY + Math.sin(rad) * distance;
-        return (
-          <ellipse
-            key={`teardrop-${i}`}
-            cx={x}
-            cy={y}
-            rx="4"
-            ry="8"
-            fill={`url(#orangeGradient-${uniqueId})`}
-            transform={`rotate(${angle + 90} ${x} ${y})`}
-          />
-        );
-      })}
-      
-      {/* Central speech bubble (circle with tail) */}
-      <g>
+          )}
+          {/* Thin rays */}
+          {[...Array(24)].map((_, i) => {
+            const angle = (i * 360) / 24;
+            const rad = (angle * Math.PI) / 180;
+            const innerRadius = speechBubbleRadius + 5;
+            const outerRadiusRay = outerRadius - 3;
+            const x1 = Math.cos(rad) * innerRadius;
+            const y1 = Math.sin(rad) * innerRadius;
+            const x2 = Math.cos(rad) * outerRadiusRay;
+            const y2 = Math.sin(rad) * outerRadiusRay;
+            return (
+              <line
+                key={`ray-${i}`}
+                className="sun-ray"
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={`url(#orangeGradient-${uniqueId})`}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                fill="none"
+              />
+            );
+          })}
+          
+          {/* 8 prominent teardrop-shaped elements at cardinal and diagonal positions */}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const distance = outerRadius - 2;
+            const x = Math.cos(rad) * distance;
+            const y = Math.sin(rad) * distance;
+            // Teardrop rotation: angle + 90 to point outward
+            const teardropRotation = angle + 90;
+            return (
+              <g key={`teardrop-group-${i}`} transform={`translate(${x}, ${y}) rotate(${teardropRotation})`}>
+                <ellipse
+                  className={`teardrop-${i}`}
+                  cx="0"
+                  cy="0"
+                  rx="4"
+                  ry="8"
+                  fill={`url(#orangeGradient-${uniqueId})`}
+                />
+              </g>
+            );
+          })}
+        </g>
+        
+        {/* Central speech bubble (circle with tail) - stationary, perfectly centered */}
+        <g className="speech-bubble">
         {/* Main circular part */}
         <circle
-          cx={adjustedCenterX}
-          cy={adjustedCenterY}
+          cx="0"
+          cy="0"
           r={speechBubbleRadius}
           fill={`url(#orangeGradient-${uniqueId})`}
         />
         
         {/* Speech bubble tail pointing downward */}
         <path
-          d={`M ${adjustedCenterX - 4} ${adjustedCenterY + speechBubbleRadius} L ${adjustedCenterX} ${adjustedCenterY + speechBubbleRadius + 6} L ${adjustedCenterX + 4} ${adjustedCenterY + speechBubbleRadius} Z`}
+          d={`M -4 ${speechBubbleRadius} L 0 ${speechBubbleRadius + 6} L 4 ${speechBubbleRadius} Z`}
           fill={`url(#orangeGradient-${uniqueId})`}
         />
         
         {/* "AI" text inside the bubble */}
         <text
-          x={adjustedCenterX}
-          y={adjustedCenterY + 4}
+          x="0"
+          y="4"
           fontSize="14"
           fontWeight="bold"
           fill="#333333"
@@ -114,6 +135,7 @@ const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, c
         >
           AI
         </text>
+        </g>
       </g>
       
       {/* "Vaani AI assistant" text below the logo (part of the logo) */}
@@ -177,7 +199,8 @@ const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, c
           </text>
         </g>
       )}
-    </svg>
+      </svg>
+    </div>
   );
 };
 
@@ -186,6 +209,7 @@ AIAssistantLogo.propTypes = {
   showText: PropTypes.bool,
   showAssistant: PropTypes.bool,
   className: PropTypes.string,
+  animated: PropTypes.bool,
 };
 
 AIAssistantLogo.defaultProps = {
@@ -193,6 +217,7 @@ AIAssistantLogo.defaultProps = {
   showText: false,
   showAssistant: false,
   className: "",
+  animated: true,
 };
 
 export default AIAssistantLogo;

@@ -1,0 +1,141 @@
+/* AI Assistant Logo Animations */
+
+/* Container for animated logo */
+.ai-assistant-logo-animated {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.ai-assistant-logo-animated svg {
+  display: block;
+  vertical-align: middle;
+}
+
+/* Rotating sun rays - handled by SVG animateTransform for better compatibility */
+.ai-assistant-logo-animated .sun-rays {
+  transform-origin: 0 0;
+}
+
+/* Pulsing central bubble - breathing effect */
+@keyframes pulseBubble {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.95;
+  }
+}
+
+.ai-assistant-logo-animated .speech-bubble {
+  transform-origin: 0 0;
+  animation: pulseBubble 2s ease-in-out infinite;
+  transform-box: fill-box;
+}
+
+/* Glow effect for the central bubble */
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(255, 140, 0, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(255, 165, 0, 0.8)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.4));
+  }
+}
+
+.ai-assistant-logo-animated .speech-bubble {
+  animation: pulseBubble 2s ease-in-out infinite, glow 2s ease-in-out infinite;
+}
+
+/* Staggered pulsing for teardrop elements - using opacity and brightness to avoid transform conflicts */
+@keyframes pulseTeardrop {
+  0%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.9;
+    filter: brightness(1.2);
+  }
+}
+
+.ai-assistant-logo-animated .teardrop-0 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.ai-assistant-logo-animated .teardrop-1 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 0.25s;
+}
+
+.ai-assistant-logo-animated .teardrop-2 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.ai-assistant-logo-animated .teardrop-3 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 0.75s;
+}
+
+.ai-assistant-logo-animated .teardrop-4 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.ai-assistant-logo-animated .teardrop-5 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 1.25s;
+}
+
+.ai-assistant-logo-animated .teardrop-6 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.ai-assistant-logo-animated .teardrop-7 {
+  animation: pulseTeardrop 2s ease-in-out infinite;
+  animation-delay: 1.75s;
+}
+
+/* Subtle shimmer effect on rays */
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ai-assistant-logo-animated .sun-ray {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.ai-assistant-logo-animated .sun-ray:nth-child(odd) {
+  animation-delay: 0s;
+}
+
+.ai-assistant-logo-animated .sun-ray:nth-child(even) {
+  animation-delay: 1.5s;
+}
+
+/* Enhanced hover effect for the button */
+.floating-chat-button:hover .ai-assistant-logo-animated .speech-bubble {
+  animation-duration: 1.5s; /* Faster pulse on hover */
+}
+
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-0,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-1,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-2,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-3,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-4,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-5,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-6,
+.floating-chat-button:hover .ai-assistant-logo-animated .teardrop-7 {
+  animation-duration: 1.5s; /* Faster pulse on hover */
+}
+
