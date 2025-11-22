@@ -33,16 +33,15 @@ const ChatMessage = ({ message, userName, language = 'en-IN', session, onFeedbac
   const pageStrings = useMemo(() => getPageStrings(messageLanguage), [messageLanguage]);
   const chatPageStrings = pageStrings.chat || {};
   
-  // Debug: Log message data to console
-  if (message.role === 'assistant') {
-    console.log('📩 Assistant Message:', {
-      content: message.content.substring(0, 50) + '...',
-      hasStatementData: !!message.statementData,
-      hasStructuredData: !!message.structuredData,
-      statementData: message.statementData,
-      structuredData: message.structuredData,
-    });
-  }
+  // Note: Removed excessive logging - only log in development mode if needed
+  // Uncomment below for debugging:
+  // if (message.role === 'assistant' && process.env.NODE_ENV === 'development') {
+  //   console.log('📩 Assistant Message:', {
+  //     content: message.content.substring(0, 50) + '...',
+  //     hasStatementData: !!message.statementData,
+  //     hasStructuredData: !!message.structuredData,
+  //   });
+  // }
 
   const handleFeedback = (isPositive) => {
     if (feedbackSubmitted) return;

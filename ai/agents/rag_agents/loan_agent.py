@@ -829,12 +829,46 @@ async def handle_loan_query(
     try:
         rag_filter = None
         if detected_loan_type:
-            # Use the detected loan type (which may be a specific sub-loan type)
-            # Convert to uppercase with underscores for metadata matching
-            rag_filter = {"loan_type": detected_loan_type.upper().replace(" ", "_")}
+            # Map sub-loan types to their parent loan types for RAG filtering
+            # Documents are indexed with parent loan types (e.g., "home_loan"), not sub-types
+            sub_loan_to_parent = {
+                # Business loan sub-types -> business_loan
+                "BUSINESS_LOAN_MUDRA": "business_loan",
+                "BUSINESS_LOAN_TERM": "business_loan",
+                "BUSINESS_LOAN_WORKING_CAPITAL": "business_loan",
+                "BUSINESS_LOAN_INVOICE": "business_loan",
+                "BUSINESS_LOAN_EQUIPMENT": "business_loan",
+                "BUSINESS_LOAN_OVERDRAFT": "business_loan",
+                # Home loan sub-types -> home_loan
+                "HOME_LOAN_PURCHASE": "home_loan",
+                "HOME_LOAN_CONSTRUCTION": "home_loan",
+                "HOME_LOAN_PLOT_CONSTRUCTION": "home_loan",
+                "HOME_LOAN_EXTENSION": "home_loan",
+                "HOME_LOAN_RENOVATION": "home_loan",
+                "HOME_LOAN_BALANCE_TRANSFER": "home_loan",
+            }
+            
+            # Normalize detected_loan_type
+            normalized_detected = detected_loan_type.upper().replace(" ", "_")
+            
+            # Map to parent loan type if it's a sub-loan type
+            parent_loan_type = sub_loan_to_parent.get(normalized_detected, normalized_detected.lower())
+            
+            # Documents are indexed with parent loan types
+            # The format depends on ingestion method:
+            # - Basic loader: lowercase (e.g., "home_loan") from PDF filename
+            # - Semantic chunker: uppercase (e.g., "HOME_LOAN") from normalization
+            # Try lowercase first (most common), but ChromaDB filter is case-sensitive
+            # So we need to match the exact format used during indexing
+            # For now, use uppercase to match semantic chunker format (if used)
+            # If that doesn't work, we can fall back to lowercase or try both
+            rag_filter = {"loan_type": parent_loan_type.upper()}
+            
             logger.info(
                 "rag_filter_set",
                 detected_loan_type=detected_loan_type,
+                normalized_detected=normalized_detected,
+                parent_loan_type=parent_loan_type,
                 filter_value=rag_filter["loan_type"]
             )
         
@@ -843,6 +877,23 @@ async def handle_loan_query(
             k=5 if rag_filter else 3,  # Increase k to get more relevant chunks when filtering
             filter=rag_filter,
         )
+        
+        # If no context retrieved with uppercase filter, try lowercase (documents might be indexed with lowercase)
+        if not rag_context and rag_filter:
+            parent_lower = parent_loan_type.lower()
+            if rag_filter["loan_type"] != parent_lower:
+                logger.info("retrying_with_lowercase_filter", 
+                           original_filter=rag_filter["loan_type"],
+                           new_filter=parent_lower)
+                rag_filter_lower = {"loan_type": parent_lower}
+                rag_context = rag_service.get_context_for_query(
+                    enhanced_query,
+                    k=5,
+                    filter=rag_filter_lower,
+                )
+                if rag_context:
+                    logger.info("retry_successful_with_lowercase", context_length=len(rag_context))
+        
         logger.info(
             "rag_loan_context_retrieved",
             query_length=len(user_query),
@@ -918,10 +969,32 @@ async def handle_loan_query(
     # Clean response text if language is English to remove any Hindi characters
     if language == "en-IN":
         response = _clean_english_text(response)
+    
+    # Detect generic answers and ask for clarification
+    generic_indicators = [
+        "i'm not sure", "i don't know", "i'm not certain", "i cannot", "i'm unable",
+        "मुझे नहीं पता", "मुझे यकीन नहीं", "मैं नहीं जानती", "मैं निश्चित नहीं", "मैं असमर्थ हूं"
+    ]
+    is_generic = any(indicator in response.lower() for indicator in generic_indicators)
+    
+    # Check if RAG context was empty or very short (indicating no relevant document retrieval)
+    rag_context_empty = not rag_context or len(rag_context.strip()) < 100
+    
+    # If response is generic and RAG context was empty, ask for clarification
+    if (is_generic or rag_context_empty) and detected_loan_type:
+        if language == "hi-IN":
+            clarification = "\n\nमुझे खेद है, मुझे इस प्रश्न के लिए विशिष्ट जानकारी नहीं मिल रही है। कृपया अपना प्रश्न दोबारा बताएं या अधिक विशिष्ट बनाएं, जैसे कि 'होम लोन की ब्याज दर क्या है?' या 'ऑटो लोन के लिए क्या योग्यता है?'"
+        else:
+            clarification = "\n\nI'm sorry, I'm having trouble finding specific information for this question. Could you please rephrase your question or be more specific? For example, 'What is the interest rate for home loan?' or 'What is the eligibility for auto loan?'"
+        response = response + clarification
+        logger.warning("generic_response_detected", 
+                      detected_loan_type=detected_loan_type,
+                      rag_context_length=len(rag_context) if rag_context else 0,
+                      response_length=len(response))
 
     state["messages"].append(AIMessage(content=response))
     state["next_action"] = "end"
-    logger.info("rag_loan_agent_response", has_structured=False)
+    logger.info("rag_loan_agent_response", has_structured=False, rag_context_length=len(rag_context) if rag_context else 0)
     return state
 
 
@@ -1397,7 +1470,7 @@ def _build_rag_system_prompt(rag_context: str, user_name: Optional[str] = None, 
         user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
         language_instruction = ""
         if language == "hi-IN":
-            language_instruction = "\n\nCRITICAL: The user is asking in Hindi. You MUST respond ONLY in Hindi (Devanagari script). NEVER respond in English or any other language."
+            language_instruction = "\n\nCRITICAL: The user has selected Hindi language. You MUST respond ONLY in Hindi (Devanagari script), regardless of the language the question is asked in. Even if the user asks in English, you MUST respond in Hindi. NEVER respond in English or any other language."
         elif language == "en-IN":
             language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
         return f"""You are Vaani, a helpful AI assistant for Sun National Bank (an Indian bank).
@@ -1438,7 +1511,7 @@ Keep your response helpful and professional."""
     user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
     language_instruction = ""
     if language == "hi-IN":
-        language_instruction = "\n\nCRITICAL: The user is asking in Hindi. You MUST respond ONLY in Hindi (Devanagari script). NEVER respond in English or any other language."
+        language_instruction = "\n\nCRITICAL: The user has selected Hindi language. You MUST respond ONLY in Hindi (Devanagari script), regardless of the language the question is asked in. Even if the user asks in English, you MUST respond in Hindi. NEVER respond in English or any other language."
     elif language == "en-IN":
         language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.

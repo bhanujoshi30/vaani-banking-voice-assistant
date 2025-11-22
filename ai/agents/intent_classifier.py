@@ -129,12 +129,33 @@ async def classify_intent(state):
     # This prevents "मुद्रा" (Mudra) from matching "हिंदी में" or other false positives
     
     # FIRST: Check if message contains loan/product keywords - if yes, NEVER treat as language change
+    # AND route to rag_agent for product information
     loan_product_keywords = [
         "loan", "लोन", "ऋण", "mudra", "मुद्रा", "business", "बिजनेस",
         "home", "होम", "personal", "पर्सनल", "gold", "गोल्ड", "interest", "ब्याज",
-        "ke baare", "के बारे", "bataiye", "बताइए", "batao", "बताओ"
+        "ke baare", "के बारे", "bataiye", "बताइए", "batao", "बताओ",
+        "processing fee", "processing charges", "प्रोसेसिंग फीस", "प्रोसेसिंग शुल्क",
+        "fee", "fees", "charges", "शुल्क", "फीस", "rate", "दर", "eligibility", "योग्यता",
+        "investment", "निवेश", "scheme", "स्कीम", "yojana", "योजना", "ppf", "nps", "ssy",
+        "पीपीएफ", "एनपीएस", "सुकन्या"
     ]
     has_loan_product_keyword = any(term in msg_lower for term in loan_product_keywords)
+    
+    # CRITICAL: Route loan/investment queries to rag_agent (general_faq) BEFORE other routing
+    if has_loan_product_keyword:
+        # Check if it's specifically about loan/investment information, not operations
+        operation_keywords = ["apply", "apply for", "want to take", "लेना चाहते", "apply करना", "apply करें"]
+        is_operation_query = any(op_kw in msg_lower for op_kw in operation_keywords)
+        
+        # If it's asking about information (fees, rates, eligibility, etc.), route to rag_agent
+        if not is_operation_query:
+            intent = "general_faq"
+            state["current_intent"] = intent
+            logger.info("loan_investment_query_routed_to_rag", 
+                       message=last_message[:100],
+                       detected_keywords=[term for term in loan_product_keywords if term in msg_lower],
+                       intent=intent)
+            return state
     
     # Only check for language change if NO loan/product keywords are present
     if not has_loan_product_keyword:

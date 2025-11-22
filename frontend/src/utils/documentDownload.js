@@ -85,12 +85,21 @@ const mapLoanNameToDocumentId = (loanName, loanType = null) => {
     'balance transfer loan': 'home_loan',
     // Hindi names
     'होम लोन': 'home_loan',
+    'होमलोन': 'home_loan',
     'पर्सनल लोन': 'personal_loan',
+    'पर्सनललोन': 'personal_loan',
     'ऑटो लोन': 'auto_loan',
+    'अटो लोन': 'auto_loan', // Variant spelling
+    'ऑटोलोन': 'auto_loan',
+    'अटोलोन': 'auto_loan', // Variant spelling
     'एजुकेशन लोन': 'education_loan',
+    'एजुकेशनलोन': 'education_loan',
     'बिजनेस लोन': 'business_loan',
+    'बिजनेसलोन': 'business_loan',
     'गोल्ड लोन': 'gold_loan',
+    'गोल्डलोन': 'gold_loan',
     'प्रॉपर्टी के खिलाफ लोन': 'loan_against_property',
+    'प्रॉपर्टी लोन': 'loan_against_property',
     // Hindi sub-loan types -> parent documents
     'मुद्रा लोन': 'business_loan',
     'मुद्रा': 'business_loan',
@@ -144,6 +153,23 @@ const mapInvestmentNameToDocumentId = (investmentName) => {
     'sukanya samriddhi yojana': 'ssy',
     'sukanya': 'ssy',
     'sukanya samriddhi': 'ssy',
+    // Hindi names
+    'पीपीएफ': 'ppf',
+    'एनपीएस': 'nps',
+    'सुकन्या समृद्धि योजना': 'ssy',
+    'सुकन्या': 'ssy',
+    'सुकन्या समृद्धि': 'ssy',
+    'ईएलएसएस': 'elss',
+    'elss': 'elss',
+    'फिक्स्ड डिपॉजिट': 'fd',
+    'fd': 'fd',
+    'fixed deposit': 'fd',
+    'रिकरिंग डिपॉजिट': 'rd',
+    'rd': 'rd',
+    'recurring deposit': 'rd',
+    'नेशनल सेविंग्स सर्टिफिकेट': 'nsc',
+    'nsc': 'nsc',
+    'national savings certificate': 'nsc',
   };
   
   // Check direct match

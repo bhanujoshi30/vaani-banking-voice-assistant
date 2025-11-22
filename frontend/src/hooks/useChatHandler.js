@@ -31,8 +31,7 @@ export const useChatHandler = ({
 }) => {
   const [isTyping, setIsTyping] = useState(false);
   
-  // SIMPLE: Log when hook receives upiMode prop
-  console.log('🔍 useChatHandler - upiMode prop received:', upiMode);
+  // Note: Removed excessive logging - upiMode prop is received correctly
 
   /**
    * Send a message and get AI response
@@ -45,10 +44,7 @@ export const useChatHandler = ({
     // whenever upiMode changes, so it always has the latest value
     const currentUpiMode = upiMode;
     
-    console.log('📝 sendMessage called:', {
-      upiMode: currentUpiMode,
-      message: (messageText || '').substring(0, 50)
-    });
+    // Note: Removed excessive logging - only log errors or important state changes
     const config =
       typeof options === 'boolean'
         ? { clearInput: options }

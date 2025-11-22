@@ -1239,7 +1239,7 @@ def download_document(
         "business_loan": "business_loan_product_guide.pdf",
         "gold_loan": "gold_loan_product_guide.pdf",
         "loan_against_property": "loan_against_property_guide.pdf",
-        # Handle display names
+        # Handle display names (English)
         "home loan": "home_loan_product_guide.pdf",
         "personal loan": "personal_loan_product_guide.pdf",
         "auto loan": "auto_loan_product_guide.pdf",
@@ -1247,6 +1247,32 @@ def download_document(
         "business loan": "business_loan_product_guide.pdf",
         "gold loan": "gold_loan_product_guide.pdf",
         "loan against property": "loan_against_property_guide.pdf",
+        # Hindi names
+        "होम लोन": "home_loan_product_guide.pdf",
+        "होमलोन": "home_loan_product_guide.pdf",
+        "पर्सनल लोन": "personal_loan_product_guide.pdf",
+        "पर्सनललोन": "personal_loan_product_guide.pdf",
+        "ऑटो लोन": "auto_loan_product_guide.pdf",
+        "अटो लोन": "auto_loan_product_guide.pdf",  # Variant spelling
+        "ऑटोलोन": "auto_loan_product_guide.pdf",
+        "अटोलोन": "auto_loan_product_guide.pdf",  # Variant spelling
+        "एजुकेशन लोन": "education_loan_product_guide.pdf",
+        "एजुकेशनलोन": "education_loan_product_guide.pdf",
+        "बिजनेस लोन": "business_loan_product_guide.pdf",
+        "बिजनेसलोन": "business_loan_product_guide.pdf",
+        "गोल्ड लोन": "gold_loan_product_guide.pdf",
+        "गोल्डलोन": "gold_loan_product_guide.pdf",
+        "प्रॉपर्टी के खिलाफ लोन": "loan_against_property_guide.pdf",
+        "प्रॉपर्टी लोन": "loan_against_property_guide.pdf",
+        # Hindi sub-loan types -> parent documents
+        "मुद्रा लोन": "business_loan_product_guide.pdf",
+        "मुद्रा": "business_loan_product_guide.pdf",
+        "टर्म लोन": "business_loan_product_guide.pdf",
+        "वर्किंग कैपिटल": "business_loan_product_guide.pdf",
+        "वर्किंग कैपिटल लोन": "business_loan_product_guide.pdf",
+        "इनवॉइस फाइनेंसिंग": "business_loan_product_guide.pdf",
+        "इक्विपमेंट फाइनेंसिंग": "business_loan_product_guide.pdf",
+        "बिजनेस ओवरड्राफ्ट": "business_loan_product_guide.pdf",
     }
     
     investment_name_mapping = {
@@ -1255,29 +1281,67 @@ def download_document(
         "ssy": "ssy_scheme_guide.pdf",
         "sukanya samriddhi yojana": "ssy_scheme_guide.pdf",
         "sukanya": "ssy_scheme_guide.pdf",
-        # Handle display names
+        "sukanya samriddhi": "ssy_scheme_guide.pdf",
+        "public provident fund": "ppf_scheme_guide.pdf",
+        "national pension system": "nps_scheme_guide.pdf",
+        "national pension": "nps_scheme_guide.pdf",
+        # Handle display names (English)
         "PPF": "ppf_scheme_guide.pdf",
         "NPS": "nps_scheme_guide.pdf",
         "SSY": "ssy_scheme_guide.pdf",
+        "elss": "elss_scheme_guide.pdf",
+        "ELSS": "elss_scheme_guide.pdf",
+        "fd": "fd_scheme_guide.pdf",
+        "FD": "fd_scheme_guide.pdf",
+        "fixed deposit": "fd_scheme_guide.pdf",
+        "rd": "rd_scheme_guide.pdf",
+        "RD": "rd_scheme_guide.pdf",
+        "recurring deposit": "rd_scheme_guide.pdf",
+        "nsc": "nsc_scheme_guide.pdf",
+        "NSC": "nsc_scheme_guide.pdf",
+        "national savings certificate": "nsc_scheme_guide.pdf",
+        # Hindi names
+        "पीपीएफ": "ppf_scheme_guide.pdf",
+        "एनपीएस": "nps_scheme_guide.pdf",
+        "सुकन्या समृद्धि योजना": "ssy_scheme_guide.pdf",
+        "सुकन्या": "ssy_scheme_guide.pdf",
+        "सुकन्या समृद्धि": "ssy_scheme_guide.pdf",
+        "ईएलएसएस": "elss_scheme_guide.pdf",
+        "फिक्स्ड डिपॉजिट": "fd_scheme_guide.pdf",
+        "रिकरिंग डिपॉजिट": "rd_scheme_guide.pdf",
+        "नेशनल सेविंग्स सर्टिफिकेट": "nsc_scheme_guide.pdf",
     }
     
-    # Normalize document name (lowercase, replace spaces with underscores)
+    # Normalize document name (lowercase for English, strip whitespace)
+    # For Hindi text, .lower() won't change anything, which is fine
     normalized_name = document_name.lower().strip()
     
     # Determine PDF filename based on document type
     if document_type.lower() == "loan":
+        # First try direct lookup
         pdf_filename = loan_name_mapping.get(normalized_name)
         if not pdf_filename:
             # Try to find a match by checking if any key is contained in the name
+            # Normalize keys for comparison (replace underscores with spaces)
             for key, value in loan_name_mapping.items():
-                if key.replace("_", " ") in normalized_name or normalized_name in key.replace("_", " "):
+                normalized_key = key.replace("_", " ")
+                # Check if key contains the normalized name or vice versa
+                if normalized_key in normalized_name or normalized_name in normalized_key:
                     pdf_filename = value
                     break
+            # If still not found, try case-insensitive substring matching for Hindi
+            if not pdf_filename:
+                for key, value in loan_name_mapping.items():
+                    if normalized_name in key or key in normalized_name:
+                        pdf_filename = value
+                        break
     elif document_type.lower() == "investment":
+        # First try direct lookup
         pdf_filename = investment_name_mapping.get(normalized_name)
         if not pdf_filename:
             # Try to find a match
             for key, value in investment_name_mapping.items():
+                # Check substring matching
                 if key in normalized_name or normalized_name in key:
                     pdf_filename = value
                     break

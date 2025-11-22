@@ -21,12 +21,16 @@ export const useVoiceMode = ({
   upiMode = false, // UPI mode state
   showUPIConsentModal = false, // UPI consent modal state
   showUPIPinModal = false, // UPI PIN modal state
+  clearManualStopFlags, // Function to clear manual stop flags in speech recognition
 }) => {
   const lastMessageRef = useRef(null);
 
   // Track if user manually stopped (to prevent auto-restart) - ONLY for voice mode
   const manualStopRef = useRef(false);
   const lastListeningStateRef = useRef(isListening);
+  
+  // Track when user explicitly wants to start recording (prevents false manual stop detection)
+  const userWantsToStartRef = useRef(false);
   
   // Track when speaking stops to prevent immediate auto-start
   // This prevents recording from starting too quickly after TTS stops
@@ -36,7 +40,14 @@ export const useVoiceMode = ({
   
   // Expose function to reset manual stop flag (for user override via mic button)
   const resetManualStop = useCallback(() => {
-    console.log('🔄 Voice mode: Resetting manual stop flag (user override)');
+    // CRITICAL: Clear manual stop flags in speech recognition hook FIRST
+    // This ensures isManuallyStoppedRef is cleared before we try to start
+    if (clearManualStopFlags) {
+      clearManualStopFlags();
+    }
+    
+    // CRITICAL: Set flag to indicate user wants to start - this prevents false manual stop detection
+    userWantsToStartRef.current = true;
     manualStopRef.current = false;
     // Also clear speaking stop delay if user wants to start immediately
     speakingJustStoppedRef.current = false;
@@ -44,7 +55,11 @@ export const useVoiceMode = ({
       clearTimeout(speakingStopTimeoutRef.current);
       speakingStopTimeoutRef.current = null;
     }
-  }, []);
+    // Clear the flag after a short delay to allow startListening to complete
+    setTimeout(() => {
+      userWantsToStartRef.current = false;
+    }, 500);
+  }, [clearManualStopFlags]);
   
   // Voice Mode: Auto-start listening when enabled and not speaking
   // IMPORTANT: This effect ONLY runs when voice mode is enabled
@@ -61,15 +76,23 @@ export const useVoiceMode = ({
     const wasListening = lastListeningStateRef.current;
     const isNowListening = isListening;
     
+    // CRITICAL: If user explicitly wants to start, don't detect this as a manual stop
+    // This prevents race condition where user clicks to start but system thinks it's a stop
+    if (userWantsToStartRef.current) {
+      // User is trying to start - don't interfere
+      lastListeningStateRef.current = isListening;
+      return;
+    }
+    
     // If we transitioned from listening to not listening, and it wasn't due to speaking/typing,
     // it might be a manual stop
     if (wasListening && !isNowListening && !isSpeaking && !isTyping) {
-      // Check if this looks like a manual stop (user clicked mic button)
+      // Check if this looks like a manual stop (user clicked mic button to stop)
       // We'll use a short delay to detect this
       const checkManualStop = setTimeout(() => {
-        if (!isListening && isVoiceModeEnabled && !isSpeaking && !isTyping) {
+        // Only set manual stop if user is NOT trying to start and still not listening
+        if (!isListening && isVoiceModeEnabled && !isSpeaking && !isTyping && !userWantsToStartRef.current) {
           // Still not listening after a moment - likely manual stop
-          console.log('🛑 Voice mode: Detected manual stop - preventing auto-restart');
           manualStopRef.current = true;
         }
       }, 200);
@@ -80,6 +103,7 @@ export const useVoiceMode = ({
     // Reset manual stop flag when we successfully start listening
     if (!wasListening && isNowListening) {
       manualStopRef.current = false;
+      userWantsToStartRef.current = false; // Clear user intent flag when listening starts
     }
     
     lastListeningStateRef.current = isListening;
@@ -220,10 +244,12 @@ export const useVoiceMode = ({
             setInputText('');
             
             // CRITICAL: For UPI interaction messages, DO NOT auto-restart listening
-            // User needs to interact with modal/card first
+            // BUT: Allow user to manually start recording by clicking mic button
+            // The resetManualStop() function will clear the manual stop flag when user clicks
             if (isUPIInteractionMessage) {
-              console.log('🛑 Voice mode: UPI interaction message - preventing auto-restart of recording');
-              // Set manual stop flag to prevent auto-restart until user interacts
+              console.log('🛑 Voice mode: UPI interaction message - preventing auto-restart, but user can manually start');
+              // Set manual stop flag to prevent auto-restart, but user can override by clicking mic button
+              // The resetManualStop() function will clear this flag when called from handleVoiceInput
               manualStopRef.current = true;
               // Also set speaking just stopped to add extra delay
               speakingJustStoppedRef.current = true;
@@ -233,8 +259,9 @@ export const useVoiceMode = ({
               }
               speakingStopTimeoutRef.current = setTimeout(() => {
                 speakingJustStoppedRef.current = false;
-                // Keep manual stop flag true - user must explicitly interact
-                console.log('⏸️ Voice mode: UPI interaction delay complete, but keeping manual stop (user must interact)');
+                // Note: manual stop flag stays true until user manually clicks mic button
+                // This prevents auto-restart but allows manual override
+                console.log('⏸️ Voice mode: UPI interaction delay complete, manual stop remains (user can click mic to start)');
               }, 3000); // Longer delay for UPI interactions
             }
             // For non-UPI messages, auto-restart listening (handled by useEffect above)

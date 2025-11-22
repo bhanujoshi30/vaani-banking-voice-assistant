@@ -55,7 +55,9 @@ async def handle_customer_support_query(state: Dict[str, Any], *, user_query: st
         return state
     
     # For other queries, use default LLM response
-    system_prompt = _build_default_prompt()
+    user_context = state.get("user_context", {})
+    user_name = user_context.get("name")
+    system_prompt = _build_default_prompt(user_name=user_name, language=language)
     llm_messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_query},
@@ -68,11 +70,16 @@ async def handle_customer_support_query(state: Dict[str, Any], *, user_query: st
     return state
 
 
-def _build_default_prompt(user_name: Optional[str] = None) -> str:
+def _build_default_prompt(user_name: Optional[str] = None, language: str = "en-IN") -> str:
     user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
+    language_instruction = ""
+    if language == "hi-IN":
+        language_instruction = "\n\nCRITICAL: The user has selected Hindi language. You MUST respond ONLY in Hindi (Devanagari script), regardless of the language the question is asked in. Even if the user asks in English, you MUST respond in Hindi. NEVER respond in English or any other language."
+    elif language == "en-IN":
+        language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
-IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}
+IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}{language_instruction}
 
 When users ask NON-BANKING questions (like weather, recipes, sports, general knowledge, etc.):
 - Politely acknowledge their question

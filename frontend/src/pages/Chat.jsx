@@ -42,7 +42,7 @@ const Chat = ({ session, onSignOut }) => {
   const [upiConsentGiven, setUpiConsentGiven] = useState(() => {
     // Always start as false - consent must be explicitly given in this session
     // Don't check localStorage or sessionStorage on initialization to ensure modal shows first time
-    console.log('📋 UPI consent initialized as false - will show consent modal on first activation');
+    // UPI consent initialized - will show consent modal on first activation
     return false;
   });
   const [pendingUPIMessage, setPendingUPIMessage] = useState(null); // Store pending message waiting for consent
@@ -103,6 +103,7 @@ const Chat = ({ session, onSignOut }) => {
     startListening,
     stopListening,
     resetTranscript,
+    clearManualStopFlags, // Function to clear manual stop flags in speech recognition
   } = useSpeechRecognition({
     lang: language,
     continuous: isVoiceModeEnabled, // Only continuous in voice mode
@@ -124,12 +125,7 @@ const Chat = ({ session, onSignOut }) => {
   });
 
   // Chat message handling
-  // DEBUG: Log UPI mode state on every render
-  console.log('🔍 Chat.jsx - UPI mode state:', {
-    upiMode,
-    type: typeof upiMode,
-    timestamp: new Date().toISOString()
-  });
+  // Note: Removed excessive UPI mode logging - only log when state actually changes
   
   const {
     isTyping,
@@ -179,6 +175,7 @@ const Chat = ({ session, onSignOut }) => {
     upiMode, // Pass UPI mode state to voice mode hook
     showUPIConsentModal, // Pass UPI consent modal state
     showUPIPinModal, // Pass UPI PIN modal state
+    clearManualStopFlags, // Pass function to clear manual stop flags
   });
 
   // Note: UPI mode activation is now handled by backend response via structured_data
@@ -204,15 +201,8 @@ const Chat = ({ session, onSignOut }) => {
     
     // Handle UPI mode activation (wake-up phrase)
     if (lastAssistantMessage?.structuredData?.type === 'upi_mode_activation') {
-      console.log('🔍 UPI mode activation detected in messages:', { 
-        upiConsentGiven, 
-        upiMode, 
-        hasPendingMessage: !!pendingUPIMessage 
-      });
-      
       // If consent already given, activate UPI mode
       if (upiConsentGiven && !upiMode) {
-        console.log('✅ Consent already given, activating UPI mode');
         setUpiMode(true);
       } else if (!upiConsentGiven && !pendingUPIMessage) {
         // If consent not given and no pending message, this shouldn't happen
@@ -232,8 +222,8 @@ const Chat = ({ session, onSignOut }) => {
       
       // CRITICAL: Stop recording immediately when UPI payment card appears
       // This prevents AI from recording its own statement about UPI payment
+      // BUT: User can still manually start recording by clicking the mic button
       if (isListening) {
-        console.log('🛑 UPI payment card detected - stopping recording immediately');
         stopListening();
         // Clear transcript to prevent AI's statement from being captured
         resetTranscript();
@@ -243,18 +233,15 @@ const Chat = ({ session, onSignOut }) => {
       // IMPORTANT: Only stop TTS if this is NOT a new message (i.e., user is interacting)
       // For new messages, allow TTS to complete so the user hears the instruction
       if (isSpeaking && !isNewMessage) {
-        console.log('🛑 UPI payment card detected - stopping TTS (not a new message)');
         stopSpeaking();
         // Mark as processed when stopping TTS for non-new messages
         processedMessageIdsRef.current.add(messageId);
       } else if (isNewMessage) {
-        console.log('✅ UPI payment card detected - allowing TTS to complete for new message');
         // CRITICAL: Don't mark as processed immediately - let useVoiceMode.js handle TTS first
         // Mark it as processed after a delay to ensure TTS has started and completed
         // This prevents the effect from running again and interfering with TTS
         setTimeout(() => {
           processedMessageIdsRef.current.add(messageId);
-          console.log('✅ Marked UPI payment card message as processed after TTS delay');
         }, 2000); // Longer delay to allow TTS to start and complete
       }
       
@@ -271,7 +258,7 @@ const Chat = ({ session, onSignOut }) => {
       // We check if this is a new message - if it's new, don't close modal
       // Also check if modal was opened by user action - if so, don't close it
       if (showUPIPinModal && !isNewMessage && !pinModalOpenedByUserRef.current) {
-        console.log('🔄 Closing PIN modal from previous payment card state');
+        // Closing PIN modal from previous payment card state
         setShowUPIPinModal(false);
         setUpiPaymentDetails(null);
       }
@@ -325,7 +312,7 @@ const Chat = ({ session, onSignOut }) => {
           setShowUPIPinModal(true);
         } else {
           // Invalid UPI ID - error message should already be in the assistant response
-          console.log('Invalid UPI ID - not showing PIN modal');
+          // Invalid UPI ID - not showing PIN modal
         }
       }
     }
@@ -374,23 +361,13 @@ const Chat = ({ session, onSignOut }) => {
 
   // Handle pending UPI message - show consent modal when pending message exists
   useEffect(() => {
-    console.log('🔍 Checking pending UPI message:', { 
-      hasPendingMessage: !!pendingUPIMessage, 
-      upiConsentGiven, 
-      pendingMessageType: pendingUPIMessage?.structuredData?.type,
-      showModal: showUPIConsentModal,
-      openedByButton: upiConsentModalOpenedByButton
-    });
-    
     if (pendingUPIMessage && !upiConsentGiven) {
-      console.log('📋 Pending UPI message detected - showing consent modal', pendingUPIMessage);
       // Mark that modal was opened by pending message (not button)
       setUpiConsentModalOpenedByButton(false);
       // Force show the consent modal
       setShowUPIConsentModal(true);
     } else if (pendingUPIMessage && upiConsentGiven) {
       // Consent was given, clear pending message (it should have been added to chat in handleUPIConsentAccept)
-      console.log('✅ Consent given, clearing pending UPI message');
       setPendingUPIMessage(null);
     }
     // Don't close modal if it's opened via button click - only handle pending messages
@@ -529,7 +506,7 @@ const Chat = ({ session, onSignOut }) => {
     const wasTyping = isTyping;
     
     if (isSpeaking && stopSpeaking) {
-      console.log('🛑 User override: Stopping TTS - user wants to speak');
+      // User override: Stopping TTS - user wants to speak
       stopSpeaking();
     }
     
@@ -539,37 +516,28 @@ const Chat = ({ session, onSignOut }) => {
     // NORMAL MODE: Simple toggle - completely independent of voice mode
     if (!isVoiceModeEnabled) {
       if (isListening) {
-        console.log('🛑 Normal mode: Stopping recording');
         stopListening();
       } else {
-        console.log('🎤 Normal mode: Starting recording (user override - ignoring AI state)');
         // User override: start recording even if AI is thinking/speaking
         startListening();
       }
       return;
     }
 
-    // VOICE MODE: Handle stop/start differently
+    // VOICE MODE: Simple logic - if listening, stop; if not listening, start
     if (isListening) {
-      console.log('🛑 Voice mode: User manually stopping recording');
       stopListening();
       return;
     }
 
-    // In voice mode, if user clicks to start (or interrupt), reset manual stop flag and start
-    // This allows user to override AI thinking/speaking state
+    // User clicked to START recording - clear all flags and start
+    // This is simple: user wants to record, so let them record
+    if (clearManualStopFlags) {
+      clearManualStopFlags();
+    }
     if (resetManualStop) {
-      resetManualStop(); // Clear manual stop flag so auto-start can work again
+      resetManualStop();
     }
-    
-    if (wasSpeaking || wasTyping) {
-      console.log('🎤 Voice mode: User interrupted assistant (thinking/speaking), starting recording');
-    } else {
-      console.log('🎤 Voice mode: User manually starting recording');
-    }
-    
-    // User override: start recording immediately, even if AI is thinking/speaking
-    // The voice mode hook will handle stopping if needed, but user intent takes priority
     startListening();
   };
 
@@ -590,7 +558,7 @@ const Chat = ({ session, onSignOut }) => {
   const handleUPIModeToggle = () => {
     if (upiMode) {
       // Deactivate UPI mode
-      console.log('🔄 Deactivating UPI mode');
+      // Deactivating UPI mode
       setUpiMode(false);
       setUpiConsentGiven(false);
       localStorage.removeItem('upi_consent_given');
@@ -601,17 +569,14 @@ const Chat = ({ session, onSignOut }) => {
       pinModalOpenedByUserRef.current = false;
     } else {
       // Activate UPI mode - show consent modal FIRST if not given
-      console.log('🔄 Attempting to activate UPI mode', { upiConsentGiven, showUPIConsentModal });
       if (!upiConsentGiven) {
         // Show consent modal first, don't activate yet
-        console.log('📋 Showing consent modal before activation - consent not given');
         setUpiConsentModalOpenedByButton(true);
         setTimeout(() => {
           setShowUPIConsentModal(true);
         }, 0);
       } else {
         // Consent already given, safe to activate
-        console.log('✅ Consent already given, activating UPI mode');
         setUpiMode(true);
       }
     }
@@ -619,8 +584,7 @@ const Chat = ({ session, onSignOut }) => {
 
   // Handle UPI PIN confirmation
   const handleUPIPinConfirm = async (pin) => {
-    console.log('handleUPIPinConfirm called with pin:', pin);
-    console.log('upiPaymentDetails:', upiPaymentDetails);
+    // Handle UPI PIN confirmation
     
     if (!upiPaymentDetails) {
       console.error('No payment details found');
@@ -644,8 +608,7 @@ const Chat = ({ session, onSignOut }) => {
       
       const data = await response.json();
       
-      console.log('UPI PIN verification response:', data);
-      console.log('Payment details:', upiPaymentDetails);
+      // UPI PIN verified successfully
       
       if (!response.ok) {
         // Handle different error types
@@ -762,7 +725,7 @@ const Chat = ({ session, onSignOut }) => {
 
   // Handle UPI consent
   const handleUPIConsentAccept = () => {
-    console.log('✅ UPI consent accepted');
+    // UPI consent accepted
     // User accepted consent - now activate UPI mode
     setUpiConsentGiven(true);
     localStorage.setItem('upi_consent_given', 'true');
@@ -773,7 +736,7 @@ const Chat = ({ session, onSignOut }) => {
     
     // If there's a pending UPI message, add it to chat now
     if (pendingUPIMessage) {
-      console.log('✅ Consent accepted - adding pending UPI message', pendingUPIMessage);
+      // Consent accepted - adding pending UPI message
       addAssistantMessage(
         pendingUPIMessage.text || pendingUPIMessage.content,
         pendingUPIMessage.statementData,
@@ -784,7 +747,7 @@ const Chat = ({ session, onSignOut }) => {
       // Handle UPI mode activation
       if (pendingUPIMessage.structuredData?.type === 'upi_mode_activation') {
         // UPI mode is already activated above, just ensure it's set
-        console.log('✅ UPI mode activated after consent');
+        // UPI mode activated after consent
       }
       
       // Handle balance check if present
@@ -819,7 +782,7 @@ const Chat = ({ session, onSignOut }) => {
       setPendingUPIMessage(null);
     } else {
       // No pending message but consent accepted - just activate UPI mode
-      console.log('✅ UPI consent accepted, no pending message');
+      // UPI consent accepted, no pending message
     }
   };
 
@@ -831,7 +794,7 @@ const Chat = ({ session, onSignOut }) => {
     
     // Remove pending message and add a decline message instead
     if (pendingUPIMessage) {
-      console.log('❌ Consent declined - removing pending message and adding decline message');
+      // Consent declined - removing pending message and adding decline message
       const declineMessage = language === 'hi-IN' 
         ? 'आपने UPI मोड को अस्वीकार कर दिया है। UPI भुगतान सुविधा उपलब्ध नहीं होगी।'
         : 'You have denied UPI mode. UPI payment feature will not be available.';

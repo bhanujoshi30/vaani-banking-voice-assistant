@@ -209,6 +209,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "what kind of loans",
         "loan options",
         "loan schemes",
+        "loan information",
+        "loan info",
+        "show me loans",
+        "list loans",
+        "all loans",
         # Hindi general loan queries (only when NO specific loan type is mentioned)
         "कौन से लोन",
         "कौन सी लोन",
@@ -231,6 +236,10 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "बैंक से ऋण",
         "पैसे उधार",
         "पैसे कर्ज",
+        "लोन की जानकारी",
+        "लोन जानकारी",
+        "ऋण की जानकारी",
+        "ऋण जानकारी",
     ]
 
     investment_keywords = [
@@ -389,6 +398,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
         "एनएससी": "nsc",
     }
 
+    # CRITICAL: Check if this is a general loan query FIRST
+    # If it's a general query, don't use conversation context to detect loan types
+    # This prevents showing previous loan details when user asks for loan list again
+    is_general_loan_query = any(phrase in query_lower for phrase in general_loan_queries)
+    
     # IMPORTANT: Check for specific loan types FIRST (before general queries)
     # PRIORITIZE CURRENT QUERY over conversation context to avoid false matches
     # Sort by length (longest first) to match longer phrases first (e.g., "home loan" before "loan")
@@ -407,9 +421,11 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
             )
             break
     
-    # SECOND: If not found in current query, check combined text (with context) for context-aware matches
+    # SECOND: If not found in current query AND it's NOT a general loan query,
+    # check combined text (with context) for context-aware matches
     # This handles follow-up queries like "tell me more" after "business loan"
-    if not detected_loan_type:
+    # BUT: Skip context check if user is asking for general loan information (fresh start)
+    if not detected_loan_type and not is_general_loan_query:
         for loan_name, loan_type in sorted_loan_types:
             if loan_name in combined_text:
                 # Special handling for "against property" - only match if there's loan context
@@ -477,14 +493,14 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
                 break
 
     # Check if it's a general loan query (only if no specific loan type was detected)
+    # Use the pre-computed is_general_loan_query value
     is_general_loan = False
     if not detected_loan_type:
         # Only check general queries if no specific loan type was found
-        is_general_loan = any(phrase in query_lower for phrase in general_loan_queries)
+        is_general_loan = is_general_loan_query
     else:
-        # If specific loan type detected, also check if query contains general phrases
-        # but prioritize specific type
-        is_general_loan = any(phrase in query_lower for phrase in general_loan_queries) and not detected_loan_type
+        # If specific loan type detected, don't treat as general query
+        is_general_loan = False
 
     # Check loan keywords in combined text (with context) for better detection
     # Special handling for context-aware keywords
@@ -501,7 +517,8 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
                 break
     
     # Also check if conversation context mentions loans and current query is brief follow-up
-    if not is_loan_query and conversation_context:
+    # BUT: Skip this if it's a general loan query (user wants fresh start, not follow-up)
+    if not is_loan_query and conversation_context and not is_general_loan_query:
         # If previous context has loans and current query is brief (likely a follow-up)
         has_loan_context = any(word in conversation_context for word in ["loan", "लोन", "ऋण", "loans", "products", "options"])
         is_brief_followup = len(user_query.split()) <= 3  # 3 words or less

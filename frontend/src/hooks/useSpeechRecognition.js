@@ -142,7 +142,7 @@ export const useSpeechRecognition = (options = {}) => {
     recognition.onerror = (event) => {
       // Check if this is a manual stop (aborted) - don't log or show error
       if (event.error === 'aborted' && isManualStopRef.current) {
-        console.log('✅ Speech recognition manually stopped (no error)');
+        // User manually stopped - just update state, don't log (reduces console noise)
         setIsListening(false);
         return; // Exit early - no error to show
       }
@@ -206,16 +206,19 @@ export const useSpeechRecognition = (options = {}) => {
         } catch (err) {
           console.log('Could not auto-restart:', err);
         }
-      } else if (isManualStopRef.current || isManuallyStoppedRef.current) {
-        console.log('🛑 Recording was manually stopped - preventing auto-restart');
       }
       
-      // Reset manual stop flag (but keep isManuallyStoppedRef for voice mode)
+      // Reset isManualStopRef (but keep isManuallyStoppedRef for voice mode)
+      // Note: isManuallyStoppedRef will be cleared when user explicitly starts
       isManualStopRef.current = false;
     };
 
     // Handle start of recognition
     recognition.onstart = () => {
+      // CRITICAL: Clear manual stop flags when recognition actually starts
+      // This ensures user can start recording even after manual stop
+      isManualStopRef.current = false;
+      isManuallyStoppedRef.current = false;
       // Only log in verbose mode to reduce console noise
       // console.log('Speech recognition started');
       setIsListening(true);
@@ -303,6 +306,12 @@ export const useSpeechRecognition = (options = {}) => {
     };
   }, [lang, continuous, interimResults, resetInactivityTimer, clearAllTimeouts]);
 
+  // Function to clear manual stop flags (exposed for voice mode)
+  const clearManualStopFlags = useCallback(() => {
+    isManualStopRef.current = false;
+    isManuallyStoppedRef.current = false;
+  }, []);
+
   // Start listening
   const startListening = useCallback(() => {
     if (!isSpeechSupported) {
@@ -316,19 +325,45 @@ export const useSpeechRecognition = (options = {}) => {
     }
 
     if (isListening) {
-      console.log('Already listening');
-      return false;
+      // Already listening - this is fine, just return true
+      return true;
     }
 
     try {
+      // CRITICAL: Clear ALL manual stop flags FIRST before doing anything else
+      // This ensures recording can start even after UPI card or other blocks
       isManualStopRef.current = false;
-      isManuallyStoppedRef.current = false; // Reset manual stop flag when starting
+      isManuallyStoppedRef.current = false;
+      
+      // Clear any error state
+      setError(null);
       setTranscript('');
       setInterimTranscript('');
-      setError(null);
-      recognitionRef.current.start();
+      
+      // CRITICAL: Try to abort first if recognition is in a bad state
+      // This ensures we can start fresh even if previous stop didn't complete properly
+      try {
+        if (recognitionRef.current.state === 'listening' || recognitionRef.current.state === 'starting') {
+          recognitionRef.current.abort();
+          // Wait a brief moment for abort to complete
+          setTimeout(() => {
+            recognitionRef.current.start();
+          }, 100);
+        } else {
+          recognitionRef.current.start();
+        }
+      } catch (abortErr) {
+        // If abort fails, try starting anyway
+        recognitionRef.current.start();
+      }
+      
       return true;
     } catch (err) {
+      // Check if error is because already started (this is fine)
+      if (err.name === 'InvalidStateError' && err.message.includes('already started')) {
+        // Recognition is already running - this is fine
+        return true;
+      }
       console.error('Error starting speech recognition:', err);
       setError('Failed to start voice input. Please try again.');
       return false;
@@ -408,6 +443,7 @@ export const useSpeechRecognition = (options = {}) => {
     stopListening,
     toggleListening,
     resetTranscript,
+    clearManualStopFlags, // Expose function to clear manual stop flags
   };
 };
 

@@ -252,7 +252,7 @@ async def handle_investment_query(
     user_context = state.get("user_context", {})
     user_name = user_context.get("name")
     
-    system_prompt = _build_rag_system_prompt(rag_context, user_name=user_name)
+    system_prompt = _build_rag_system_prompt(rag_context, user_name=user_name, language=language)
     investment_info_extracted: Optional[Dict[str, Any]] = None
 
     if detected_investment_type and not rag_context:
@@ -289,10 +289,32 @@ async def handle_investment_query(
     # Clean response text if language is English to remove any Hindi characters
     if language == "en-IN":
         response = _clean_english_text(response)
+    
+    # Detect generic answers and ask for clarification
+    generic_indicators = [
+        "i'm not sure", "i don't know", "i'm not certain", "i cannot", "i'm unable",
+        "मुझे नहीं पता", "मुझे यकीन नहीं", "मैं नहीं जानती", "मैं निश्चित नहीं", "मैं असमर्थ हूं"
+    ]
+    is_generic = any(indicator in response.lower() for indicator in generic_indicators)
+    
+    # Check if RAG context was empty or very short (indicating no relevant document retrieval)
+    rag_context_empty = not rag_context or len(rag_context.strip()) < 100
+    
+    # If response is generic and RAG context was empty, ask for clarification
+    if (is_generic or rag_context_empty) and detected_investment_type:
+        if language == "hi-IN":
+            clarification = "\n\nमुझे खेद है, मुझे इस प्रश्न के लिए विशिष्ट जानकारी नहीं मिल रही है। कृपया अपना प्रश्न दोबारा बताएं या अधिक विशिष्ट बनाएं, जैसे कि 'PPF की ब्याज दर क्या है?' या 'NPS के लिए क्या योग्यता है?'"
+        else:
+            clarification = "\n\nI'm sorry, I'm having trouble finding specific information for this question. Could you please rephrase your question or be more specific? For example, 'What is the interest rate for PPF?' or 'What is the eligibility for NPS?'"
+        response = response + clarification
+        logger.warning("generic_response_detected", 
+                      detected_investment_type=detected_investment_type,
+                      rag_context_length=len(rag_context) if rag_context else 0,
+                      response_length=len(response))
 
     state["messages"].append(AIMessage(content=response))
     state["next_action"] = "end"
-    logger.info("rag_investment_agent_response", has_structured=False)
+    logger.info("rag_investment_agent_response", has_structured=False, rag_context_length=len(rag_context) if rag_context else 0)
     return state
 
 
@@ -508,14 +530,19 @@ def _build_investment_response_text(investment_info: Dict[str, Any], language: s
     return _clean_english_text(response_text)
 
 
-def _build_rag_system_prompt(rag_context: str, user_name: Optional[str] = None) -> str:
+def _build_rag_system_prompt(rag_context: str, user_name: Optional[str] = None, language: str = "en-IN") -> str:
     if rag_context:
         user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
+        language_instruction = ""
+        if language == "hi-IN":
+            language_instruction = "\n\nCRITICAL: The user has selected Hindi language. You MUST respond ONLY in Hindi (Devanagari script), regardless of the language the question is asked in. Even if the user asks in English, you MUST respond in Hindi. NEVER respond in English or any other language."
+        elif language == "en-IN":
+            language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
         return f"""You are Vaani, a helpful AI assistant for Sun National Bank (an Indian bank).
 
-The user has asked a question about banking products/loans. Below is relevant information from our official product documentation:
+The user has asked a question about banking products/investments. Below is relevant information from our official product documentation:
 
-{rag_context}{user_name_context}
+{rag_context}{user_name_context}{language_instruction}
 
 Based on the above information, provide a clear, accurate, and helpful answer to the user's question.
 
@@ -541,9 +568,14 @@ HINDI LANGUAGE GUIDELINES (when responding in Hindi):
 Keep your response helpful and professional."""
 
     user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user. NEVER use generic terms or regional language terms." if user_name else ""
+    language_instruction = ""
+    if language == "hi-IN":
+        language_instruction = "\n\nCRITICAL: The user has selected Hindi language. You MUST respond ONLY in Hindi (Devanagari script), regardless of the language the question is asked in. Even if the user asks in English, you MUST respond in Hindi. NEVER respond in English or any other language."
+    elif language == "en-IN":
+        language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
-IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}
+IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}{language_instruction}
 
 When users ask NON-BANKING questions (like weather, recipes, sports, general knowledge, etc.):
 - Politely acknowledge their question

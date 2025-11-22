@@ -81,14 +81,50 @@ async def banking_agent(state):
         response_content = await handle_transfer_request(state, user_context, language, last_user_message)
     
     else:
-        # General response using LLM
+        # General response using LLM with language enforcement
+        # Build system prompt with language enforcement
+        user_name = user_context.get("name")
+        user_name_context = f"\n\nIMPORTANT: The user's name is '{user_name}'. Always use this name when addressing the user." if user_name else ""
+        
+        if language == "hi-IN":
+            system_prompt = f"""तुम Vaani हो, एक मददगार बैंकिंग असिस्टेंट जो Sun National Bank (भारतीय बैंक) के लिए काम करती है।
+
+CRITICAL: उपयोगकर्ता ने हिंदी भाषा चुनी है। तुम्हें केवल हिंदी (देवनागरी लिपि) में जवाब देना चाहिए, भले ही प्रश्न अंग्रेजी में पूछा गया हो। कभी भी अंग्रेजी या किसी अन्य भाषा में जवाब न दें।
+
+महत्वपूर्ण: सभी राशियों को भारतीय रुपये (₹) में दिखाओ।{user_name_context}
+
+यदि तुम्हें उपयोगकर्ता के प्रश्न को समझने में कठिनाई हो रही है या तुम सामान्य जवाब दे रहे हो, तो विनम्रता से उपयोगकर्ता से पूछो कि क्या वे अपना प्रश्न दोबारा बता सकते हैं या अधिक विशिष्ट बना सकते हैं।"""
+        else:
+            system_prompt = f"""You are Vaani, a helpful banking assistant for Sun National Bank (an Indian bank).
+
+CRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters.
+
+IMPORTANT: Always use Indian Rupees (₹ or INR) for all amounts. Never use dollars ($).{user_name_context}
+
+If you are having difficulty understanding the user's question or are generating generic answers, politely ask the user to rephrase their question or be more specific."""
+        
         # Convert LangChain messages to dict format for LLM service
-        messages_dict = []
+        messages_dict = [{"role": "system", "content": system_prompt}]
         for msg in messages:
             if hasattr(msg, 'content'):
                 role = "user" if isinstance(msg, HumanMessage) else "assistant"
                 messages_dict.append({"role": role, "content": msg.content})
         response_content = await llm.chat(messages_dict, use_fast_model=False)
+        
+        # Detect generic answers and ask for clarification
+        generic_indicators = [
+            "i'm not sure", "i don't know", "i'm not certain", "i cannot",
+            "मुझे नहीं पता", "मुझे यकीन नहीं", "मैं नहीं जानती", "मैं निश्चित नहीं"
+        ]
+        is_generic = any(indicator in response_content.lower() for indicator in generic_indicators)
+        
+        # Check if response is too generic (very short or doesn't contain specific information)
+        if is_generic or (len(response_content) < 50 and "loan" in msg_lower or "investment" in msg_lower):
+            if language == "hi-IN":
+                clarification = "\n\nकृपया अपना प्रश्न दोबारा बताएं या अधिक विशिष्ट बनाएं ताकि मैं आपकी बेहतर मदद कर सकूं।"
+            else:
+                clarification = "\n\nCould you please rephrase your question or be more specific so I can help you better?"
+            response_content = response_content + clarification
     
     # Add AI response to state
     ai_message = AIMessage(content=response_content)
