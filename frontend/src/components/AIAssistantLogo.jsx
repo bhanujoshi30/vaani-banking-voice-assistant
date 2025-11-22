@@ -48,15 +48,6 @@ const AIAssistantLogo = ({ size = 32, showText = false, showAssistant = false, c
       <g transform={`translate(${adjustedCenterX}, ${adjustedCenterY})`}>
         {/* Rotating elements - rays and teardrops */}
         <g className="sun-rays">
-          {animated && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              values="0;360"
-              dur="20s"
-              repeatCount="indefinite"
-            />
-          )}
           {/* Thin rays */}
           {[...Array(24)].map((_, i) => {
             const angle = (i * 360) / 24;
