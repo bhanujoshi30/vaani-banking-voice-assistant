@@ -1082,6 +1082,8 @@
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-amount span {
@@ -1186,8 +1188,48 @@
 .balance-visibility {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.balance-visibility .profile-amount {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.balance-visibility .link-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.upi-id-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 27, 42, 0.08);
+}
+
+.upi-id-display {
+  display: flex;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 143, 66, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 143, 66, 0.2);
+}
+
+.upi-id-value {
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(15, 27, 42, 0.9);
+  word-break: break-all;
 }
 
 .account-card-groups {

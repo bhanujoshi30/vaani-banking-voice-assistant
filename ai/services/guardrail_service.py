@@ -408,12 +408,20 @@ class GuardrailService:
             "atm", "card", "pin", "password", "branch", "ifsc", "aadhaar", "pan",
             "emi", "scheme", "plan", "insurance", "mutual fund", "ppf", "nps",
             "banking investment", "bank investment", "bank scheme", "bank plan",
+            # Investment schemes (abbreviations and full names)
+            "elss", "equity linked", "equity linked savings", "sukanya", "ssy", "nsc",
+            "fixed deposit", "recurring deposit", "public provident fund",
+            "national pension", "tax saving", "tax-saving",
+            # Loan types
+            "home loan", "personal loan", "auto loan", "car loan", "business loan",
+            "education loan", "gold loan", "loan against property", "lap",
             "खाता", "बैलेंस", "लेनदेन", "लोन", "क्रेडिट", "डेबिट", "जमा",
             "निकासी", "ट्रांसफर", "यूपीआई", "भुगतान", "बिल", "स्टेटमेंट", "ब्याज",
             "दर", "निवेश", "एफडी", "आरडी", "बचत", "बैंक", "बैंकिंग",
             "एटीएम", "कार्ड", "पिन", "पासवर्ड", "शाखा", "आईएफएससी", "आधार", "पैन",
             "ईएमआई", "योजना", "बीमा", "म्यूचुअल फंड", "पीपीएफ", "एनपीएस",
             "बैंक निवेश", "बैंक योजना", "बैंक प्लान",
+            "ईएलएसएस", "सुकन्या", "एनएससी", "होम लोन", "पर्सनल लोन", "ऑटो लोन",
         ]
         
         # Non-banking investment keywords (cryptocurrency, stocks, etc.)

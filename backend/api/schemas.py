@@ -134,8 +134,13 @@ class AccountItem(BaseModel):
     availableBalance: float
     openedOn: str
     branchId: Optional[str] = None
+    upiId: Optional[str] = Field(default=None, description="UPI ID for the account")  # UPI ID for the account
     debitCards: List[CardInfo] = []
     creditCards: List[CardInfo] = []
+    
+    class Config:
+        # Include None values in JSON response
+        exclude_none = False
 
 
 class AccountListResponse(BaseModel):
