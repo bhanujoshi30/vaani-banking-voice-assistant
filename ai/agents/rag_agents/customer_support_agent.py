@@ -32,9 +32,32 @@ async def handle_customer_support_query(state: Dict[str, Any], *, user_query: st
         "customer service", "call", "number", "location", "office address"
     ]
     
-    is_contact_query = any(keyword in query_lower for keyword in contact_keywords)
+    # Detect if user is asking about the bank itself (not products/services)
+    bank_info_keywords = [
+        "what is", "who is", "tell me about", "explain", "describe",
+        "national bank", "sun national bank", "sun national", "the bank", "this bank",
+        "your bank", "bank information", "about bank", "about the bank",
+        "क्या है", "कौन है", "बताएं", "समझाएं", "राष्ट्रीय बैंक", "सन नेशनल बैंक",
+        "बैंक के बारे में", "बैंक की जानकारी"
+    ]
     
-    if is_contact_query:
+    is_contact_query = any(keyword in query_lower for keyword in contact_keywords)
+    is_bank_info_query = any(keyword in query_lower for keyword in bank_info_keywords)
+    
+    # Check if it's asking about bank info but NOT about products
+    if is_bank_info_query:
+        product_keywords = ["loan", "investment", "scheme", "plan", "product", "service", 
+                           "rate", "interest", "लोन", "निवेश", "योजना", "उत्पाद", "सेवा", "दर", "ब्याज"]
+        has_product_keyword = any(keyword in query_lower for keyword in product_keywords)
+        
+        # If asking about bank but no product keywords, it's a bank info query
+        # But don't treat it as contact query - let it go to LLM response path
+        if has_product_keyword:
+            # Has product keyword, not a bank info query
+            is_bank_info_query = False
+    
+    # Only return contact card for explicit contact queries (not bank info queries)
+    if is_contact_query and not is_bank_info_query:
         # Return structured customer support card
         support_info = get_customer_support_info()
         
@@ -78,6 +101,12 @@ def _build_default_prompt(user_name: Optional[str] = None, language: str = "en-I
     elif language == "en-IN":
         language_instruction = "\n\nCRITICAL: The user has selected English language. You MUST respond ONLY in English. NEVER respond in Hindi, Devanagari script, or any other language. Use only English words and characters."
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
+
+IMPORTANT: When users ask "what is the national Bank?" or "what is Sun National Bank?" or similar questions about the bank itself:
+- Provide information about Sun National Bank: It is an Indian bank offering banking services including savings accounts, loans, investments, and other financial products.
+- Mention that Sun National Bank has 500+ branches across India.
+- You can provide customer support contact information if helpful.
+- DO NOT confuse this with loan or product queries. If they're asking about the bank itself, provide bank information, not product details.
 
 IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}{language_instruction}
 

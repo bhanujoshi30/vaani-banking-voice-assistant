@@ -62,7 +62,28 @@ async def rag_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "फोन नंबर", "हेल्पलाइन", "ईमेल", "वेबसाइट"
     ]
     
-    is_customer_support_query = any(keyword in query_lower for keyword in customer_support_keywords)
+    # Bank information queries (asking about the bank itself, not products)
+    bank_info_keywords = [
+        "what is", "who is", "tell me about", "explain", "describe",
+        "national bank", "sun national bank", "sun national", "the bank", "this bank",
+        "your bank", "bank information", "about bank", "about the bank",
+        "क्या है", "कौन है", "बताएं", "समझाएं", "राष्ट्रीय बैंक", "सन नेशनल बैंक",
+        "बैंक के बारे में", "बैंक की जानकारी"
+    ]
+    
+    # Check if query is asking about the bank itself (not products/services)
+    is_bank_info_query = False
+    if any(keyword in query_lower for keyword in bank_info_keywords):
+        # Additional check: should NOT be about products (loan, investment, etc.)
+        product_keywords = ["loan", "investment", "scheme", "plan", "product", "service", 
+                           "लोन", "निवेश", "योजना", "उत्पाद", "सेवा"]
+        has_product_keyword = any(keyword in query_lower for keyword in product_keywords)
+        
+        # If query asks "what is" + "bank" but no product keywords, it's about the bank
+        if not has_product_keyword:
+            is_bank_info_query = True
+    
+    is_customer_support_query = any(keyword in query_lower for keyword in customer_support_keywords) or is_bank_info_query
     
     if is_customer_support_query:
         logger.info(
