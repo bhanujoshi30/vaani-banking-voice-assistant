@@ -12,6 +12,12 @@ if [ -f "pyproject.toml" ]; then
     mv pyproject.toml pyproject.toml.backup
 fi
 
+# Hide uv.lock if it exists
+if [ -f "uv.lock" ]; then
+    echo "📦 Temporarily hiding uv.lock..."
+    mv uv.lock uv.lock.backup
+fi
+
 # Ensure requirements.txt exists (copy from requirements-backend.txt if needed)
 if [ ! -f "requirements.txt" ]; then
     echo "📋 Creating requirements.txt from requirements-backend.txt..."
