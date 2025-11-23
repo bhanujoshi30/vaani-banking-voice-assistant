@@ -1,12 +1,12 @@
 #!/bin/bash
 # Vercel build script for backend
-# Ensures requirements.txt is used instead of pyproject.toml
+# Ensures requirements-backend.txt is used instead of pyproject.toml
 
 set -e
 
 echo "🔧 Backend build script starting..."
 
-# Temporarily rename pyproject.toml so Vercel uses requirements.txt
+# Temporarily rename pyproject.toml so Vercel uses requirements-backend.txt
 if [ -f "pyproject.toml" ]; then
     echo "📦 Temporarily hiding pyproject.toml..."
     mv pyproject.toml pyproject.toml.backup
@@ -18,12 +18,16 @@ if [ -f "uv.lock" ]; then
     mv uv.lock uv.lock.backup
 fi
 
-# Ensure requirements.txt exists (copy from requirements-backend.txt if needed)
-if [ ! -f "requirements.txt" ]; then
-    echo "📋 Creating requirements.txt from requirements-backend.txt..."
-    cp requirements-backend.txt requirements.txt
+# Backup original requirements.txt (full dependencies for local dev)
+if [ -f "requirements.txt" ]; then
+    echo "💾 Backing up original requirements.txt..."
+    mv requirements.txt requirements.txt.full
 fi
 
+# Use minimal backend requirements for Vercel deployment
+echo "📋 Using requirements-backend.txt for Vercel deployment..."
+cp requirements-backend.txt requirements.txt
+
 echo "✅ Build preparation complete"
-echo "📝 Vercel will now use requirements.txt for installation"
+echo "📝 Vercel will now use requirements-backend.txt (minimal dependencies) for installation"
 
