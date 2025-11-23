@@ -1,14 +1,12 @@
-# Virtual environments (CRITICAL - contains large binary files)
+# Virtual environments
 .venv/
 venv/
 env/
 ENV/
 **/.venv/
 **/venv/
-**/env/
-**/ENV/
 
-# Python cache (CRITICAL - exclude all cache directories)
+# Python cache
 **/__pycache__/
 __pycache__/
 *.py[cod]
@@ -20,28 +18,36 @@ dist/
 wheels/
 *.egg
 
-# Node modules
-node_modules/
-frontend/node_modules/
+# AI/ML dependencies (not needed for backend deployment)
+# These are huge and cause deployment size issues
+**/site-packages/torch/**
+**/site-packages/nvidia-/**
+**/site-packages/transformers/**
+**/site-packages/chromadb/**
+**/site-packages/sentence-transformers/**
+**/site-packages/onnxruntime/**
+**/site-packages/langchain/**
+**/site-packages/langgraph/**
+**/site-packages/langsmith/**
+**/site-packages/ollama/**
 
-# Database files
-*.db
-*.sqlite3
-*.sqlite
-backend/db/*.db
-backend/db/vaani.db
-
-# Vector database (ChromaDB) - should be initialized at runtime
+# Vector database (ChromaDB) - not needed for backend
 ai/chroma_db/
 **/chroma_db/
 
-# Document files (PDFs) - should be stored externally or in cloud storage
+# Document files (PDFs) - not needed for backend
 backend/documents/**/*.pdf
 backend/documents/investment_schemes/
 backend/documents/investment_schemes_hindi/
 backend/documents/loan_products/
 backend/documents/loan_products_hindi/
 backend/documents/fonts/
+
+# Database files (use Supabase instead)
+*.db
+*.sqlite3
+*.sqlite
+backend/db/*.db
 
 # Log files
 *.log
@@ -54,29 +60,18 @@ tests/
 test_*.py
 *_test.py
 
-# Documentation (optional - exclude if not needed for deployment)
+# Documentation
 documentation/
 
-# Frontend build artifacts (if not needed)
-frontend/dist/
+# Frontend (not needed for backend)
+frontend/
+frontend/**
 
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# AI backend (not needed for backend API)
+ai/
+ai/**
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Large binary files (CRITICAL - exclude all binary libraries)
+# Large binary files
 *.dylib
 *.so
 *.dll
@@ -85,25 +80,31 @@ Thumbs.db
 **/*.so
 **/*.dll
 **/*.bin
-**/site-packages/torch/**
-**/site-packages/onnxruntime/**
-**/site-packages/chromadb_rust_bindings/**
-**/site-packages/faiss/**
-**/site-packages/grpc/**
-**/site-packages/azure/cognitiveservices/speech/**
-**/site-packages/cryptography/**
-**/site-packages/llvmlite/**
-**/site-packages/resemblyzer/pretrained.pt
 
-# Backup files
-*.backup
-*.bak
+# Environment files
+.env
+.env.local
+.env.*.local
 
-# Scripts that shouldn't be deployed
+# Scripts
 *.sh
 run.sh
 start.sh
+run_services.py
 
-# Lock files (optional - uv.lock might be needed for build)
-# uv.lock
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
 
+# OS files
+.DS_Store
+Thumbs.db
+
+# Lock files (use requirements-backend.txt instead)
+uv.lock
+
+# Node modules (if any)
+node_modules/
+**/node_modules/
