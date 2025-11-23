@@ -102,8 +102,12 @@ run_services.py
 .DS_Store
 Thumbs.db
 
-# Lock files (use requirements-backend.txt instead)
+# Lock files (use requirements.txt instead)
 uv.lock
+
+# Hide pyproject.toml during build so Vercel uses requirements.txt instead
+# This prevents Vercel from using 'uv sync' which installs all dependencies
+pyproject.toml
 
 # Node modules (if any)
 node_modules/
