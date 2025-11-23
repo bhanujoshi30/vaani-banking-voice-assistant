@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 20
     rate_limit_per_hour: int = 100
     
+    # Guardrail Settings
+    enable_input_guardrails: bool = True
+    enable_output_guardrails: bool = True
+    guardrail_rate_limit_per_minute: int = 30
+    guardrail_rate_limit_per_hour: int = 500
+    guardrail_max_language_mixing_ratio: float = 0.3  # 30% mixing allowed
+    
     # Logging
     log_level: str = "INFO"
     log_file: str = "logs/ai_backend.log"

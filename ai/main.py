@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import uvicorn
 
 from config import settings
-from services import get_llm_service, get_azure_tts_service
+from services import get_llm_service, get_azure_tts_service, get_guardrail_service, GuardrailViolationType
 from agents.agent_graph import process_message
 from utils import logger
 from utils.demo_logging import demo_logger
@@ -208,6 +208,40 @@ async def chat(request: ChatRequest):
             upi_mode=request.upi_mode  # Log UPI mode from request
         )
         
+        # Input Guardrails: Check user input before processing
+        guardrail_service = get_guardrail_service()
+        input_check = await guardrail_service.check_input(
+            message=request.message,
+            language=request.language,
+            user_id=request.user_id
+        )
+        
+        if not input_check.passed:
+            # Log guardrail violation
+            logger.warning(
+                "guardrail_violation_input",
+                user_id=request.user_id,
+                violation_type=input_check.violation_type,
+                language=request.language,
+                message_preview=request.message[:100]
+            )
+            
+            # Return appropriate error message based on language
+            error_message = input_check.message
+            if not error_message:
+                # Fallback error messages
+                if request.language == "hi-IN":
+                    error_message = "मुझे खेद है, आपका संदेश संसाधित नहीं किया जा सका। कृपया अपना प्रश्न दोबारा बताएं।"
+                else:
+                    error_message = "I'm sorry, your message could not be processed. Please rephrase your question."
+            
+            return ChatResponse(
+                success=False,
+                response=error_message,
+                language=request.language,
+                timestamp=datetime.now().isoformat()
+            )
+        
         # Convert message history
         history = []
         if request.message_history:
@@ -226,6 +260,33 @@ async def chat(request: ChatRequest):
             message_history=history,
             upi_mode=request.upi_mode  # Pass UPI mode from frontend
         )
+        
+        # Output Guardrails: Check AI response before sending
+        # Pass intent to allow guardrail to skip language check for language_change
+        output_check = await guardrail_service.check_output(
+            response=result.get("response", ""),
+            language=result.get("language", request.language),  # Use updated language from result
+            original_query=request.message,
+            intent=result.get("intent")  # Pass intent to skip language check for language_change
+        )
+        
+        if not output_check.passed:
+            # Log guardrail violation
+            logger.warning(
+                "guardrail_violation_output",
+                user_id=request.user_id,
+                violation_type=output_check.violation_type,
+                language=request.language,
+                response_preview=result.get("response", "")[:100]
+            )
+            
+            # Replace with safe fallback message
+            if request.language == "hi-IN":
+                fallback_message = "मुझे खेद है, मुझे आपकी मदद करने में समस्या हो रही है। कृपया पुनः प्रयास करें।"
+            else:
+                fallback_message = "I'm sorry, I'm having trouble helping you right now. Please try again."
+            
+            result["response"] = fallback_message
         
         # Demo logging: AI response
         demo_logger.ai_response(

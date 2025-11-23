@@ -13,6 +13,7 @@ from agents.greeting_agent import greeting_agent
 from agents.upi_agent import upi_agent
 from utils import logger
 from utils.demo_logging import demo_logger
+from services import get_guardrail_service
 
 from .router import IntentRouter
 from .state import ConversationState
@@ -32,6 +33,7 @@ class HybridSupervisor:
 
     def __init__(self) -> None:
         self.router = IntentRouter()
+        self.guardrail = get_guardrail_service()
 
     async def process(
         self,
@@ -53,6 +55,33 @@ class HybridSupervisor:
             message_history=message_history or [],
             upi_mode=upi_mode,
         )
+
+        # Guardrail: Validate input before routing (intercept malicious queries early)
+        is_valid, guardrail_message = self.guardrail.validate_input(message, language)
+        if not is_valid:
+            logger.warning("security_event",
+                         event_type="input_blocked_by_guardrail",
+                         user_id=user_id,
+                         language=language,
+                         message_preview=message[:100])
+            
+            # Use guardrail's specific message, or fallback to default
+            if guardrail_message:
+                refusal_message = guardrail_message
+            else:
+                # Fallback message
+                if language == "hi-IN":
+                    refusal_message = "मैं एक बैंकिंग एजेंट हूं। कृपया Sun National Bank से संबंधित बैंकिंग प्रश्न पूछें।"
+                else:
+                    refusal_message = "I am a banking agent. Please ask questions related to banking at Sun National Bank."
+            
+            return {
+                "success": False,
+                "response": refusal_message,
+                "intent": "blocked",
+                "language": language,
+                "timestamp": datetime.now().isoformat(),
+            }
 
         intent = await self.router.assign_intent(context)
         agent_key = self.router.resolve_route(intent)
@@ -150,9 +179,14 @@ class HybridSupervisor:
     def _build_response(self, context: ConversationState) -> Dict[str, Any]:
         last_message = context.messages[-1] if context.messages else AIMessage(content="")
         response_text = last_message.content if hasattr(last_message, "content") else str(last_message)
+        
+        # Guardrail: Sanitize output - redact PII and normalize refusals
+        # Skip language consistency check for language_change intents (handled in main.py check_output)
+        sanitized_response = self.guardrail.sanitize_output(response_text, context.language)
+        
         payload: Dict[str, Any] = {
             "success": True,
-            "response": response_text,
+            "response": sanitized_response,
             "intent": context.current_intent,
             "language": context.language,
             "timestamp": datetime.now().isoformat(),

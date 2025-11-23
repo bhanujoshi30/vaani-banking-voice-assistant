@@ -43,7 +43,8 @@ ai/
 │   ├── ollama_service.py       # Ollama integration
 │   ├── openai_service.py       # OpenAI integration
 │   ├── azure_tts_service.py    # Azure Text-to-Speech
-│   └── rag_service.py          # RAG service with vector database
+│   ├── rag_service.py          # RAG service with vector database
+│   └── guardrail_service.py    # Guardrails for content safety, PII detection, prompt injection protection
 │
 ├── tools/                       # LangChain tools for agents
 │   ├── banking_tools.py        # Banking operations tools

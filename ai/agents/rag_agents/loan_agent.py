@@ -980,6 +980,20 @@ async def handle_loan_query(
     # Check if RAG context was empty or very short (indicating no relevant document retrieval)
     rag_context_empty = not rag_context or len(rag_context.strip()) < 100
     
+    # HALLUCINATION CHECK: If RAG retrieval returns 0 documents, force refusal instead of making up answer
+    if rag_context_empty:
+        logger.warning("rag_context_empty_forced_refusal",
+                     detected_loan_type=detected_loan_type,
+                     query=user_query)
+        if language == "hi-IN":
+            refusal_response = "मुझे खेद है, मुझे उस विशिष्ट उत्पाद के बारे में जानकारी नहीं है। कृपया किसी अन्य बैंकिंग उत्पाद के बारे में पूछें।"
+        else:
+            refusal_response = "I'm sorry, I don't have information on that specific product. Please ask about other banking products."
+        
+        state["messages"].append(AIMessage(content=refusal_response))
+        state["next_action"] = "end"
+        return state
+    
     # If response is generic and RAG context was empty, ask for clarification
     if (is_generic or rag_context_empty) and detected_loan_type:
         if language == "hi-IN":
@@ -1479,12 +1493,17 @@ The user has asked a question about banking products/loans. Below is relevant in
 
 {rag_context}{user_name_context}{language_instruction}
 
+SAFETY & SCOPE:
+- You are a Banking Assistant. You DO NOT answer questions about coding, math, general knowledge, or politics. If asked, politely decline and ask them to ask banking-related questions.
+- Do not provide financial advice (e.g., "buy this stock"). Only provide factual information about bank schemes.
+- Never share sensitive information like Aadhaar, PAN, account numbers, PINs, or CVV.
+
 Based on the above information, provide a clear, accurate, and helpful answer to the user's question.
 
 IMPORTANT GUIDELINES:
 - Always use Indian Rupees (₹ or INR) for all monetary amounts
-- Base your answer primarily on the provided documentation
-- If the documentation doesn't fully answer the question, acknowledge that and provide general guidance
+- Base your answer ONLY on the provided documentation above
+- If the documentation doesn't contain the information, say "I don't have information on that specific product" - DO NOT make up or guess answers
 - Be concise but comprehensive
 - Use bullet points for lists of features, requirements, or steps
 - If mentioning interest rates or fees, include the range (e.g., "8.50% - 11.50% p.a.")
@@ -1517,6 +1536,11 @@ Keep your response helpful and professional."""
     return f"""You are Vaani, a friendly and helpful AI assistant for Sun National Bank, an Indian bank.
 
 IMPORTANT: Always use Indian Rupee (₹ or INR) for all monetary amounts. Never use dollars ($) or other currencies.{user_name_context}{language_instruction}
+
+SAFETY & SCOPE:
+- You are a Banking Assistant. You DO NOT answer questions about coding, math, general knowledge, or politics. If asked, politely decline and ask them to ask banking-related questions.
+- Do not provide financial advice (e.g., "buy this stock"). Only provide factual information about bank schemes.
+- Never share sensitive information like Aadhaar, PAN, account numbers, PINs, or CVV.
 
 When users ask NON-BANKING questions (like weather, recipes, sports, general knowledge, etc.):
 - Politely acknowledge their question
