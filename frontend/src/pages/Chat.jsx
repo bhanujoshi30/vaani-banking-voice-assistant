@@ -181,6 +181,53 @@ const Chat = ({ session, onSignOut }) => {
   // Note: UPI mode activation is now handled by backend response via structured_data
   // We don't activate UPI mode from transcript detection to avoid premature activation
 
+  // Unified language change handler - used by both dropdown and AI
+  // This ensures consistent behavior regardless of how language is changed
+  // MUST be defined before useEffects that use it to avoid "Cannot access before initialization" error
+  const handleLanguageChange = useCallback((newLang) => {
+    // Validate language code
+    if (!newLang || !["en-IN", "hi-IN"].includes(newLang)) {
+      console.warn('Invalid language code:', newLang);
+      return;
+    }
+
+    // If language hasn't changed, do nothing
+    if (newLang === language) {
+      console.log('Language unchanged, skipping update:', newLang);
+      return;
+    }
+
+    // CRITICAL: Stop any ongoing speech/listening FIRST before changing language
+    // This prevents the voice mode from recording while AI is speaking
+    console.log('🛑 Language change: Stopping TTS and listening. Changing from', language, 'to', newLang);
+    
+    // Stop listening first to prevent recording
+    if (isListening) {
+      stopListening();
+    }
+    
+    // Stop speaking if active
+    if (isSpeaking) {
+      stopSpeaking();
+    }
+    
+    // Mark that we're changing language to prevent hook interference
+    // This will prevent voice mode from auto-starting during language change
+    markLanguageChanging();
+    
+    // Set the new language preference FIRST (this updates localStorage)
+    setPreferredLanguage(newLang);
+    
+    // Update local language state - keep all messages as they are
+    setLanguage(newLang);
+    
+    // Dispatch event to notify other components (including dropdown)
+    // This ensures dropdown and other components stay in sync
+    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
+    
+    console.log('✅ Language changed successfully to:', newLang);
+  }, [language, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging]);
+
   // Update input text when speech transcript changes
   useEffect(() => {
     if (fullTranscript && !isSpeaking) {
@@ -191,6 +238,8 @@ const Chat = ({ session, onSignOut }) => {
 
   // Track processed message IDs to avoid re-processing
   const processedMessageIdsRef = useRef(new Set());
+  // Track processed language changes to avoid re-processing
+  const processedLanguageChangeRef = useRef(null);
   
   // Handle UPI mode activation and payment structured data
   // This now only handles messages that are already in chat (after consent)
@@ -344,20 +393,28 @@ const Chat = ({ session, onSignOut }) => {
     }
     
     // Handle language change request
+    // Use the same handleLanguageChange function that the dropdown uses
+    // This ensures both AI and manual dropdown changes work identically
     if (lastAssistantMessage?.structuredData?.type === 'language_change') {
       const languageData = lastAssistantMessage.structuredData;
       
-      // If language was actually changed, update the language state
+      // If language was actually changed, call the same function the dropdown uses
       if (languageData.changed && languageData.requested_language) {
-        // Use the handleLanguageChange function which properly handles stopping TTS/listening
         const newLang = languageData.requested_language;
-        if (newLang !== language) {
+        const messageId = lastAssistantMessage.id;
+        
+        // Check if we've already processed this language change for this message
+        // This prevents re-processing when handleLanguageChange updates language state
+        if (processedLanguageChangeRef.current !== messageId) {
+          processedLanguageChangeRef.current = messageId;
+          // Call handleLanguageChange - same function used by dropdown
+          // It will handle all the state updates, TTS/listening stops, and event dispatching
           handleLanguageChange(newLang);
         }
       }
       // If user requested current language, response already handled by backend
     }
-  }, [messages, upiConsentGiven, upiMode, language, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging, showUPIPinModal, resetTranscript, setInputText]);
+  }, [messages, upiConsentGiven, upiMode, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging, showUPIPinModal, resetTranscript, setInputText]);
 
   // Handle pending UPI message - show consent modal when pending message exists
   useEffect(() => {
@@ -445,45 +502,30 @@ const Chat = ({ session, onSignOut }) => {
     }
   }, [isVoiceModeEnabled, stopSpeaking]);
 
+  // Listen for language changes from other sources (like other tabs)
+  // Use handleLanguageChange for consistency, but only if language actually changed
   useEffect(() => {
     const handleStorageChange = (event) => {
       if (event.key === PREFERRED_LANGUAGE_KEY) {
         const newLang = event.newValue || DEFAULT_LANGUAGE;
-        
-        // Mark that we're changing language to prevent hook interference
-        markLanguageChanging();
-        
-        // Simply update language - keep all messages as they are
-        setLanguage(newLang);
+        // Use handleLanguageChange for consistency - it handles all the cleanup
+        if (newLang !== language) {
+          handleLanguageChange(newLang);
+        }
       }
     };
 
-    const handleLanguageChange = (event) => {
-      const { language: newLang } = event.detail;
-      if (newLang && newLang !== language) {
-        // Stop any ongoing speech/listening first
-        if (isListening) {
-          stopListening();
-        }
-        if (isSpeaking) {
-          stopSpeaking();
-        }
-        
-        // Mark that we're changing language to prevent hook interference
-        markLanguageChanging();
-        
-        // Simply update language - keep all messages as they are
-        setLanguage(newLang);
-      }
-    };
+    // Note: We don't listen to "languageChanged" events here because:
+    // 1. handleLanguageChange already dispatches this event for OTHER components
+    // 2. If we listen to it and call handleLanguageChange again, we'd create a loop
+    // 3. The dropdown and other components listen to this event, but Chat component
+    //    uses handleLanguageChange directly, which is the single source of truth
 
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("languageChanged", handleLanguageChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("languageChanged", handleLanguageChange);
     };
-  }, [language, isListening, isSpeaking, stopListening, stopSpeaking]);
+  }, [language, handleLanguageChange]);
 
   if (!session.authenticated) {
     return <Navigate to="/" replace />;
@@ -812,39 +854,6 @@ const Chat = ({ session, onSignOut }) => {
     sessionStorage.removeItem('upi_consent_given_session'); // Also remove from session storage
   };
 
-  const handleLanguageChange = useCallback((newLang) => {
-    // If language hasn't changed, do nothing
-    if (newLang === language) {
-      return;
-    }
-
-    // CRITICAL: Stop any ongoing speech/listening FIRST before changing language
-    // This prevents the voice mode from recording while AI is speaking
-    console.log('🛑 Language change: Stopping TTS and listening');
-    
-    // Stop listening first to prevent recording
-    if (isListening) {
-      stopListening();
-    }
-    
-    // Stop speaking if active
-    if (isSpeaking) {
-      stopSpeaking();
-    }
-    
-    // Mark that we're changing language to prevent hook interference
-    // This will prevent voice mode from auto-starting during language change
-    markLanguageChanging();
-    
-    // Set the new language preference
-    setPreferredLanguage(newLang);
-    // Update local language state - keep all messages as they are
-    setLanguage(newLang);
-    
-    // Dispatch event to notify other components
-    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
-  }, [language, isListening, isSpeaking, stopListening, stopSpeaking, markLanguageChanging]);
-
   return (
     <div className="app-shell">
       <div className="app-content app-content--fullwidth">
@@ -853,7 +862,7 @@ const Chat = ({ session, onSignOut }) => {
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
               <div className="chat-header-actions">
-                <LanguageDropdown onSelect={handleLanguageChange} />
+                <LanguageDropdown onSelect={handleLanguageChange} value={language} />
                 <button
                   type="button"
                   className="ghost-btn ghost-btn--compact"

@@ -12,9 +12,14 @@ const SUPPORTED_LANGUAGES = ["en-IN", "hi-IN"];
  * @param {boolean} disabled - Whether the dropdown is disabled
  * @param {string} className - Optional CSS class name
  * @param {function} onSelect - Optional callback function that overrides default behavior
+ * @param {string} value - Optional current language value to sync with parent component
  */
-const LanguageDropdown = ({ disabled, className, onSelect }) => {
+const LanguageDropdown = ({ disabled, className, onSelect, value }) => {
   const [currentLanguage, setCurrentLanguage] = useState(() => {
+    // If value prop is provided, use it; otherwise use localStorage
+    if (value && SUPPORTED_LANGUAGES.includes(value)) {
+      return value;
+    }
     const preferred = getPreferredLanguage();
     return SUPPORTED_LANGUAGES.includes(preferred) ? preferred : "en-IN";
   });
@@ -26,25 +31,40 @@ const LanguageDropdown = ({ disabled, className, onSelect }) => {
 
   // Handle language selection
   const handleLanguageSelect = (newLang) => {
+    // Validate language code
+    if (!newLang || !SUPPORTED_LANGUAGES.includes(newLang)) {
+      console.warn('LanguageDropdown: Invalid language code:', newLang);
+      setIsOpen(false);
+      return;
+    }
+
+    // If same language selected, just close dropdown
     if (newLang === currentLanguage) {
       setIsOpen(false);
       return;
     }
 
-    // If custom onSelect handler is provided, call it but don't update state here
-    // The state will be updated via languageChanged event or localStorage sync
+    console.log('LanguageDropdown: User selected language:', newLang, '(current:', currentLanguage, ')');
+
+    // Close dropdown immediately for better UX
+    setIsOpen(false);
+
+    // If custom onSelect handler is provided, call it FIRST
+    // The handler will update localStorage, state, and dispatch events
+    // We'll update our internal state via the value prop sync or event listener
     if (onSelect) {
+      console.log('LanguageDropdown: Calling onSelect handler with:', newLang);
       onSelect(newLang);
-      setIsOpen(false);
+      // Don't update state here - let the parent's handler and value prop handle it
+      // This ensures single source of truth
       return;
     }
 
-    // Default behavior: update state and localStorage
+    // Default behavior (when no onSelect handler): update state and localStorage
     setCurrentLanguage(newLang);
     setPreferredLanguage(newLang);
     // Dispatch custom event to notify other components
     window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
-    setIsOpen(false);
   };
 
   // Close dropdown when clicking outside
@@ -64,6 +84,20 @@ const LanguageDropdown = ({ disabled, className, onSelect }) => {
     };
   }, [isOpen]);
 
+  // Sync with parent's language value prop if provided
+  // This ensures dropdown stays in sync with parent component's language state
+  // This is critical when onSelect handler is provided - the dropdown must sync with parent's state
+  useEffect(() => {
+    if (value && SUPPORTED_LANGUAGES.includes(value)) {
+      // Always sync with parent's value prop when it changes
+      // This handles cases where language is changed via AI command or manual dropdown selection
+      if (value !== currentLanguage) {
+        console.log('LanguageDropdown: Syncing with parent value prop:', value, '(current:', currentLanguage, ')');
+        setCurrentLanguage(value);
+      }
+    }
+  }, [value, currentLanguage]); // Include currentLanguage to detect when sync is needed
+
   // Sync with localStorage changes (if changed elsewhere, e.g., from other tabs or components)
   useEffect(() => {
     const handleStorageChange = () => {
@@ -71,6 +105,10 @@ const LanguageDropdown = ({ disabled, className, onSelect }) => {
       if (SUPPORTED_LANGUAGES.includes(preferred)) {
         setCurrentLanguage((prevLang) => {
           // Only update if different to avoid unnecessary re-renders
+          // But respect value prop if provided
+          if (value && value !== preferred) {
+            return prevLang; // Don't update if value prop takes precedence
+          }
           return preferred !== prevLang ? preferred : prevLang;
         });
       }
@@ -81,6 +119,10 @@ const LanguageDropdown = ({ disabled, className, onSelect }) => {
       if (SUPPORTED_LANGUAGES.includes(newLang)) {
         setCurrentLanguage((prevLang) => {
           // Only update if different to avoid unnecessary re-renders
+          // But respect value prop if provided
+          if (value && value !== newLang) {
+            return prevLang; // Don't update if value prop takes precedence
+          }
           return newLang !== prevLang ? newLang : prevLang;
         });
       }
@@ -91,17 +133,19 @@ const LanguageDropdown = ({ disabled, className, onSelect }) => {
     // Listen for custom language change events (from same tab)
     window.addEventListener("languageChanged", handleLanguageChange);
     
-    // Check localStorage on mount to ensure we're in sync
-    const preferred = getPreferredLanguage();
-    if (SUPPORTED_LANGUAGES.includes(preferred) && preferred !== currentLanguage) {
-      setCurrentLanguage(preferred);
+    // Check localStorage on mount to ensure we're in sync (only if value prop not provided)
+    if (!value) {
+      const preferred = getPreferredLanguage();
+      if (SUPPORTED_LANGUAGES.includes(preferred) && preferred !== currentLanguage) {
+        setCurrentLanguage(preferred);
+      }
     }
     
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("languageChanged", handleLanguageChange);
     };
-  }, [currentLanguage]);
+  }, [currentLanguage, value]);
 
   return (
     <div 
@@ -242,12 +286,14 @@ LanguageDropdown.propTypes = {
   disabled: PropTypes.bool,
   className: PropTypes.string,
   onSelect: PropTypes.func,
+  value: PropTypes.string,
 };
 
 LanguageDropdown.defaultProps = {
   disabled: false,
   className: null,
   onSelect: null,
+  value: null,
 };
 
 export default LanguageDropdown;
