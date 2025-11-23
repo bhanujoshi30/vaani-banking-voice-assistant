@@ -144,6 +144,7 @@ HybridSupervisor
 ```
 - LLMService - Ollama/OpenAI integration
 - RAGService - ChromaDB vector retrieval
+- GuardrailService - Input/output safety checks (content moderation, PII detection, prompt injection protection, rate limiting)
 - Azure TTS Service (optional, not currently used)
 ```
 

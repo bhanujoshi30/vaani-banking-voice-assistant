@@ -1,63 +1,103 @@
+%% Frontend Architecture - Clean and Aesthetic Design
 %% Mermaid diagram for the frontend module
-flowchart TD
-  user["Customer UI<br/>Voice + touch inputs"]
 
-  subgraph "React Shell (Vite)"
-    main["main.jsx<br/>BrowserRouter mount"]
-    app["App.jsx<br/>Session state + guards"]
-    routes["react-router Routes<br/>/ /profile /chat /..."]
-  end
+flowchart TB
+    %% User Layer
+    subgraph User["User Interface"]
+        user["Customer UI<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Voice + Touch Inputs"]
+    end
 
-  subgraph "Page Views"
-    login["Login & DeviceBinding<br/>Voice/password auth"]
-    profile["Profile Dashboard<br/>Accounts · transfers · reminders"]
-    chat["Chat & UPI Workspace<br/>Voice assistant + QR upload"]
-    misc["Transactions / Reminders / Beneficiaries<br/>Read-only pages"]
-  end
+    %% React Shell
+    subgraph ReactShell["React Shell (Vite)"]
+        direction TB
+        main["main.jsx<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>BrowserRouter mount"]
+        app["App.jsx<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Session state + Guards"]
+        routes["react-router Routes<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/ /profile /chat /..."]
+        main --> app --> routes
+    end
 
-  subgraph "Shared UI + Hooks"
-    components["Components<br/>SunHeader · LanguageDropdown · Modals"]
-    voiceHooks["Voice Hooks<br/>useSpeechRecognition · useTextToSpeech"]
-    chatHooks["Chat Hooks<br/>useChatMessages · useChatHandler · useVoiceMode"]
-    configUtils["Config + Utils<br/>voiceConfig.js · preferences.js"]
-  end
+    %% Page Views
+    subgraph Pages["Page Views"]
+        direction TB
+        login["Login & DeviceBinding<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Voice/Password Auth"]
+        profile["Profile Dashboard<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Accounts · Transfers · Reminders"]
+        chat["Chat & UPI Workspace<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Voice Assistant + QR Upload"]
+        misc["Transactions / Reminders<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Read-only Pages"]
+    end
 
-  subgraph "Client Services"
-    chatService["services/chatService.js<br/>LLM orchestration"]
-    restClient["api/client.js<br/>Auth · accounts · UPI REST"]
-    aiClient["api/aiClient.js<br/>/api/chat · /api/tts"]
-  end
+    %% Shared UI Components
+    subgraph SharedUI["Shared UI + Hooks"]
+        direction TB
+        components["Components<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>SunHeader · LanguageDropdown<br/>Modals"]
+        voiceHooks["Voice Hooks<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>useSpeechRecognition<br/>useTextToSpeech"]
+        chatHooks["Chat Hooks<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>useChatMessages<br/>useChatHandler<br/>useVoiceMode"]
+        configUtils["Config + Utils<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>voiceConfig.js<br/>preferences.js"]
+    end
 
-  subgraph "Backends"
-    backend["FastAPI backend (8000)<br/>Auth · accounts · UPI APIs"]
-    aiBackend["AI FastAPI (8001)<br/>Hybrid supervisor + RAG"]
-  end
+    %% Client Services
+    subgraph ClientServices["Client Services"]
+        direction TB
+        chatService["services/chatService.js<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>LLM Orchestration"]
+        restClient["api/client.js<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Auth · Accounts · UPI REST"]
+        aiClient["api/aiClient.js<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/chat · /api/tts"]
+    end
 
-  user --> main --> app --> routes
-  routes --> login
-  routes --> profile
-  routes --> chat
-  routes --> misc
+    %% Backend Services
+    subgraph Backends["Backend Services"]
+        direction TB
+        backend["FastAPI Backend :8000<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Auth · Accounts · UPI APIs"]
+        aiBackend["AI FastAPI :8001<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Hybrid Supervisor + RAG"]
+    end
 
-  login --> components
-  profile --> components
-  chat --> components
-  misc --> components
+    %% User Flow
+    user --> main
 
-  login --> restClient
-  profile --> restClient
-  misc --> restClient
-  profile --> chatService
-  chat --> chatHooks
-  chat --> voiceHooks
-  chat --> chatService
-  chatHooks --> chatService
-  chatHooks --> components
+    %% Routing
+    routes --> login
+    routes --> profile
+    routes --> chat
+    routes --> misc
 
-  chatService --> aiClient
-  chatService --> restClient
-  restClient --> backend
-  aiClient --> aiBackend
+    %% Page to Components
+    login --> components
+    profile --> components
+    chat --> components
+    misc --> components
 
-  voiceHooks --> configUtils
-  components --> configUtils
+    %% Page to Services
+    login --> restClient
+    profile --> restClient
+    misc --> restClient
+    profile --> chatService
+    chat --> chatHooks
+    chat --> voiceHooks
+    chat --> chatService
+
+    %% Hooks to Services
+    chatHooks --> chatService
+    chatHooks --> components
+
+    %% Services to Backends
+    chatService --> aiClient
+    chatService --> restClient
+    restClient --> backend
+    aiClient --> aiBackend
+
+    %% Utils Usage
+    voiceHooks --> configUtils
+    components --> configUtils
+
+    %% Styling
+    classDef userStyle fill:#4a90e2,stroke:#2c5aa0,stroke-width:2px,color:#fff
+    classDef reactStyle fill:#61dafb,stroke:#00d8ff,stroke-width:2px,color:#000
+    classDef pageStyle fill:#51cf66,stroke:#2f9e44,stroke-width:2px,color:#fff
+    classDef uiStyle fill:#845ef7,stroke:#5f3dc4,stroke-width:2px,color:#fff
+    classDef serviceStyle fill:#ffa94d,stroke:#d9480f,stroke-width:2px,color:#fff
+    classDef backendStyle fill:#ff6b6b,stroke:#c92a2a,stroke-width:2px,color:#fff
+
+    class user userStyle
+    class main,app,routes reactStyle
+    class login,profile,chat,misc pageStyle
+    class components,voiceHooks,chatHooks,configUtils uiStyle
+    class chatService,restClient,aiClient serviceStyle
+    class backend,aiBackend backendStyle

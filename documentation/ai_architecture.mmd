@@ -1,69 +1,139 @@
-%% Mermaid diagram for the AI module (kept simple and parse-safe)
-flowchart TD
-  client["Frontend Client"] --> beChat["Backend /api/chat"]
-  beChat --> entry["agent_graph.process_message"]
+%% AI Module Architecture - Clean and Aesthetic Design
+%% Mermaid diagram for the AI module with improved visual hierarchy and flow
 
-  subgraph "Orchestrator (ai/orchestrator)"
-    supervisor["HybridSupervisor"]
-    state["ConversationState"]
-    router["IntentRouter"]
-  end
+flowchart TB
+    %% Client Layer
+    subgraph Client["Client Layer"]
+        direction LR
+        client["Frontend Client<br/>React + Voice"]
+        beChat["Backend API<br/>/api/chat"]
+        client -->|HTTP Request| beChat
+    end
 
-  subgraph "Agents (ai/agents)"
-    banking["Banking Agent"]
-    upi["UPI Agent"]
-    rag["RAG Supervisor"]
-    greet["Greeting Agent"]
-    feedback["Feedback Agent"]
-  end
+    %% Entry Point
+    entry["Entry Point<br/>agent_graph.process_message"]
+    beChat --> entry
 
-  subgraph "RAG Specialists (ai/agents/rag_agents)"
-    loan["Loan Agent<br/>(7 loan types)"]
-    invest["Investment Agent<br/>(7 schemes)"]
-    support["Customer Support Agent<br/>(contact info)"]
-  end
+    %% Orchestrator Layer
+    subgraph Orchestrator["Orchestrator Layer (ai/orchestrator)"]
+        direction TB
+        supervisor["HybridSupervisor<br/>━━━━━━━━━━━━━━<br/>Central Coordinator"]
+        state["ConversationState<br/>━━━━━━━━━━━━━━<br/>Context Manager"]
+        router["IntentRouter<br/>━━━━━━━━━━━━━━<br/>Intent Classifier"]
+        
+        supervisor -.->|manages| state
+        state --> router
+    end
 
-  subgraph "Services (ai/services)"
-    llm["LLMService<br/>(Ollama: qwen2.5:7b, llama3.2:3b)"]
-    ragSvc["RAGService<br/>(ChromaDB + HuggingFace embeddings)"]
-    tools["Banking/UPI Tools"]
-  end
+    %% Security Layer
+    subgraph Security["Security Layer"]
+        direction TB
+        guardrail["GuardrailService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Input Validation<br/>Content Moderation<br/>PII Detection<br/>Output Sanitization"]
+    end
 
-  subgraph "Vector Databases (ai/chroma_db)"
-    loanEn["loan_products (English)"]
-    loanHi["loan_products_hindi (Hindi)"]
-    investEn["investment_schemes (English)"]
-    investHi["investment_schemes_hindi (Hindi)"]
-  end
+    %% Agents Layer
+    subgraph Agents["Specialist Agents (ai/agents)"]
+        direction TB
+        banking["Banking Agent<br/>Balance · Transactions · Transfers"]
+        upi["UPI Agent<br/>Payment Flows"]
+        rag["RAG Supervisor<br/>Product Queries"]
+        greet["Greeting Agent<br/>Welcome Messages"]
+        feedback["Feedback Agent<br/>User Feedback"]
+    end
 
-  entry --> supervisor
-  supervisor --> state
-  supervisor --> router
+    %% RAG Specialists
+    subgraph RAGSpecialists["RAG Domain Specialists (ai/agents/rag_agents)"]
+        direction TB
+        loan["Loan Agent<br/>7 Loan Types"]
+        invest["Investment Agent<br/>7 Schemes"]
+        support["Customer Support<br/>Contact Info"]
+    end
 
-  router -->|banking| banking
-  router -->|upi| upi
-  router -->|faq/product| rag
-  router -->|greeting| greet
-  router -->|feedback| feedback
+    %% Services Layer
+    subgraph Services["Services (ai/services)"]
+        direction TB
+        llm["LLMService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Primary: qwen2.5:7b<br/>Fast: llama3.2:3b"]
+        ragSvc["RAGService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>ChromaDB + Embeddings<br/>Semantic Chunking"]
+        tools["Banking/UPI Tools<br/>API Integrations"]
+    end
 
-  rag -->|loan queries| loan
-  rag -->|investment queries| invest
-  rag -->|support queries| support
+    %% Data Layer
+    subgraph Data["Vector Databases (ai/chroma_db)"]
+        direction LR
+        loanEn["loan_products<br/>(English)"]
+        loanHi["loan_products_hindi<br/>(Hindi)"]
+        investEn["investment_schemes<br/>(English)"]
+        investHi["investment_schemes_hindi<br/>(Hindi)"]
+    end
 
-  banking --> tools
-  upi --> tools
-  banking --> llm
-  upi --> llm
-  rag --> llm
-  
-  loan --> ragSvc
-  invest --> ragSvc
-  support --> llm
-  
-  ragSvc --> loanEn
-  ragSvc --> loanHi
-  ragSvc --> investEn
-  ragSvc --> investHi
+    %% Main Flow - Request Path
+    entry --> supervisor
+    supervisor -->|"1. Validate Input"| guardrail
+    guardrail -->|"Valid"| state
+    guardrail -->|"Blocked"| supervisor
+    
+    state --> router
+    
+    %% Routing to Agents
+    router -->|"banking"| banking
+    router -->|"upi"| upi
+    router -->|"product/rag"| rag
+    router -->|"greeting"| greet
+    router -->|"feedback"| feedback
+    
+    %% RAG Supervisor Delegation
+    rag -->|"loan queries"| loan
+    rag -->|"investment queries"| invest
+    rag -->|"support queries"| support
+    
+    %% Agent to Services Connections
+    banking --> tools
+    banking --> llm
+    upi --> tools
+    upi --> llm
+    greet --> supervisor
+    feedback --> supervisor
+    
+    %% RAG Specialists to Services
+    loan --> ragSvc
+    loan --> llm
+    invest --> ragSvc
+    invest --> llm
+    support --> llm
+    
+    %% RAG Service to Vector Databases
+    ragSvc --> loanEn
+    ragSvc --> loanHi
+    ragSvc --> investEn
+    ragSvc --> investHi
+    
+    %% Response Path - Output Sanitization
+    banking -.->|"response"| supervisor
+    upi -.->|"response"| supervisor
+    rag -.->|"response"| supervisor
+    greet -.->|"response"| supervisor
+    feedback -.->|"response"| supervisor
+    
+    supervisor -->|"2. Sanitize Output"| guardrail
+    guardrail -->|"Sanitized"| supervisor
+    supervisor -->|"Final Payload"| beChat
+    beChat -->|"HTTP Response"| client
 
-  supervisor --> beChat
-  beChat --> client
+    %% Styling
+    classDef clientStyle fill:#4a90e2,stroke:#2c5aa0,stroke-width:2px,color:#fff
+    classDef orchestratorStyle fill:#ff6b6b,stroke:#c92a2a,stroke-width:2px,color:#fff
+    classDef securityStyle fill:#ffa94d,stroke:#d9480f,stroke-width:2px,color:#fff
+    classDef agentStyle fill:#51cf66,stroke:#2f9e44,stroke-width:2px,color:#fff
+    classDef ragStyle fill:#339af0,stroke:#1971c2,stroke-width:2px,color:#fff
+    classDef serviceStyle fill:#845ef7,stroke:#5f3dc4,stroke-width:2px,color:#fff
+    classDef dataStyle fill:#20c997,stroke:#0ca678,stroke-width:2px,color:#fff
+    classDef entryStyle fill:#868e96,stroke:#495057,stroke-width:2px,color:#fff
+
+    class client,beChat clientStyle
+    class supervisor,state,router orchestratorStyle
+    class guardrail securityStyle
+    class banking,upi,greet,feedback agentStyle
+    class rag,loan,invest,support ragStyle
+    class llm,ragSvc,tools serviceStyle
+    class loanEn,loanHi,investEn,investHi dataStyle
+    class entry entryStyle

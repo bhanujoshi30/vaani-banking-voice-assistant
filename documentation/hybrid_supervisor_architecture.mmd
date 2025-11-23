@@ -1,54 +1,82 @@
-%% Hybrid Supervisor Architecture Diagram
+%% Hybrid Supervisor Architecture - Clean and Aesthetic Design
 %% Render with: `npx @mermaid-js/mermaid-cli -i hybrid_supervisor_architecture.mmd -o diagram.svg`
-flowchart LR
-    subgraph Client[Voice/Web Client]
-        U(User Input)
+
+flowchart TB
+    %% Client Layer
+    subgraph Client["Client Layer"]
+        direction LR
+        U["User Input<br/>━━━━━━━━━━━━━━<br/>Voice/Web Client"]
     end
 
-    Note right of Client: Message history (when available) stays inside the UI payload.
+    %% Note right of Client: Message history (when available) stays inside the UI payload.
 
-    subgraph SupervisorStack[Hybrid Supervisor Stack]
-        CS[ConversationState Builder]
-        IR[IntentRouter]
-        HS[HybridSupervisor]
+    %% Orchestrator Layer
+    subgraph SupervisorStack["Hybrid Supervisor Stack (ai/orchestrator)"]
+        direction TB
+        HS["HybridSupervisor<br/>━━━━━━━━━━━━━━<br/>Central Coordinator"]
+        CS["ConversationState Builder<br/>━━━━━━━━━━━━━━<br/>Context Manager"]
+        IR["IntentRouter<br/>━━━━━━━━━━━━━━<br/>Intent Classifier"]
+        
+        HS -.->|manages| CS
+        CS --> IR
+        IR --> HS
     end
 
-    subgraph Specialists[Specialist Agents]
-        BA[Banking Agent]
-        UA[UPI Agent]
-        RAG[RAG Supervisor]
-        GR[Greeting Agent]
-        FB[Feedback Agent]
+    %% Security Layer
+    subgraph Security["Security Layer"]
+        direction TB
+        Guardrail["GuardrailService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Input Validation<br/>Content Moderation<br/>PII Detection<br/>Output Sanitization"]
     end
 
-    subgraph RAGSpecialists[RAG Domain Specialists]
-        Loan[Loan Specialist]
-        Invest[Investment Specialist]
-        CSAgent[Customer Support Specialist]
+    %% Specialist Agents
+    subgraph Specialists["Specialist Agents (ai/agents)"]
+        direction TB
+        BA["Banking Agent<br/>Balance · Transactions · Transfers"]
+        UA["UPI Agent<br/>Payment Flows"]
+        RAG["RAG Supervisor<br/>Product Queries"]
+        GR["Greeting Agent<br/>Welcome Messages"]
+        FB["Feedback Agent<br/>User Feedback"]
     end
 
-    subgraph Services[Shared Services]
-        LLM[LLM Service]
-        Tools[Tools & Data APIs]
+    %% RAG Domain Specialists
+    subgraph RAGSpecialists["RAG Domain Specialists (ai/agents/rag_agents)"]
+        direction TB
+        Loan["Loan Specialist<br/>7 Loan Types"]
+        Invest["Investment Specialist<br/>7 Schemes"]
+        CSAgent["Customer Support Specialist<br/>Contact Info"]
     end
 
+    %% Shared Services
+    subgraph Services["Shared Services (ai/services)"]
+        direction TB
+        LLM["LLM Service<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Primary: qwen2.5:7b<br/>Fast: llama3.2:3b"]
+        Tools["Tools & Data APIs<br/>Banking/UPI Operations"]
+    end
+
+    %% Request Flow
     U --> HS
-    HS --> CS
-    CS --> IR
-    IR --> HS
-    HS -->|route key| BA
-    HS -->|route key| UA
-    HS -->|route key| RAG
-    HS -->|route key| GR
-    HS -->|route key| FB
+    HS -->|"1. Validate Input"| Guardrail
+    Guardrail -->|"Valid"| CS
+    Guardrail -->|"Blocked"| HS
+    
+    %% Routing
+    HS -->|"route: banking"| BA
+    HS -->|"route: upi"| UA
+    HS -->|"route: product/rag"| RAG
+    HS -->|"route: greeting"| GR
+    HS -->|"route: feedback"| FB
 
-    RAG --> Loan
-    RAG --> Invest
-    RAG --> CSAgent
-    Loan --> RAG
-    Invest --> RAG
-    CSAgent --> RAG
+    %% RAG Delegation
+    RAG -->|"loan queries"| Loan
+    RAG -->|"investment queries"| Invest
+    RAG -->|"support queries"| CSAgent
+    
+    %% RAG Specialists return to RAG Supervisor
+    Loan -.->|"response"| RAG
+    Invest -.->|"response"| RAG
+    CSAgent -.->|"response"| RAG
 
+    %% Agents to Services
     BA --> LLM
     BA --> Tools
     UA --> LLM
@@ -58,12 +86,30 @@ flowchart LR
     Invest --> LLM
     Invest --> Tools
     CSAgent --> LLM
-    GR --> HS
-    FB --> HS
+    
+    %% Agents return to Supervisor
+    GR -.->|"welcome"| HS
+    FB -.->|"acknowledgement"| HS
+    BA -.->|"structured_data<br/>statement_data"| HS
+    UA -.->|"payment status"| HS
+    RAG -.->|"response"| HS
 
-    BA -->|structured_data / statement_data| HS
-    UA -->|payment status| HS
-    RAG -->|response| HS
-    GR -->|welcome| HS
-    FB -->|acknowledgement| HS
-    HS -->|final payload| Client
+    %% Output Sanitization
+    HS -->|"2. Sanitize Output"| Guardrail
+    Guardrail -->|"Sanitized"| HS
+    HS -->|"Final Payload"| U
+
+    %% Styling
+    classDef clientStyle fill:#4a90e2,stroke:#2c5aa0,stroke-width:2px,color:#fff
+    classDef orchestratorStyle fill:#ff6b6b,stroke:#c92a2a,stroke-width:2px,color:#fff
+    classDef securityStyle fill:#ffa94d,stroke:#d9480f,stroke-width:2px,color:#fff
+    classDef agentStyle fill:#51cf66,stroke:#2f9e44,stroke-width:2px,color:#fff
+    classDef ragStyle fill:#339af0,stroke:#1971c2,stroke-width:2px,color:#fff
+    classDef serviceStyle fill:#845ef7,stroke:#5f3dc4,stroke-width:2px,color:#fff
+
+    class U clientStyle
+    class HS,CS,IR orchestratorStyle
+    class Guardrail securityStyle
+    class BA,UA,GR,FB agentStyle
+    class RAG,Loan,Invest,CSAgent ragStyle
+    class LLM,Tools serviceStyle

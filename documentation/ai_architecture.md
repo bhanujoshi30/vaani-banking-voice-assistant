@@ -53,15 +53,23 @@ All specialists retrieve context via `RAGService` (ChromaDB + HuggingFace embedd
   - 4 vector databases: `loan_products`, `loan_products_hindi`, `investment_schemes`, `investment_schemes_hindi`
   - HuggingFace embeddings: `sentence-transformers/all-MiniLM-L6-v2`
   - ChromaDB for vector storage
+  - Semantic chunking (section-aware, preserves tables/FAQs, multilingual support)
   - 120-second context cache (TTL)
   - Metadata filtering by language and document type
+- **GuardrailService**: input/output safety checks and content moderation
+  - Input guardrails: content moderation, PII detection, prompt injection protection, rate limiting
+  - Output guardrails: language consistency, response safety, PII leakage prevention
+  - Integrated at supervisor level (before intent routing and after response generation)
+  - Open-source only, no external API dependencies
 - **Tools**: safe interfaces for backend banking/UPI operations
 
 ## Request → Response
 1. Backend posts `/api/chat` with message and session info
-2. Supervisor builds state and selects an agent
-3. Agent may call tools, LLM, and/or RAG
-4. Supervisor returns `{ response, structured_data?, statement_data? }`
+2. Supervisor validates input via GuardrailService (content moderation, PII detection, prompt injection)
+3. If valid, supervisor builds state and selects an agent
+4. Agent may call tools, LLM, and/or RAG
+5. Supervisor sanitizes output via GuardrailService (language consistency, safety checks, PII redaction)
+6. Supervisor returns `{ response, structured_data?, statement_data? }`
 
 ## Localization
 - **Current implementation**: Bilingual RAG with separate vector databases

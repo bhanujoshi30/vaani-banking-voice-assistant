@@ -1,123 +1,129 @@
 %% Vaani Banking Voice Assistant - Complete System Architecture
 %% This diagram shows all three microservices and their interactions
+%% Vertical layout for better understanding
 
 graph TB
-    subgraph "User Interface"
-        user["👤 User<br/>(Voice/Text)"]
-        browser["🌐 Web Browser<br/>localhost:5173"]
+    %% User Interface Layer
+    subgraph UserInterface["User Interface"]
+        direction TB
+        user["User<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Voice/Text Input"]
+        browser["Web Browser<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>localhost:5173"]
+        user --> browser
     end
 
-    subgraph "Frontend Layer - React + Vite"
+    %% Frontend Layer
+    subgraph FrontendLayer["Frontend Layer - React + Vite"]
         direction TB
         
-        subgraph "Pages"
-            login["LoginPage<br/>(Voice Auth)"]
-            chat["ChatPage<br/>(Main Interface)"]
-            profile["ProfilePage"]
-            trans["TransactionPage"]
+        subgraph FrontendPages["Pages"]
+            login["LoginPage<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Voice Auth"]
+            chat["ChatPage<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Main Interface"]
+            profile["ProfilePage<br/>Dashboard"]
+            trans["TransactionPage<br/>History"]
         end
         
-        subgraph "Voice Services"
-            stt["Web Speech API<br/>(Speech-to-Text)"]
-            tts["Browser TTS<br/>(Text-to-Speech)"]
+        subgraph FrontendVoice["Voice Services"]
+            stt["Web Speech API<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Speech-to-Text"]
+            tts["Browser TTS<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Text-to-Speech"]
         end
         
-        subgraph "API Clients"
-            aiClient["aiClient.js<br/>(AI Backend)"]
-            apiClient["api.js<br/>(Backend API)"]
-        end
-    end
-
-    subgraph "Backend API Layer - FastAPI + SQLAlchemy"
-        direction TB
-        
-        subgraph "API Endpoints :8000"
-            authAPI["Auth Endpoints<br/>/api/auth/*"]
-            userAPI["User Endpoints<br/>/api/users/*"]
-            acctAPI["Account Endpoints<br/>/api/accounts/*"]
-            txnAPI["Transaction Endpoints<br/>/api/transactions/*"]
-            upiAPI["UPI Endpoints<br/>/api/upi/*"]
-        end
-        
-        subgraph "Services"
-            userSvc["UserService"]
-            acctSvc["AccountService"]
-            txnSvc["TransactionService"]
-            voiceSvc["VoiceVerificationService<br/>(Resemblyzer)"]
-            deviceSvc["DeviceBindingService"]
-            upiSvc["UPIService"]
-        end
-        
-        subgraph "Database - SQLite"
-            db[("vaani.db<br/>━━━━━━━━<br/>users<br/>accounts<br/>transactions<br/>device_bindings<br/>voice_profiles<br/>reminders<br/>upi_payments")]
+        subgraph FrontendClients["API Clients"]
+            aiClient["aiClient.js<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>AI Backend Integration"]
+            apiClient["api.js<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Backend API Integration"]
         end
     end
 
-    subgraph "AI Backend Layer - LangGraph + Ollama"
+    %% Backend API Layer
+    subgraph BackendAPILayer["Backend API Layer - FastAPI + SQLAlchemy"]
         direction TB
         
-        subgraph "API :8001"
-            chatAPI["POST /api/chat<br/>POST /api/chat/stream<br/>GET /health"]
+        subgraph BackendEndpoints["API Endpoints :8000"]
+            authAPI["Auth Endpoints<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/auth/*"]
+            userAPI["User Endpoints<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/users/*"]
+            acctAPI["Account Endpoints<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/accounts/*"]
+            txnAPI["Transaction Endpoints<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/transactions/*"]
+            upiAPI["UPI Endpoints<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>/api/upi/*"]
         end
         
-        subgraph "Orchestrator"
-            supervisor["HybridSupervisor"]
-            router["IntentRouter<br/>(Llama 3.2 3B)"]
-            state["ConversationState"]
+        subgraph BackendServices["Services"]
+            userSvc["UserService<br/>User Management"]
+            acctSvc["AccountService<br/>Account Operations"]
+            txnSvc["TransactionService<br/>Transaction Processing"]
+            voiceSvc["VoiceVerificationService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Resemblyzer"]
+            deviceSvc["DeviceBindingService<br/>Device Management"]
+            upiSvc["UPIService<br/>UPI Operations"]
         end
         
-        subgraph "Agents"
+        subgraph BackendDB["Database - SQLite"]
+            db[("vaani.db<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>users · accounts<br/>transactions · device_bindings<br/>voice_profiles · reminders<br/>upi_payments")]
+        end
+    end
+
+    %% AI Backend Layer
+    subgraph AIBackendLayer["AI Backend Layer - LangGraph + Ollama"]
+        direction TB
+        
+        subgraph AIAPI["API :8001"]
+            chatAPI["POST /api/chat<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>POST /api/chat/stream<br/>GET /health"]
+        end
+        
+        subgraph AIOrchestrator["Orchestrator"]
+            supervisor["HybridSupervisor<br/>Central Coordinator"]
+            router["IntentRouter<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Llama 3.2 3B"]
+            state["ConversationState<br/>Context Manager"]
+        end
+        
+        subgraph AIAgents["Agents"]
             greetAgent["Greeting Agent"]
-            bankAgent["Banking Agent<br/>(Qwen 2.5 7B)"]
-            upiAgent["UPI Agent<br/>(Qwen 2.5 7B)"]
+            bankAgent["Banking Agent<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Qwen 2.5 7B"]
+            upiAgent["UPI Agent<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Qwen 2.5 7B"]
             ragSuper["RAG Supervisor"]
             feedAgent["Feedback Agent"]
         end
         
-        subgraph "RAG Specialists"
-            loanAgent["Loan Agent<br/>(7 types)"]
-            investAgent["Investment Agent<br/>(7 schemes)"]
-            supportAgent["Customer Support"]
+        subgraph AIRAGSpecialists["RAG Specialists"]
+            loanAgent["Loan Agent<br/>7 Loan Types"]
+            investAgent["Investment Agent<br/>7 Schemes"]
+            supportAgent["Customer Support<br/>Contact Info"]
         end
         
-        subgraph "Services"
-            llmSvc["LLMService<br/>(Ollama)"]
-            ragSvc["RAGService<br/>(ChromaDB)"]
+        subgraph AIServices["Services"]
+            llmSvc["LLMService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Ollama Integration"]
+            ragSvc["RAGService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>ChromaDB + Embeddings"]
+            guardrailSvc["GuardrailService<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Input/Output Safety"]
         end
         
-        subgraph "Tools"
-            bankTools["Banking Tools<br/>━━━━━━━━<br/>get_balance<br/>get_transactions<br/>transfer_funds<br/>reminders"]
-            upiTools["UPI Tools<br/>━━━━━━━━<br/>initiate_payment<br/>verify_pin<br/>check_status"]
+        subgraph AITools["Tools"]
+            bankTools["Banking Tools<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>get_balance<br/>get_transactions<br/>transfer_funds<br/>reminders"]
+            upiTools["UPI Tools<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>initiate_payment<br/>verify_pin<br/>check_status"]
         end
     end
 
-    subgraph "External Services"
+    %% External Services Layer
+    subgraph ExternalServices["External Services"]
         direction TB
         
-        subgraph "Ollama :11434"
-            qwen["qwen2.5:7b<br/>(Primary)"]
-            llama["llama3.2:3b<br/>(Fast)"]
+        subgraph OllamaService["Ollama :11434"]
+            qwen["qwen2.5:7b<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Primary Model"]
+            llama["llama3.2:3b<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Fast Model"]
         end
         
-        subgraph "Vector Databases"
-            chromaDB[("ChromaDB<br/>━━━━━━━━<br/>loan_products<br/>loan_products_hindi<br/>investment_schemes<br/>investment_schemes_hindi")]
+        subgraph VectorDBs["Vector Databases"]
+            chromaDB[("ChromaDB<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>loan_products<br/>loan_products_hindi<br/>investment_schemes<br/>investment_schemes_hindi")]
         end
         
-        subgraph "Document Sources"
-            docs["PDF Documents<br/>backend/documents/"]
+        subgraph DocumentSources["Document Sources"]
+            docs["PDF Documents<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>backend/documents/"]
         end
         
-        subgraph "Observability (Optional)"
-            langsmith["LangSmith<br/>(Tracing)"]
+        subgraph Observability["Observability (Optional)"]
+            langsmith["LangSmith<br/>━━━━━━━━━━━━━━━━━━━━━━<br/>Tracing & Metrics"]
         end
     end
 
     %% User Interactions
-    user -->|Voice/Text| browser
-    browser --> login
-    browser --> chat
-    browser --> profile
-    browser --> trans
+    browser --> FrontendPages
+    browser --> FrontendVoice
     
     %% Frontend Voice Flow
     chat --> stt
@@ -139,8 +145,10 @@ graph TB
     
     %% AI Backend Flow
     chatAPI --> supervisor
-    supervisor --> state
-    supervisor --> router
+    supervisor -->|"1. Validate Input"| guardrailSvc
+    guardrailSvc -->|"Valid"| state
+    guardrailSvc -->|"Blocked"| supervisor
+    state --> router
     
     router -->|greeting| greetAgent
     router -->|banking| bankAgent
@@ -204,6 +212,8 @@ graph TB
     llmSvc -.->|Metrics| langsmith
     
     %% Response Flow Back
+    supervisor -->|"2. Sanitize Output"| guardrailSvc
+    guardrailSvc -->|"Sanitized"| supervisor
     supervisor -->|Response| chatAPI
     chatAPI -->|JSON| aiClient
     aiClient -->|Display| chat
@@ -223,6 +233,6 @@ graph TB
     
     class login,chat,profile,trans,stt,tts,aiClient,apiClient frontend
     class authAPI,userAPI,acctAPI,txnAPI,upiAPI,userSvc,acctSvc,txnSvc,voiceSvc,deviceSvc,upiSvc backend
-    class chatAPI,supervisor,router,state,greetAgent,bankAgent,upiAgent,ragSuper,feedAgent,loanAgent,investAgent,supportAgent,llmSvc,ragSvc,bankTools,upiTools ai
+    class chatAPI,supervisor,router,state,greetAgent,bankAgent,upiAgent,ragSuper,feedAgent,loanAgent,investAgent,supportAgent,llmSvc,ragSvc,guardrailSvc,bankTools,upiTools ai
     class qwen,llama,docs,langsmith external
     class db,chromaDB db
