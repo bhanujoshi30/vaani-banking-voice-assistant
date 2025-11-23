@@ -108,7 +108,13 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://*.vercel.app",  # Allow all Vercel deployments (production and preview)
+        "https://vaani-banking-voice-assistant-*.vercel.app",  # Specific pattern for your frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -583,6 +589,11 @@ async def voice_verification(request: VoiceVerificationRequest):
     except Exception as e:
         logger.error("voice_verification_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Export app for Vercel
+# Vercel will use this app object directly
+__all__ = ["app"]
 
 
 if __name__ == "__main__":

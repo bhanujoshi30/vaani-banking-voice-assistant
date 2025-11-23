@@ -1,0 +1,73 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+**/.venv/
+**/venv/
+
+# Python cache
+**/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+build/
+dist/
+wheels/
+*.egg
+
+# Vector database (ChromaDB) - should be initialized at runtime or use external storage
+chroma_db/
+**/chroma_db/
+
+# Log files
+*.log
+logs/
+**/logs/
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Large binary files
+*.dylib
+*.so
+*.dll
+*.bin
+**/*.dylib
+**/*.so
+**/*.dll
+**/*.bin
+**/site-packages/torch/**
+**/site-packages/onnxruntime/**
+**/site-packages/chromadb_rust_bindings/**
+**/site-packages/faiss/**
+**/site-packages/grpc/**
+**/site-packages/azure/cognitiveservices/speech/**
+**/site-packages/cryptography/**
+**/site-packages/llvmlite/**
+**/site-packages/resemblyzer/pretrained.pt
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Scripts
+*.sh
+run.sh
+start.sh
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+

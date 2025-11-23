@@ -89,7 +89,7 @@ const Login = ({ onAuthenticate, authenticated }) => {
   const strings = getLoginStrings(loginLanguage);
   const voicePhrase = getVoicePhrase(loginLanguage);
   
-  const [authMode, setAuthMode] = useState("password");
+  const [authMode, setAuthMode] = useState("voice");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -114,6 +114,8 @@ const Login = ({ onAuthenticate, authenticated }) => {
   const recordingTimerRef = useRef(null);
   const recordingStartRef = useRef(null);
   const isFirstVoiceLogin = authMode === "voice" && userId.trim() && !isVoiceEnrolled;
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const loginFormRef = useRef(null);
   
   // Toggle language between Hindi and English
   const handleLanguageChange = (newLanguage) => {
@@ -143,6 +145,52 @@ const Login = ({ onAuthenticate, authenticated }) => {
       setShowOtp(false);
     }
   }, [awaitingOtp]);
+
+  // Handle scroll visibility for scroll hint with graceful fade
+  useEffect(() => {
+    let timeoutId = null;
+    
+    const handleScroll = () => {
+      // Hide scroll hint when user scrolls down significantly
+      // Show it again if they scroll back to top
+      const scrollPosition = window.scrollY || window.pageYOffset;
+      const windowHeight = window.innerHeight;
+      
+      // Clear any pending timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      // Hide if scrolled past first viewport, show if back near top
+      if (scrollPosition > windowHeight * 0.3) {
+        // Add delay to allow graceful fade-out
+        timeoutId = setTimeout(() => {
+          setShowScrollHint(false);
+        }, 100);
+      } else {
+        // Show immediately when scrolling back up
+        setShowScrollHint(true);
+      }
+    };
+
+    // Check initial scroll position
+    handleScroll();
+    
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
+  const scrollToHero = () => {
+    const heroSection = document.querySelector(".login-hero-section");
+    if (heroSection) {
+      heroSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   useEffect(() => {
     if (authMode === "voice" && userId.trim()) {
@@ -455,30 +503,8 @@ const Login = ({ onAuthenticate, authenticated }) => {
 
   return (
     <div className="app-shell">
-      {/* Hero Section with Image */}
-      <div className="login-hero-section">
-        <div className="login-hero-image">
-          <div className="login-hero-overlay"></div>
-        </div>
-        <div className="login-hero-content">
-          <h1 className="login-hero-title">
-            <span className="login-hero-title__english">{strings.hero.titleEnglish}</span>
-            <span className="login-hero-title__hindi">{strings.hero.titleHindi}</span>
-          </h1>
-          <div className="login-hero-languages">
-            <span className="language-tag language-tag--primary">{strings.hero.languageTagEnglish}</span>
-            <span className="language-tag language-tag--primary">{strings.hero.languageTagHindi}</span>
-            <span className="language-tag language-tag--extendable">{strings.hero.languageTagMore}</span>
-          </div>
-          <p className="login-hero-subtitle">
-            <span className="login-hero-subtitle__text">{strings.hero.subtitleText}</span>
-            <span className="login-hero-subtitle__hint">{strings.hero.subtitleHint}</span>
-          </p>
-          <p className="login-hero-tagline">{strings.hero.tagline}</p>
-        </div>
-      </div>
-
-      <div className="app-content">
+      {/* Login Form Section - Moved to Top */}
+      <div className="app-content app-content--login-first" ref={loginFormRef}>
         <div className="app-gradient">
           <SunHeader subtitle={strings.general.sunHeaderSubtitle} />
           <main className="card-surface">
@@ -496,19 +522,19 @@ const Login = ({ onAuthenticate, authenticated }) => {
               <div className="login-mode-switch">
                 <button
                   type="button"
-                  className={`mode-chip ${authMode === "password" ? "mode-chip--active" : ""}`}
-                  onClick={() => !credentialInputsDisabled && setAuthMode("password")}
-                  disabled={credentialInputsDisabled}
-                >
-                  {strings.general.passwordLabel}
-                </button>
-                <button
-                  type="button"
                   className={`mode-chip ${authMode === "voice" ? "mode-chip--active" : ""}`}
                   onClick={() => !credentialInputsDisabled && setAuthMode("voice")}
                   disabled={credentialInputsDisabled}
                 >
                   {strings.general.voiceLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`mode-chip ${authMode === "password" ? "mode-chip--active" : ""}`}
+                  onClick={() => !credentialInputsDisabled && setAuthMode("password")}
+                  disabled={credentialInputsDisabled}
+                >
+                  {strings.general.passwordLabel}
                 </button>
               </div>
             </div>
@@ -677,6 +703,60 @@ const Login = ({ onAuthenticate, authenticated }) => {
               )}
             </form>
           </main>
+        </div>
+        
+        {/* Scroll Indicator - Positioned below login card */}
+        <div className={`scroll-indicator-wrapper ${!showScrollHint ? 'fade-out' : ''}`}>
+          <div className="scroll-indicator">
+            <button 
+              type="button"
+              className="scroll-indicator__button"
+              onClick={scrollToHero}
+              aria-label={strings.general.scrollDown}
+            >
+              <span className="scroll-indicator__text">{strings.general.scrollHint}</span>
+              <svg 
+                className="scroll-indicator__arrow" 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none"
+                aria-hidden="true"
+              >
+                <path 
+                  d="M7 10l5 5 5-5" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div className="scroll-indicator__pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero Section with Image - Moved Below Login Form */}
+      <div className="login-hero-section login-hero-section--below">
+        <div className="login-hero-image">
+          <div className="login-hero-overlay"></div>
+        </div>
+        <div className="login-hero-content">
+          <h1 className="login-hero-title">
+            <span className="login-hero-title__english">{strings.hero.titleEnglish}</span>
+            <span className="login-hero-title__hindi">{strings.hero.titleHindi}</span>
+          </h1>
+          <div className="login-hero-languages">
+            <span className="language-tag language-tag--primary">{strings.hero.languageTagEnglish}</span>
+            <span className="language-tag language-tag--primary">{strings.hero.languageTagHindi}</span>
+            <span className="language-tag language-tag--extendable">{strings.hero.languageTagMore}</span>
+          </div>
+          <p className="login-hero-subtitle">
+            <span className="login-hero-subtitle__text">{strings.hero.subtitleText}</span>
+            <span className="login-hero-subtitle__hint">{strings.hero.subtitleHint}</span>
+          </p>
+          <p className="login-hero-tagline">{strings.hero.tagline}</p>
         </div>
       </div>
       

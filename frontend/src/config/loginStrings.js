@@ -72,6 +72,8 @@ export const LOGIN_STRINGS = {
       editDetails: "Edit details",
       needHelp: "Need help signing in?",
       sunHeaderSubtitle: "Voice-first banking, made human.",
+      scrollHint: "Scroll to explore more",
+      scrollDown: "Scroll down",
     },
     // Hero section
     hero: {
@@ -252,6 +254,8 @@ export const LOGIN_STRINGS = {
       editDetails: "विवरण संपादित करें",
       needHelp: "साइन इन करने में मदद चाहिए?",
       sunHeaderSubtitle: "आवाज़-पहली बैंकिंग, मानवीय बनाई गई।",
+      scrollHint: "और जानकारी देखने के लिए नीचे स्क्रॉल करें",
+      scrollDown: "नीचे स्क्रॉल करें",
     },
     // Hero section
     hero: {

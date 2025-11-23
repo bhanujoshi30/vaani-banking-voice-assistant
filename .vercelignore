@@ -1,0 +1,114 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+**/.venv/
+**/venv/
+
+# Python cache
+**/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+build/
+dist/
+wheels/
+*.egg
+
+# AI/ML dependencies (not needed for backend deployment)
+# These are huge and cause deployment size issues
+**/site-packages/torch/**
+**/site-packages/nvidia-/**
+**/site-packages/transformers/**
+**/site-packages/chromadb/**
+**/site-packages/sentence-transformers/**
+**/site-packages/onnxruntime/**
+**/site-packages/langchain/**
+**/site-packages/langgraph/**
+**/site-packages/langsmith/**
+**/site-packages/ollama/**
+
+# Vector database (ChromaDB) - not needed for backend
+ai/chroma_db/
+**/chroma_db/
+
+# Document files (PDFs) - not needed for backend
+backend/documents/**/*.pdf
+backend/documents/investment_schemes/
+backend/documents/investment_schemes_hindi/
+backend/documents/loan_products/
+backend/documents/loan_products_hindi/
+backend/documents/fonts/
+
+# Database files (use Supabase instead)
+*.db
+*.sqlite3
+*.sqlite
+backend/db/*.db
+
+# Log files
+*.log
+logs/
+ai/logs/
+backend/logs/
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Documentation
+documentation/
+
+# Frontend (not needed for backend)
+frontend/
+frontend/**
+
+# AI backend (not needed for backend API)
+ai/
+ai/**
+
+# Large binary files
+*.dylib
+*.so
+*.dll
+*.bin
+**/*.dylib
+**/*.so
+**/*.dll
+**/*.bin
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Scripts
+*.sh
+run.sh
+start.sh
+run_services.py
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Lock files (use requirements.txt instead)
+uv.lock
+
+# Hide pyproject.toml during build so Vercel uses requirements.txt instead
+# This prevents Vercel from using 'uv sync' which installs all dependencies
+pyproject.toml
+
+# Node modules (if any)
+node_modules/
+**/node_modules/
