@@ -393,6 +393,9 @@ IMPORTANT RULES:
 
         investment_info = json.loads(_extract_json_block(extracted_json))
         if investment_info and isinstance(investment_info, dict):
+            # Remove empty/null values to avoid missing data in cards
+            investment_info = {k: v for k, v in investment_info.items() if v is not None and v != "" and v != []}
+            
             # Clean all text fields if language is English
             if language == "en-IN":
                 for key, value in investment_info.items():
@@ -400,6 +403,19 @@ IMPORTANT RULES:
                         investment_info[key] = _clean_english_text(value)
                     elif isinstance(value, list):
                         investment_info[key] = [_clean_english_text(str(v)) if isinstance(v, str) else v for v in value]
+            
+            # Ensure critical fields are present - if missing, extraction might have failed
+            critical_fields = ["name", "interest_rate"]
+            missing_critical = [field for field in critical_fields if not investment_info.get(field)]
+            if missing_critical:
+                logger.warning(
+                    "investment_extraction_missing_critical_fields",
+                    missing_fields=missing_critical,
+                    extracted_fields=list(investment_info.keys()),
+                    detected_investment_type=investment_type
+                )
+                # Return None to trigger fallback if critical fields are missing
+                return None
             
             # Validate that extracted data matches the detected investment type
             # This prevents FD from showing PPF data or vice versa

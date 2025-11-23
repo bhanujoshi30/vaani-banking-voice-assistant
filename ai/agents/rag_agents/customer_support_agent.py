@@ -7,16 +7,26 @@ from langchain_core.messages import AIMessage
 from utils import logger
 
 
-def get_customer_support_info() -> Dict[str, Any]:
+def get_customer_support_info(language: str = "en-IN") -> Dict[str, Any]:
     """Return structured customer support information for Sun National Bank."""
-    return {
-        "headquarters_address": "Sun National Bank Tower, 123 Banking Street, Connaught Place, New Delhi - 110001, India",
-        "customer_care_number": "+91-1800-123-4567",
-        "branch_address": "Visit any of our 500+ branches across India. Find nearest branch at sunnationalbank.online/branches",
-        "email": "customercare@sunnationalbank.online",
-        "website": "sunnationalbank.online",
-        "business_hours": "Monday to Friday: 9:00 AM - 6:00 PM, Saturday: 9:00 AM - 2:00 PM (IST)"
-    }
+    if language == "hi-IN":
+        return {
+            "headquarters_address": "Sun National Bank Tower, 123 Banking Street, Connaught Place, New Delhi - 110001, India",
+            "customer_care_number": "+91-1800-123-4567",
+            "branch_address": "भारत भर में हमारी 500+ शाखाओं में से किसी भी शाखा पर जाएं। निकटतम शाखा खोजें: sunnationalbank.online/branches",
+            "email": "customercare@sunnationalbank.online",
+            "website": "sunnationalbank.online",
+            "business_hours": "सोमवार से शुक्रवार: सुबह 9:00 बजे - शाम 6:00 बजे, शनिवार: सुबह 9:00 बजे - दोपहर 2:00 बजे (IST)"
+        }
+    else:
+        return {
+            "headquarters_address": "Sun National Bank Tower, 123 Banking Street, Connaught Place, New Delhi - 110001, India",
+            "customer_care_number": "+91-1800-123-4567",
+            "branch_address": "Visit any of our 500+ branches across India. Find nearest branch at sunnationalbank.online/branches",
+            "email": "customercare@sunnationalbank.online",
+            "website": "sunnationalbank.online",
+            "business_hours": "Monday to Friday: 9:00 AM - 6:00 PM, Saturday: 9:00 AM - 2:00 PM (IST)"
+        }
 
 
 async def handle_customer_support_query(state: Dict[str, Any], *, user_query: str, llm) -> Dict[str, Any]:
@@ -29,7 +39,14 @@ async def handle_customer_support_query(state: Dict[str, Any], *, user_query: st
         "customer support", "customer care", "contact", "phone number", "phone", "helpline",
         "email", "email address", "address", "headquarters", "head office", "branch address",
         "website", "contact us", "reach us", "get in touch", "support", "help",
-        "customer service", "call", "number", "location", "office address"
+        "customer service", "call", "number", "location", "office address",
+        # Explicit patterns
+        "i need help with customer", "i need customer", "need customer support", "need customer care",
+        "i need help with customer support", "i need help with customer care",
+        # Hindi patterns
+        "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "फोन नंबर", "हेल्पलाइन", "ईमेल", "वेबसाइट",
+        "मुझे ग्राहक सहायता", "ग्राहक सहायता की आवश्यकता", "ग्राहक सहायता चाहिए",
+        "मुझे ग्राहक सहायता की आवश्यकता है", "मुझे कस्टमर केयर चाहिए"
     ]
     
     # Detect if user is asking about the bank itself (not products/services)
@@ -56,10 +73,11 @@ async def handle_customer_support_query(state: Dict[str, Any], *, user_query: st
             # Has product keyword, not a bank info query
             is_bank_info_query = False
     
-    # Only return contact card for explicit contact queries (not bank info queries)
-    if is_contact_query and not is_bank_info_query:
-        # Return structured customer support card
-        support_info = get_customer_support_info()
+    # CRITICAL: Always return contact card for explicit contact queries
+    # This ensures "I need help with customer support" shows a card, not just text
+    if is_contact_query:
+        # Return structured customer support card with language-specific data
+        support_info = get_customer_support_info(language=language)
         
         if language == "hi-IN":
             # Use simple Hindi with female gender

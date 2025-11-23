@@ -40,6 +40,7 @@ def _serialize_account(account) -> dict:
         "availableBalance": float(account.available_balance),
         "openedOn": account.opened_on.isoformat(),
         "branchId": str(account.branch_id) if account.branch_id else None,
+        "upiId": account.upi_id if account.upi_id else None,  # Include UPI ID if present (explicit None for Pydantic)
         "debitCards": [
             {
                 "id": str(card.id),

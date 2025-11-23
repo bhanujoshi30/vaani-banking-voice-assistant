@@ -51,53 +51,91 @@ async def rag_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             # Language change was successful, return
             return result
 
-    # CRITICAL: Check for customer support queries FIRST, before loan/investment detection
-    # This prevents customer support queries from being misclassified as loan/investment queries
+    # CRITICAL: Check for EXPLICIT customer support queries FIRST (before conversation context)
+    # This prevents customer support queries from being misrouted due to conversation context
     query_lower = user_query.lower()
-    customer_support_keywords = [
+    
+    # Explicit customer support keywords (must be in current query, not context)
+    explicit_customer_support_keywords = [
         "customer support", "customer care", "contact", "phone number", "phone", "helpline",
         "email", "email address", "address", "headquarters", "head office", "branch address",
         "website", "contact us", "reach us", "get in touch", "support", "customer service",
         "call", "number", "location", "office address", "help with customer", "need help with",
-        "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "फोन नंबर", "हेल्पलाइन", "ईमेल", "वेबसाइट"
+        "i need help with customer", "i need customer", "need customer support", "need customer care",
+        "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "फोन नंबर", "हेल्पलाइन", "ईमेल", "वेबसाइट",
+        "मुझे ग्राहक सहायता", "ग्राहक सहायता की आवश्यकता", "ग्राहक सहायता चाहिए"
     ]
     
-    # Bank information queries (asking about the bank itself, not products)
-    bank_info_keywords = [
-        "what is", "who is", "tell me about", "explain", "describe",
-        "national bank", "sun national bank", "sun national", "the bank", "this bank",
-        "your bank", "bank information", "about bank", "about the bank",
-        "क्या है", "कौन है", "बताएं", "समझाएं", "राष्ट्रीय बैंक", "सन नेशनल बैंक",
-        "बैंक के बारे में", "बैंक की जानकारी"
-    ]
+    # Check if current query explicitly mentions customer support (ignore conversation context)
+    is_explicit_customer_support = any(keyword in query_lower for keyword in explicit_customer_support_keywords)
     
-    # Check if query is asking about the bank itself (not products/services)
-    is_bank_info_query = False
-    if any(keyword in query_lower for keyword in bank_info_keywords):
-        # Additional check: should NOT be about products (loan, investment, etc.)
-        product_keywords = ["loan", "investment", "scheme", "plan", "product", "service", 
-                           "लोन", "निवेश", "योजना", "उत्पाद", "सेवा"]
-        has_product_keyword = any(keyword in query_lower for keyword in product_keywords)
-        
-        # If query asks "what is" + "bank" but no product keywords, it's about the bank
-        if not has_product_keyword:
-            is_bank_info_query = True
-    
-    is_customer_support_query = any(keyword in query_lower for keyword in customer_support_keywords) or is_bank_info_query
-    
-    if is_customer_support_query:
+    if is_explicit_customer_support:
         logger.info(
-            "customer_support_query_detected_early",
+            "explicit_customer_support_query_detected",
             query=user_query,
-            matched_keywords=[kw for kw in customer_support_keywords if kw in query_lower]
+            matched_keywords=[kw for kw in explicit_customer_support_keywords if kw in query_lower]
         )
         await handle_customer_support_query(state, user_query=user_query, llm=llm)
         return state
-
+    
     # Extract conversation context to help detect loan/investment queries
     conversation_context = _extract_conversation_context(state, max_pairs=3)
     
     signals = _detect_query_signals(user_query, conversation_context=conversation_context)
+    
+    # If investment or loan query detected, route to appropriate agent
+    if signals.is_investment_query or signals.is_loan_query:
+        logger.info(
+            "investment_or_loan_query_detected_early",
+            query=user_query,
+            is_investment=signals.is_investment_query,
+            is_loan=signals.is_loan_query,
+            detected_investment=signals.detected_investment_type,
+            detected_loan=signals.detected_loan_type
+        )
+        # Continue to investment/loan handling below
+    else:
+        # Check for bank info queries (only if NOT investment/loan)
+        bank_info_keywords = [
+            "what is", "who is", "tell me about", "explain", "describe",
+            "national bank", "sun national bank", "sun national", "the bank", "this bank",
+            "your bank", "bank information", "about bank", "about the bank",
+            "क्या है", "कौन है", "बताएं", "समझाएं", "राष्ट्रीय बैंक", "सन नेशनल बैंक",
+            "बैंक के बारे में", "बैंक की जानकारी"
+        ]
+        
+        # Check if query is asking about the bank itself (not products/services)
+        is_bank_info_query = False
+        if any(keyword in query_lower for keyword in bank_info_keywords):
+            # Additional check: should NOT be about products (loan, investment, etc.)
+            # Include investment scheme abbreviations and loan types
+            product_keywords = [
+                "loan", "investment", "scheme", "plan", "product", "service",
+                # Investment schemes
+                "ppf", "nps", "ssy", "elss", "fd", "rd", "nsc",
+                "fixed deposit", "recurring deposit", "public provident fund",
+                "national pension", "sukanya", "equity linked", "tax saving",
+                # Loan types
+                "home loan", "personal loan", "auto loan", "car loan", "business loan",
+                "education loan", "gold loan", "loan against property", "lap",
+                # Hindi
+                "लोन", "निवेश", "योजना", "उत्पाद", "सेवा",
+                "पीपीएफ", "एनपीएस", "सुकन्या", "ईएलएसएस", "एफडी", "आरडी", "एनएससी",
+                "होम लोन", "पर्सनल लोन", "ऑटो लोन"
+            ]
+            has_product_keyword = any(keyword in query_lower for keyword in product_keywords)
+            
+            # If query asks "what is" + "bank" but no product keywords, it's about the bank
+            if not has_product_keyword:
+                is_bank_info_query = True
+        
+        if is_bank_info_query:
+            logger.info(
+                "bank_info_query_detected",
+                query=user_query
+            )
+            await handle_customer_support_query(state, user_query=user_query, llm=llm)
+            return state
     logger.info(
         "rag_supervisor_signals",
         is_loan=signals.is_loan_query,
@@ -671,8 +709,15 @@ def _detect_query_signals(user_query: str, conversation_context: str = "") -> Qu
     # Also check if conversation context mentions loans and current query is brief follow-up
     # BUT: Skip this if:
     # 1. It's a general loan query (user wants fresh start, not follow-up) OR
-    # 2. Current query has investment keywords (prioritize investment intent)
-    if not is_loan_query and conversation_context and not is_general_loan_query and not current_query_has_investment_keywords:
+    # 2. Current query has investment keywords (prioritize investment intent) OR
+    # 3. Current query explicitly mentions customer support (don't use context for customer support queries)
+    customer_support_keywords_in_query = [
+        "customer support", "customer care", "contact", "support", "help", "helpline",
+        "ग्राहक सहायता", "कस्टमर केयर", "संपर्क", "सहायता", "मदद"
+    ]
+    has_explicit_customer_support = any(keyword in query_lower for keyword in customer_support_keywords_in_query)
+    
+    if not is_loan_query and conversation_context and not is_general_loan_query and not current_query_has_investment_keywords and not has_explicit_customer_support:
         # If previous context has loans and current query is brief (likely a follow-up)
         has_loan_context = any(word in conversation_context for word in ["loan", "लोन", "ऋण", "loans", "products", "options"])
         is_brief_followup = len(user_query.split()) <= 3  # 3 words or less

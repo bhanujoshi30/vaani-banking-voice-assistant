@@ -1282,6 +1282,9 @@ IMPORTANT RULES:
 
         loan_info = json.loads(_extract_json_block(extracted_json))
         if loan_info and isinstance(loan_info, dict):
+            # Remove empty/null values to avoid missing data in cards
+            loan_info = {k: v for k, v in loan_info.items() if v is not None and v != "" and v != []}
+            
             # Clean all text fields if language is English
             if language == "en-IN":
                 for key, value in loan_info.items():
@@ -1289,6 +1292,19 @@ IMPORTANT RULES:
                         loan_info[key] = _clean_english_text(value)
                     elif isinstance(value, list):
                         loan_info[key] = [_clean_english_text(str(v)) if isinstance(v, str) else v for v in value]
+            
+            # Ensure critical fields are present - if missing, extraction might have failed
+            critical_fields = ["name", "interest_rate"]
+            missing_critical = [field for field in critical_fields if not loan_info.get(field)]
+            if missing_critical:
+                logger.warning(
+                    "loan_extraction_missing_critical_fields",
+                    missing_fields=missing_critical,
+                    extracted_fields=list(loan_info.keys()),
+                    detected_loan_type=detected_loan_type
+                )
+                # Return None to trigger fallback if critical fields are missing
+                return None
             
             # Validate extracted loan name matches expected type
             extracted_name = loan_info.get("name", "").lower().strip()

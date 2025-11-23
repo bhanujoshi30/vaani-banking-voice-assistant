@@ -116,7 +116,12 @@ export async function fetchAccounts({ accessToken }) {
     throw error;
   }
 
-  return payload?.data ?? [];
+  const accounts = payload?.data ?? [];
+  // Ensure upiId field is available (handle both camelCase and snake_case)
+  return accounts.map(account => ({
+    ...account,
+    upiId: account.upiId || account.upi_id || null,
+  }));
 }
 
 export async function fetchTransactions({ accessToken, accountId, from, to, limit }) {

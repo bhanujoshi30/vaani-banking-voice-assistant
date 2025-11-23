@@ -169,6 +169,14 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
     fetchAccounts({ accessToken })
       .then((data) => {
         if (!isMounted) return;
+        // Debug: Log accounts with UPI ID
+        const accountsWithUpi = data.filter(acc => acc.upiId || acc.upi_id);
+        if (accountsWithUpi.length > 0) {
+          console.log('[Profile] Accounts with UPI ID:', accountsWithUpi.map(acc => ({
+            accountNumber: acc.accountNumber,
+            upiId: acc.upiId || acc.upi_id
+          })));
+        }
         setAccounts(data);
       })
       .catch((error) => {
@@ -263,6 +271,9 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
           ? summary.availableBalance
           : parseBalanceString(summary.balance));
 
+      // Extract UPI ID from account data (prioritize accounts API data)
+      const upiId = account?.upiId || account?.upi_id || summary?.upiId || summary?.upi_id || null;
+
       return {
         ...summary,
         accountId: account?.id ?? summary.id ?? null,
@@ -270,6 +281,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
         ledgerBalance,
         availableBalance,
         currency: account?.currency ?? summary.currency,
+        upiId: upiId, // Explicitly set upiId
         debitCards: account?.debitCards ?? summary.debitCards ?? [],
         creditCards: account?.creditCards ?? summary.creditCards ?? [],
       };
@@ -883,7 +895,7 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                         </div>
                         <div className="balance-visibility">
                           <div className="profile-amount">
-                            <span>{account.currency}</span>
+                            {!isBalanceVisible && <span>{account.currency}</span>}
                             <strong>{balanceDisplay}</strong>
                           </div>
                           <button
@@ -899,6 +911,17 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
                             {s.available} {formatCurrency(account.availableBalance, account.currency)}
                           </p>
                         )}
+                        {(() => {
+                          const upiId = account.upiId || account.upi_id;
+                          return upiId ? (
+                            <div className="upi-id-section">
+                              <p className="profile-label">UPI ID</p>
+                              <div className="upi-id-display">
+                                <span className="upi-id-value">{upiId}</span>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                         {(account.debitCards.length > 0 || account.creditCards.length > 0) && (
                           <div className="account-card-groups">
                             {account.debitCards.length > 0 && (
