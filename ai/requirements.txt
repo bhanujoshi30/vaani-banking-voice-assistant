@@ -6,6 +6,7 @@ langsmith>=0.1.0
 
 # LLM Integration
 ollama==0.3.3
+langchain-ollama>=0.2.0
 
 # Azure Services
 azure-cognitiveservices-speech==1.40.0
