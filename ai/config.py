@@ -2,6 +2,7 @@
 Configuration module for AI backend
 Handles environment variables and application settings
 """
+import os
 from functools import lru_cache
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -122,3 +123,37 @@ def get_settings() -> Settings:
 
 # Export settings instance
 settings = get_settings()
+
+
+def _sync_langsmith_env_vars() -> None:
+    """Ensure LangSmith/LangChain env vars are available for downstream libraries.
+
+    We load configuration via Pydantic (which reads ai/.env) but LangChain expects
+    environment variables like LANGCHAIN_TRACING_V2 to be present in os.environ.
+    Without this bridge, LangSmith never sees our tracing config when the app is
+    launched via python main.py (because .env isn't automatically exported).
+    """
+
+    env_mappings = {
+        "LANGCHAIN_TRACING_V2": settings.langchain_tracing_v2,
+        "LANGCHAIN_ENDPOINT": settings.langchain_endpoint,
+        "LANGCHAIN_API_KEY": settings.langchain_api_key,
+        "LANGCHAIN_PROJECT": settings.langchain_project,
+        # Backwards compatibility with older LangSmith clients
+        "LANGSMITH_API_KEY": settings.langchain_api_key,
+    }
+
+    for env_key, value in env_mappings.items():
+        if value in (None, ""):
+            continue
+
+        if isinstance(value, bool):
+            str_value = "true" if value else "false"
+        else:
+            str_value = str(value)
+
+        # Only set if not already provided by the host environment
+        os.environ.setdefault(env_key, str_value)
+
+
+_sync_langsmith_env_vars()

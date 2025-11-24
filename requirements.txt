@@ -21,7 +21,7 @@ passlib>=1.7.4
 
 # HTTP and form handling
 python-multipart>=0.0.12
-httpx==0.27.2
+httpx>=0.27.0,<0.28.0
 
 # Voice verification (required for voice login)
 resemblyzer>=0.1.2
