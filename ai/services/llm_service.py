@@ -10,6 +10,7 @@ from utils import logger
 from utils.demo_logging import demo_logger
 from .ollama_service import OllamaService
 from .openai_service import OpenAIService
+from .langsmith_ollama_service import chat_with_tracing
 
 
 class LLMProvider(str, Enum):
@@ -84,13 +85,27 @@ class LLMService:
             message_count=len(messages)
         )
         
-        # Call LLM
-        response = await self.service.chat(
-            messages=messages,
-            use_fast_model=use_fast_model,
-            temperature=temperature,
-            max_tokens=max_tokens,
+        # Decide whether to go through LangChain/LangSmith for tracing
+        use_langsmith_tracing = (
+            self.provider == LLMProvider.OLLAMA
+            and bool(getattr(settings, "langchain_tracing_v2", False))
+            and bool(getattr(settings, "langchain_api_key", None))
         )
+
+        if use_langsmith_tracing:
+            # Route via LangChain's ChatOllama so LangSmith captures traces
+            response = await chat_with_tracing(
+                messages=messages,
+                use_fast_model=use_fast_model,
+            )
+        else:
+            # Default path: direct provider implementation
+            response = await self.service.chat(
+                messages=messages,
+                use_fast_model=use_fast_model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
         
         # Calculate metrics
         duration_ms = (time.time() - start_time) * 1000
