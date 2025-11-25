@@ -1,18 +1,22 @@
 #!/bin/bash
 # Vercel build script for AI Backend
-# Uses minimal requirements to reduce deployment size
+# Uses Build Output API to control exactly what gets deployed
 # Includes limited PDFs for RAG (2 loans + 1 investment)
 
 set -euo pipefail
 
 echo "🔧 AI Backend build script starting..."
 
+OUTPUT_DIR=".vercel/output"
+FUNCTION_DIR="$OUTPUT_DIR/functions/api/index.func"
+PYTHON_DIR="$FUNCTION_DIR/python"
+
 # Remove ChromaDB files to reduce size (they'll be rebuilt on first use from PDFs)
 echo "🗑️  Removing ChromaDB vector database files (will be rebuilt on first use)..."
-rm -rf ai/chroma_db/*/data_level*.bin
-rm -rf ai/chroma_db/*/header.bin
-rm -rf ai/chroma_db/*/length.bin
-rm -rf ai/chroma_db/*/link_lists.bin
+rm -rf ai/chroma_db/*/data_level*.bin 2>/dev/null || true
+rm -rf ai/chroma_db/*/header.bin 2>/dev/null || true
+rm -rf ai/chroma_db/*/length.bin 2>/dev/null || true
+rm -rf ai/chroma_db/*/link_lists.bin 2>/dev/null || true
 find ai/chroma_db -name "*.bin" -delete 2>/dev/null || true
 find ai/chroma_db -name "*.sqlite3" -delete 2>/dev/null || true
 echo "✅ ChromaDB files removed (will be rebuilt from PDFs on first use)"
@@ -59,12 +63,85 @@ if [ -d "$INVEST_PDFS_DIR" ]; then
     echo "✅ Kept investment PDF: ppf_scheme_guide.pdf"
 fi
 
-# Copy minimal requirements for Vercel
-echo "📄 Using minimal requirements for OpenAI-only deployment..."
-cp ai/requirements-vercel.txt requirements.txt
+# Backup full requirements.txt if it exists
+if [ -f "requirements.txt" ]; then
+    echo "📄 Backing up full requirements.txt and swapping in minimal list..."
+    mv requirements.txt requirements.txt.full 2>/dev/null || true
+fi
 
-echo "✅ Build configuration ready"
-echo "   Using: ai/requirements-vercel.txt"
+# Copy minimal requirements for Vercel
+cp ai/requirements-vercel.txt requirements.txt
+echo "✅ Using minimal requirements: ai/requirements-vercel.txt"
+
+echo "🧹 Cleaning previous build output..."
+rm -rf "$OUTPUT_DIR"
+mkdir -p "$PYTHON_DIR"
+
+echo "📦 Installing AI backend dependencies into function bundle..."
+python3 -m pip install \
+        --no-deps \
+        --no-compile \
+        --no-cache-dir \
+        -r ai/requirements-vercel.txt \
+        -t "$PYTHON_DIR" 2>&1 | head -50
+
+echo "📁 Copying AI backend source code into bundle..."
+# Copy ai directory
+cp -R ai "$PYTHON_DIR/"
+# Copy backend directory (needed for imports)
+cp -R backend "$PYTHON_DIR/"
+# Copy ai_main.py
+cp ai_main.py "$PYTHON_DIR/"
+
+# Clean up unnecessary files
+find "$PYTHON_DIR" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+find "$PYTHON_DIR" -type f -name '*.pyc' -delete 2>/dev/null || true
+find "$PYTHON_DIR" -type f -name '*.pyo' -delete 2>/dev/null || true
+
+# Remove test files
+find "$PYTHON_DIR" -name "test_*.py" -delete 2>/dev/null || true
+find "$PYTHON_DIR" -name "*_test.py" -delete 2>/dev/null || true
+
+# Remove ChromaDB files from bundle (they'll be rebuilt)
+find "$PYTHON_DIR/ai/chroma_db" -name "*.bin" -delete 2>/dev/null || true
+find "$PYTHON_DIR/ai/chroma_db" -name "*.sqlite3" -delete 2>/dev/null || true
+
+# Remove other PDFs from bundle (keep only the 3 we need)
+find "$PYTHON_DIR/backend/documents/loan_products" -name "*.pdf" ! -name "home_loan_product_guide.pdf" ! -name "personal_loan_product_guide.pdf" -delete 2>/dev/null || true
+find "$PYTHON_DIR/backend/documents/investment_schemes" -name "*.pdf" ! -name "ppf_scheme_guide.pdf" -delete 2>/dev/null || true
+
+echo "📝 Creating serverless function entrypoint..."
+cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
+import os
+import sys
+
+python_dir = os.path.join(os.path.dirname(__file__), "python")
+if python_dir not in sys.path:
+    sys.path.insert(0, python_dir)
+
+from ai_main import app  # noqa: E402  # FastAPI application instance
+
+__all__ = ("app",)
+PYCODE
+
+echo "⚙️ Writing function runtime config..."
+cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
+{
+    "runtime": "python3.11",
+    "handler": "index.app"
+}
+JSON
+
+echo "🛣️ Generating build output routes config..."
+cat > "$OUTPUT_DIR/config.json" <<'JSON'
+{
+    "version": 3,
+    "routes": [
+        { "src": "/(.*)", "dest": "api/index" }
+    ]
+}
+JSON
+
+echo "✅ Build output ready for deployment"
 echo "   RAG enabled with: 2 loan PDFs + 1 investment PDF"
 echo "   Vector store will be built on first use using OpenAI embeddings"
-

@@ -1,16 +1,4 @@
 {
   "version": 2,
-  "buildCommand": "bash vercel-build-ai.sh",
-  "builds": [
-    {
-      "src": "ai_main.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "ai_main.py"
-    }
-  ]
+  "buildCommand": "bash vercel-build-ai.sh"
 }
