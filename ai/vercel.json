@@ -1,5 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "cd .. && bash vercel-build-ai.sh"
+  "buildCommand": "bash ../vercel-build-ai.sh"
 }
 

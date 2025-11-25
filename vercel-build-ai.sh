@@ -5,8 +5,18 @@
 
 set -euo pipefail
 
-# Ensure we're in the right directory
-cd "$(dirname "$0")" || exit 1
+# Ensure we're in the repo root directory
+# Script is at root, but might be called from ai/ directory
+SCRIPT_PATH="$0"
+if [[ "$SCRIPT_PATH" == ../* ]]; then
+    # Called with relative path like ../vercel-build-ai.sh
+    # Get absolute path and go to root
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    cd "$SCRIPT_DIR" || exit 1
+else
+    # Called directly, go to script's directory (root)
+    cd "$(dirname "$(readlink -f "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")")" || exit 1
+fi
 
 echo "🔧 AI Backend build script starting..."
 echo "📂 Working directory: $(pwd)"
