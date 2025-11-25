@@ -1,5 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "bash build.sh"
+  "buildCommand": "bash build.sh",
+  "outputDirectory": ".vercel/output"
 }
 
