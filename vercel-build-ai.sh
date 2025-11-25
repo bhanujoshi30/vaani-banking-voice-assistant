@@ -5,11 +5,22 @@
 
 set -euo pipefail
 
-echo "🔧 AI Backend build script starting..."
+# Ensure we're in the right directory
+cd "$(dirname "$0")" || exit 1
 
+echo "🔧 AI Backend build script starting..."
+echo "📂 Working directory: $(pwd)"
+echo "📋 Files in current directory:"
+ls -la | head -10
+
+# Create Build Output API structure IMMEDIATELY to tell Vercel we're using Build Output API
 OUTPUT_DIR=".vercel/output"
 FUNCTION_DIR="$OUTPUT_DIR/functions/api/index.func"
 PYTHON_DIR="$FUNCTION_DIR/python"
+
+echo "📁 Creating Build Output API structure..."
+mkdir -p "$PYTHON_DIR"
+echo "✅ Output directory created: $OUTPUT_DIR"
 
 # Remove ChromaDB files to reduce size (they'll be rebuilt on first use from PDFs)
 echo "🗑️  Removing ChromaDB vector database files (will be rebuilt on first use)..."
@@ -69,21 +80,30 @@ if [ -f "requirements.txt" ]; then
     mv requirements.txt requirements.txt.full 2>/dev/null || true
 fi
 
-# Copy minimal requirements for Vercel
+# Copy minimal requirements for Vercel (BEFORE Vercel auto-detects)
+if [ -f "requirements.txt" ]; then
+    echo "📄 Backing up existing requirements.txt..."
+    mv requirements.txt requirements.txt.backup 2>/dev/null || true
+fi
 cp ai/requirements-vercel.txt requirements.txt
 echo "✅ Using minimal requirements: ai/requirements-vercel.txt"
+echo "📊 Requirements file size: $(wc -l < requirements.txt) lines"
 
-echo "🧹 Cleaning previous build output..."
-rm -rf "$OUTPUT_DIR"
+echo "🧹 Cleaning previous build output (keeping structure)..."
+# Don't remove the entire output dir - just clean the python directory
+rm -rf "$PYTHON_DIR"/*
 mkdir -p "$PYTHON_DIR"
 
 echo "📦 Installing AI backend dependencies into function bundle..."
+echo "📋 Installing from: ai/requirements-vercel.txt"
 python3 -m pip install \
         --no-deps \
         --no-compile \
         --no-cache-dir \
         -r ai/requirements-vercel.txt \
-        -t "$PYTHON_DIR" 2>&1 | head -50
+        -t "$PYTHON_DIR" 2>&1 | tee /tmp/pip-install.log | head -100
+echo "✅ Dependencies installed. Checking size..."
+du -sh "$PYTHON_DIR" 2>/dev/null || echo "⚠️  Could not check size"
 
 echo "📁 Copying AI backend source code into bundle..."
 # Copy ai directory
