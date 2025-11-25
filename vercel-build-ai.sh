@@ -23,9 +23,9 @@ echo "📂 Working directory: $(pwd)"
 echo "📋 Files in current directory:"
 ls -la | head -10
 
-# Remove requirements.txt and pyproject.toml IMMEDIATELY to prevent Vercel auto-detection
+# Remove requirements.txt, pyproject.toml, and main.py IMMEDIATELY to prevent Vercel auto-detection
 echo "🔒 Removing Python detection files to prevent Vercel auto-detection..."
-rm -f requirements.txt pyproject.toml 2>/dev/null || true
+rm -f requirements.txt pyproject.toml main.py 2>/dev/null || true
 
 # Create Build Output API structure IMMEDIATELY to tell Vercel we're using Build Output API
 OUTPUT_DIR=".vercel/output"

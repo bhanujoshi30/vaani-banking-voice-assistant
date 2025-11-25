@@ -114,6 +114,10 @@ pyproject.toml
 # Note: This is for AI backend project - backend project uses requirements-backend.txt
 requirements.txt
 
+# Hide main.py at root to prevent Vercel auto-detection
+# AI backend uses Build Output API with index.py in .vercel/output
+main.py
+
 # Node modules (if any)
 node_modules/
 **/node_modules/

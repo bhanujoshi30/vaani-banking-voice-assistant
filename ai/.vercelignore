@@ -51,6 +51,8 @@ Thumbs.db
 ../requirements.txt
 ../pyproject.toml
 ../uv.lock
+../main.py
 requirements.txt
 pyproject.toml
 uv.lock
+main.py
