@@ -98,6 +98,20 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        """Lightweight health probe used by Vercel and external monitors."""
+        return {"status": "healthy"}
+
+    @app.get("/", tags=["Health"])
+    async def root_status():
+        """Default landing route returning a friendly status payload."""
+        return {
+            "status": "ok",
+            "service": "Sun National Bank API",
+            "docs": "/docs",
+        }
     
     # Add demo logging middleware
     @app.middleware("http")
