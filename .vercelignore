@@ -90,6 +90,7 @@ ai/**
 run.sh
 start.sh
 run_services.py
+requirements.txt.full
 
 # IDE files
 .vscode/

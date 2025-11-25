@@ -10,6 +10,12 @@ OUTPUT_DIR=".vercel/output"
 FUNCTION_DIR="$OUTPUT_DIR/functions/api/index.func"
 PYTHON_DIR="$FUNCTION_DIR/python"
 
+if [ -f "requirements.txt" ]; then
+    echo "📄 Backing up full requirements.txt and swapping in backend-only list..."
+    mv requirements.txt requirements.txt.full
+    cp requirements-backend.txt requirements.txt
+fi
+
 echo "🧹 Cleaning previous build output..."
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$PYTHON_DIR"
