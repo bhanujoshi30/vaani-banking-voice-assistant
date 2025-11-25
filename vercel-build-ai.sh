@@ -137,11 +137,18 @@ cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 import os
 import sys
 
+# Add python directory to path (contains all dependencies and code)
 python_dir = os.path.join(os.path.dirname(__file__), "python")
 if python_dir not in sys.path:
     sys.path.insert(0, python_dir)
 
-from ai_main import app  # noqa: E402  # FastAPI application instance
+# Import app directly from ai.main (ai_main.py path resolution might fail)
+# ai/main.py is at python/ai/main.py, so we can import directly
+try:
+    from ai.main import app
+except ImportError:
+    # Fallback: try via ai_main.py
+    from ai_main import app
 
 __all__ = ("app",)
 PYCODE

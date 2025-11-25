@@ -41,6 +41,9 @@ langchain-chroma>=0.1.2
 # Document Processing (needed for RAG - PDF loading)
 pypdf>=3.17.0
 
+# Text-to-Speech (Web-based, no API keys needed)
+gtts>=2.5.0
+
 # Note: The following are EXCLUDED to reduce size:
 # - ollama (not needed for OpenAI)
 # - sentence-transformers (huge ML models - RAG uses OpenAI embeddings instead)

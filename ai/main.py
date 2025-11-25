@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import uvicorn
 
 from config import settings
-from services import get_llm_service, get_azure_tts_service, get_guardrail_service, GuardrailViolationType
+from services import get_llm_service, get_web_tts_service, get_guardrail_service, GuardrailViolationType
 from agents.agent_graph import process_message
 from utils import logger
 from utils.demo_logging import demo_logger
@@ -64,7 +64,6 @@ class TTSRequest(BaseModel):
     """Request for text-to-speech"""
     text: str = Field(..., description="Text to synthesize")
     language: str = Field(default="en-IN", description="Language code")
-    use_azure: bool = Field(default=False, description="Use Azure TTS if available")
 
 
 class VoiceVerificationRequest(BaseModel):
@@ -96,7 +95,7 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     ollama_status: bool
-    azure_tts_available: bool
+    web_tts_available: bool
 
 
 # Create FastAPI app
@@ -189,7 +188,7 @@ async def log_requests(request: Request, call_next):
 async def health_check():
     """Health check endpoint"""
     llm = get_llm_service()
-    azure_tts = get_azure_tts_service()
+    web_tts = get_web_tts_service()
     
     llm_healthy = await llm.health_check()
     
@@ -197,7 +196,7 @@ async def health_check():
         status="healthy" if llm_healthy else "degraded",
         version=settings.app_version,
         ollama_status=llm_healthy,  # Keep field name for backward compatibility
-        azure_tts_available=azure_tts.is_available()
+        web_tts_available=web_tts.is_available()
     )
 
 
@@ -518,17 +517,18 @@ async def chat_stream(request: ChatRequest):
 @app.post("/api/tts")
 async def text_to_speech(request: TTSRequest):
     """
-    Convert text to speech using Azure TTS
+    Convert text to speech using Web TTS (gTTS)
     
-    Falls back to error message if Azure TTS not available
+    Uses Google Text-to-Speech API - free, no API keys needed
+    Supports Hindi and English with Indian accents
     """
     try:
-        azure_tts = get_azure_tts_service()
+        web_tts = get_web_tts_service()
         
-        if not azure_tts.is_available() or not request.use_azure:
+        if not web_tts.is_available():
             raise HTTPException(
                 status_code=503,
-                detail="Azure TTS not available. Use Web Speech API on frontend."
+                detail="Web TTS not available"
             )
         
         logger.info(
@@ -537,18 +537,18 @@ async def text_to_speech(request: TTSRequest):
             language=request.language
         )
         
-        # Synthesize speech
-        audio_data = await azure_tts.synthesize_text(
+        # Synthesize speech using gTTS
+        audio_data = await web_tts.synthesize_text(
             text=request.text,
             language=request.language
         )
         
-        # Return audio as response
+        # Return audio as response (gTTS returns MP3 format)
         return Response(
             content=audio_data,
-            media_type="audio/wav",
+            media_type="audio/mpeg",
             headers={
-                "Content-Disposition": "attachment; filename=speech.wav"
+                "Content-Disposition": "attachment; filename=speech.mp3"
             }
         )
         
