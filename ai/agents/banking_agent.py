@@ -438,7 +438,8 @@ async def handle_statement_request(state, last_user_message, language):
     # Handle: "last 7 din", "last 7 days", "पिछले 7 दिन", "la saat din" (Hindi transliteration)
     seven_days_phrases = [
         "7 days", "7 din", "पिछले 7 दिन", "last 7 days", "past 7 days",
-        "last 7 din", "la saat din", "la 7 din", "last seven days", "last seven din"
+        "last 7 din", "la saat din", "la 7 din", "last seven days", "last seven din",
+        "seven days", "seven din", "7 दिन", "सात दिन", "7 day", "seven day"
     ]
     if any(phrase in msg_lower for phrase in seven_days_phrases):
         period_type = "week"
