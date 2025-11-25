@@ -9,8 +9,13 @@ except ImportError:
 
 from .openai_service import get_openai_service, OpenAIService
 
-# Web TTS (gTTS) - always available, no API keys needed
-from .web_tts_service import get_web_tts_service, WebTTSService
+# Web TTS (gTTS) - conditional import
+try:
+    from .web_tts_service import get_web_tts_service, WebTTSService
+except ImportError:
+    # gTTS not available (e.g., not installed)
+    get_web_tts_service = None
+    WebTTSService = None
 
 # Legacy Azure TTS (optional, deprecated in favor of Web TTS)
 try:

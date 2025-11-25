@@ -188,15 +188,23 @@ async def log_requests(request: Request, call_next):
 async def health_check():
     """Health check endpoint"""
     llm = get_llm_service()
-    web_tts = get_web_tts_service()
     
     llm_healthy = await llm.health_check()
+    
+    # Check Web TTS availability (handle if not imported)
+    web_tts_available = False
+    if get_web_tts_service is not None:
+        try:
+            web_tts = get_web_tts_service()
+            web_tts_available = web_tts.is_available()
+        except Exception:
+            pass
     
     return HealthResponse(
         status="healthy" if llm_healthy else "degraded",
         version=settings.app_version,
         ollama_status=llm_healthy,  # Keep field name for backward compatibility
-        web_tts_available=web_tts.is_available()
+        web_tts_available=web_tts_available
     )
 
 
@@ -523,6 +531,12 @@ async def text_to_speech(request: TTSRequest):
     Supports Hindi and English with Indian accents
     """
     try:
+        if get_web_tts_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Web TTS not available. gTTS package not installed."
+            )
+        
         web_tts = get_web_tts_service()
         
         if not web_tts.is_available():

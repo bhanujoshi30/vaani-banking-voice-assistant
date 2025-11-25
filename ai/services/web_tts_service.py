@@ -5,7 +5,15 @@ Supports Hindi and English with Indian accents
 """
 import io
 from typing import Optional
-from gtts import gTTS
+
+# Conditional import - gTTS might not be available
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+    gTTS = None
+
 from config import settings
 from utils import logger
 
@@ -14,8 +22,10 @@ class WebTTSService:
     """Service for web-based Text-to-Speech using gTTS"""
     
     def __init__(self):
-        self.enabled = True  # Always enabled, no API keys needed
-        logger.info("web_tts_initialized", message="Using gTTS for TTS")
+        if not GTTS_AVAILABLE:
+            logger.warning("web_tts_gtts_not_available", message="gTTS not installed")
+        self.enabled = GTTS_AVAILABLE
+        logger.info("web_tts_initialized", enabled=self.enabled, message="Using gTTS for TTS")
     
     def get_language_code(self, language: str) -> str:
         """
@@ -54,6 +64,9 @@ class WebTTSService:
         Returns:
             Audio data as bytes (MP3 format)
         """
+        if not self.enabled or not GTTS_AVAILABLE:
+            raise Exception("gTTS is not available. Please install gtts package.")
+        
         try:
             # Get language code for gTTS
             lang_code = self.get_language_code(language)
@@ -87,8 +100,8 @@ class WebTTSService:
             raise Exception(f"TTS failed: {e}")
     
     def is_available(self) -> bool:
-        """Check if Web TTS is available (always True)"""
-        return True
+        """Check if Web TTS is available"""
+        return self.enabled
 
 
 # Create singleton instance
