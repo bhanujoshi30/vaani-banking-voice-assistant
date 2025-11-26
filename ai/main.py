@@ -11,14 +11,24 @@ import base64
 
 # Add backend to path for database access
 # Handle both local development and Vercel deployment paths
-backend_path = Path(__file__).parent.parent / "backend"
-if backend_path.exists():
-    sys.path.insert(0, str(backend_path))
-else:
-    # Try alternative path (for Vercel deployment where backend is in python/backend/)
-    alt_backend_path = Path(__file__).parent.parent.parent / "backend"
-    if alt_backend_path.exists():
-        sys.path.insert(0, str(alt_backend_path))
+# In Build Output API: python/ai/main.py -> python/backend/
+# In local dev: ai/main.py -> backend/
+backend_paths = [
+    Path(__file__).parent.parent / "backend",  # python/backend/ (Build Output API)
+    Path(__file__).parent.parent.parent / "backend",  # backend/ (local dev, if ai/ is deeper)
+]
+
+backend_path = None
+for path in backend_paths:
+    if path.exists() and (path / "db").exists():
+        backend_path = path
+        sys.path.insert(0, str(backend_path))
+        break
+
+# If backend not found, that's OK - backend is deployed separately on Vercel
+if backend_path is None:
+    import logging
+    logging.warning("Backend path not found - backend features will be unavailable (expected for separate backend deployment)")
 
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
