@@ -143,17 +143,41 @@ import sys
 import traceback
 import importlib.util
 
+# CRITICAL: Log to stderr immediately - Vercel captures stderr
+def _log_error(msg):
+    """Log error to stderr - Vercel will capture this"""
+    try:
+        print(f"[ENTRYPOINT ERROR] {msg}", file=sys.stderr, flush=True)
+    except:
+        pass
+
+def _log_info(msg):
+    """Log info to stdout - Vercel will capture this"""
+    try:
+        print(f"[ENTRYPOINT INFO] {msg}", file=sys.stdout, flush=True)
+    except:
+        pass
+
+# Log startup
+_log_info("Starting AI Backend entrypoint...")
+
 # CRITICAL: Set up error handling FIRST, before any imports
 # This ensures we can catch errors even if imports fail
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _python_dir = os.path.join(_script_dir, "python")
 _import_errors = []
 
+_log_info(f"Script dir: {_script_dir}")
+_log_info(f"Python dir: {_python_dir}")
+_log_info(f"Python dir exists: {os.path.exists(_python_dir)}")
+
 # Function to create error app
 def _create_error_app(error_msg, error_type=None, traceback_str=None, additional_info=None):
     """Create a FastAPI app that returns error information"""
+    _log_error(f"Creating error app: {error_msg} (type: {error_type})")
     try:
         from fastapi import FastAPI
+        _log_info("FastAPI imported successfully")
         app = FastAPI(title="AI Backend - Error")
         
         error_data = {
@@ -168,17 +192,23 @@ def _create_error_app(error_msg, error_type=None, traceback_str=None, additional
         
         if traceback_str:
             error_data["traceback"] = traceback_str
+            _log_error(f"Traceback: {traceback_str}")
         if additional_info:
             error_data.update(additional_info)
+            _log_error(f"Additional info: {additional_info}")
         
         @app.get("/")
         @app.post("/")
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
         def error_handler(path: str = ""):
+            _log_info(f"Error handler called for path: {path}")
             return error_data
         
+        _log_info("Error app created successfully")
         return app
-    except Exception:
+    except Exception as e:
+        _log_error(f"Failed to create FastAPI error app: {e}")
+        _log_error(traceback.format_exc())
         # If FastAPI import fails, create minimal WSGI app
         def app(environ, start_response):
             status = '500 Internal Server Error'
@@ -192,50 +222,71 @@ def _create_error_app(error_msg, error_type=None, traceback_str=None, additional
 
 # Check if python_dir exists
 if not os.path.exists(_python_dir):
+    _log_error(f"Python directory not found: {_python_dir}")
     app = _create_error_app(
         "Python directory not found",
         "DirectoryNotFound",
         additional_info={"python_dir": _python_dir}
     )
 else:
+    _log_info("Python directory exists, proceeding with imports...")
     # Add python_dir to sys.path
     if _python_dir not in sys.path:
         sys.path.insert(0, _python_dir)
+        _log_info(f"Added {_python_dir} to sys.path")
+    
+    _log_info(f"sys.path: {sys.path[:5]}")
     
     # Try to import the app using multiple strategies
     app = None
     
     # Strategy 1: Try importing ai.main directly
+    _log_info("Strategy 1: Attempting direct import of ai.main...")
     try:
         import ai.main
+        _log_info("Successfully imported ai.main module")
         app = ai.main.app
+        _log_info(f"Got app from ai.main: {type(app)}")
         _import_errors.append("SUCCESS: Imported from ai.main")
     except SystemExit as e:
         # SystemExit means Python tried to exit - catch it!
+        _log_error(f"SystemExit during import: {e}")
+        error_tb = traceback.format_exc()
+        _log_error(error_tb)
         app = _create_error_app(
             f"SystemExit during import: {e}",
             "SystemExit",
-            traceback.format_exc(),
+            error_tb,
             {"exit_code": e.code if hasattr(e, 'code') else None}
         )
     except KeyboardInterrupt:
         # Keyboard interrupt - shouldn't happen but catch it
+        _log_error("KeyboardInterrupt during import")
+        error_tb = traceback.format_exc()
+        _log_error(error_tb)
         app = _create_error_app(
             "KeyboardInterrupt during import",
             "KeyboardInterrupt",
-            traceback.format_exc()
+            error_tb
         )
     except BaseException as e:
         # Catch ALL exceptions including SystemExit, KeyboardInterrupt, etc.
-        _import_errors.append(f"ai.main import failed: {type(e).__name__}: {str(e)}")
+        _log_error(f"ai.main import failed: {type(e).__name__}: {str(e)}")
         error_tb = traceback.format_exc()
+        _log_error(error_tb)
+        _import_errors.append(f"ai.main import failed: {type(e).__name__}: {str(e)}")
         
         # Strategy 2: Try importing ai_main.py
+        _log_info("Strategy 2: Attempting import of ai_main...")
         try:
             import ai_main
+            _log_info("Successfully imported ai_main module")
             app = ai_main.app
+            _log_info(f"Got app from ai_main: {type(app)}")
             _import_errors.append("SUCCESS: Imported from ai_main (fallback)")
         except BaseException as e2:
+            _log_error(f"ai_main import failed: {type(e2).__name__}: {str(e2)}")
+            _log_error(traceback.format_exc())
             _import_errors.append(f"ai_main import failed: {type(e2).__name__}: {str(e2)}")
             
             # Strategy 3: Try using importlib to load module more safely
@@ -299,18 +350,26 @@ else:
                     )
 
 # Ensure app is defined and valid
+_log_info("Validating app object...")
 if app is None:
+    _log_error("App is None after all import attempts")
     app = _create_error_app(
         "Critical: App is None after all import attempts",
         "AppNotDefined",
         additional_info={"import_attempts": _import_errors}
     )
 else:
+    _log_info(f"App object exists: {type(app)}")
     # Verify app is a valid FastAPI app
     try:
         # Check if app has the expected FastAPI attributes
-        if not hasattr(app, 'router') and not hasattr(app, '__call__'):
+        has_router = hasattr(app, 'router')
+        has_call = hasattr(app, '__call__')
+        _log_info(f"App has router: {has_router}, has __call__: {has_call}")
+        
+        if not has_router and not has_call:
             # App might not be a valid FastAPI app
+            _log_error("App imported but not a valid FastAPI application")
             app = _create_error_app(
                 "App imported but not a valid FastAPI application",
                 "InvalidApp",
@@ -320,13 +379,43 @@ else:
                     "import_attempts": _import_errors
                 }
             )
+        else:
+            _log_info("App validation passed - ready to serve")
     except Exception as e:
         # If checking app fails, create error app
+        _log_error(f"Error validating app: {e}")
+        _log_error(traceback.format_exc())
         app = _create_error_app(
             f"Error validating app: {e}",
             "AppValidationError",
             additional_info={"import_attempts": _import_errors}
         )
+
+_log_info("Entrypoint initialization complete")
+
+# Final safety check - ensure app is always defined
+try:
+    if 'app' not in locals() or app is None:
+        _log_error("CRITICAL: App not defined after all attempts")
+        app = _create_error_app(
+            "Critical: App not defined",
+            "AppNotDefined",
+            additional_info={"import_attempts": _import_errors}
+        )
+except Exception as e:
+    _log_error(f"CRITICAL: Exception in final check: {e}")
+    _log_error(traceback.format_exc())
+    # Last resort - create minimal app
+    try:
+        from fastapi import FastAPI
+        app = FastAPI()
+        @app.get("/")
+        def error():
+            return {"error": "Critical initialization error", "details": str(e)}
+    except:
+        def app(environ, start_response):
+            start_response('500 Internal Server Error', [('Content-type', 'application/json')])
+            return [b'{"error":"Critical initialization failure"}']
 
 __all__ = ["app"]
 PYCODE
