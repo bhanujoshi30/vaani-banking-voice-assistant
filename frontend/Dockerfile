@@ -6,7 +6,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-# Run your Vite build script
+# Expose build-time arg to set the API base URL for Vite
+# Defaults to the public API host so production builds call the correct backend.
+ARG VITE_API_BASE_URL=https://api.sunnationalbank.online
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+# Run your Vite build script (Vite will pick up VITE_API_BASE_URL from env)
 RUN npm run build
 
 # --- STAGE 2: Serve the static files with a minimal runtime ---
