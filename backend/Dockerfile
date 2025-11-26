@@ -18,6 +18,7 @@ COPY . .
 # Move the current build context contents into a `backend` package folder so
 # the application can be imported as `backend.app` (preserves existing
 # package-relative imports).
+# Move files into a `backend` package directory under /app (so import `backend` works)
 RUN mkdir -p /app/backend && \
         for p in /app/* /app/.*; do \
             bn=$(basename "$p"); \
@@ -26,9 +27,10 @@ RUN mkdir -p /app/backend && \
             fi; \
         done
 
-# Change into the backend package directory and install requirements
-WORKDIR /app/backend
-RUN pip install --no-cache-dir -r requirements.txt
+# Keep the working directory at `/app` so Python can import the `backend` package
+WORKDIR /app
+# Install requirements from the moved `backend` folder
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Expose the port Dokku expects (5000 is the default)
 ENV PORT=5000
