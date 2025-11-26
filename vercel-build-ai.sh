@@ -99,7 +99,6 @@ mkdir -p "$PYTHON_DIR"
 echo "📦 Installing AI backend dependencies into function bundle..."
 echo "📋 Installing from: ai/requirements-vercel.txt"
 python3 -m pip install \
-        --no-deps \
         --no-compile \
         --no-cache-dir \
         -r ai/requirements-vercel.txt \
@@ -136,38 +135,75 @@ echo "📝 Creating serverless function entrypoint..."
 cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 """
 Vercel serverless function entrypoint for AI Backend
-Minimal approach - create app first, then try to import
 """
 import os
 import sys
 
-# Create minimal app FIRST before any imports
-from fastapi import FastAPI
-app = FastAPI(title="AI Backend")
-
-# Add python directory to path
+# CRITICAL: Add python directory to path FIRST (before any imports)
 python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
 if python_dir not in sys.path:
     sys.path.insert(0, python_dir)
 
-# Try to import the real app
+# Wrap everything in try/except to catch ALL exceptions including SystemExit
+app = None
+import_error = None
+
 try:
-    from ai.main import app as real_app
-    # Replace our minimal app with the real one
-    app = real_app
-except Exception:
-    # If import fails, keep the minimal app and add error endpoint
-    @app.get("/")
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-    def error_handler(path: str = ""):
-        import traceback
-        return {
-            "error": "Failed to import main application",
-            "path": path,
-            "python_dir": python_dir,
-            "python_dir_exists": os.path.exists(python_dir),
-            "traceback": traceback.format_exc()
-        }
+    # Try importing via ai_main first
+    from ai_main import app
+except (ImportError, Exception, SystemExit, KeyboardInterrupt) as e:
+    import_error = e
+    import traceback
+    error_tb = traceback.format_exc()
+    
+    # Fallback: try direct import
+    try:
+        from ai.main import app
+        import_error = None  # Success
+    except (ImportError, Exception, SystemExit, KeyboardInterrupt) as e2:
+        # Both failed - create error app
+        try:
+            from fastapi import FastAPI
+            app = FastAPI(title="AI Backend - Import Error")
+            
+            @app.get("/")
+            @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+            def error_handler(path: str = ""):
+                return {
+                    "error": "Failed to import application",
+                    "primary_error": str(import_error) if import_error else None,
+                    "fallback_error": str(e2),
+                    "path": path,
+                    "python_dir": python_dir,
+                    "python_dir_exists": os.path.exists(python_dir),
+                    "sys_path": sys.path[:5] if sys.path else [],
+                    "traceback": error_tb
+                }
+        except Exception as e3:
+            # Even FastAPI failed - create minimal WSGI app
+            def app(environ, start_response):
+                status = '500 Internal Server Error'
+                headers = [('Content-type', 'application/json')]
+                import json
+                body = json.dumps({
+                    "error": "Critical: All imports failed",
+                    "errors": [str(import_error) if import_error else None, str(e2), str(e3)]
+                }).encode('utf-8')
+                start_response(status, headers)
+                return [body]
+
+# Ensure app exists
+if app is None:
+    try:
+        from fastapi import FastAPI
+        app = FastAPI()
+        @app.get("/")
+        def error():
+            return {"error": "App is None after all import attempts"}
+    except:
+        def app(environ, start_response):
+            start_response('500 Internal Server Error', [('Content-type', 'application/json')])
+            return [b'{"error":"Critical failure"}']
 
 __all__ = ["app"]
 PYCODE
