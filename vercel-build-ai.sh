@@ -139,27 +139,43 @@ import sys
 import traceback
 
 # Print to stderr (always visible in Vercel logs)
+# Also print to stdout as backup
 def log_error(msg):
-    print(f"[ENTRYPOINT ERROR] {msg}", file=sys.stderr, flush=True)
+    msg_str = f"[ENTRYPOINT ERROR] {msg}"
+    print(msg_str, file=sys.stderr, flush=True)
+    print(msg_str, file=sys.stdout, flush=True)
+
+# Log immediately
+log_error("=== ENTRYPOINT STARTING ===")
+log_error(f"Python version: {sys.version}")
+log_error(f"Python executable: {sys.executable}")
+log_error(f"Current directory: {os.getcwd()}")
+log_error(f"__file__: {__file__}")
 
 try:
     # Add python directory to path (contains all dependencies and code)
-    python_dir = os.path.join(os.path.dirname(__file__), "python")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    python_dir = os.path.join(script_dir, "python")
     python_dir = os.path.abspath(python_dir)
     
+    log_error(f"Script dir: {script_dir}")
     log_error(f"Python dir: {python_dir}")
     log_error(f"Python dir exists: {os.path.exists(python_dir)}")
     
     if python_dir not in sys.path:
         sys.path.insert(0, python_dir)
+        log_error(f"Added {python_dir} to sys.path")
     
     log_error(f"sys.path[0]: {sys.path[0]}")
+    log_error(f"sys.path length: {len(sys.path)}")
+    
     if os.path.exists(python_dir):
         try:
-            contents = os.listdir(python_dir)[:10]
+            contents = os.listdir(python_dir)[:15]
             log_error(f"Contents of python_dir: {contents}")
         except Exception as e:
             log_error(f"Could not list python_dir: {e}")
+            log_error(traceback.format_exc())
     
     # Check if ai directory exists
     ai_dir = os.path.join(python_dir, "ai")
@@ -167,35 +183,61 @@ try:
     log_error(f"AI dir exists: {os.path.exists(ai_dir)}")
     if os.path.exists(ai_dir):
         try:
-            contents = os.listdir(ai_dir)[:10]
+            contents = os.listdir(ai_dir)[:15]
             log_error(f"Contents of ai dir: {contents}")
         except Exception as e:
             log_error(f"Could not list ai_dir: {e}")
+            log_error(traceback.format_exc())
+    
+    # Check if config.py exists
+    config_file = os.path.join(ai_dir, "config.py")
+    log_error(f"Config file: {config_file}")
+    log_error(f"Config file exists: {os.path.exists(config_file)}")
     
     # Import app directly from ai.main
     # ai/main.py is at python/ai/main.py, backend is at python/backend/
-    log_error("Attempting to import from ai.main...")
+    log_error("=== Attempting to import from ai.main ===")
+    
+    # Try importing config first to see if that's the issue
+    try:
+        log_error("Testing config import...")
+        from ai import config
+        log_error(f"Config imported successfully: {config}")
+        log_error(f"Config settings: {hasattr(config, 'settings')}")
+        if hasattr(config, 'settings'):
+            log_error(f"Settings object: {config.settings}")
+    except Exception as config_error:
+        log_error(f"Config import failed: {config_error}")
+        log_error(f"Config error type: {type(config_error).__name__}")
+        log_error(f"Config traceback:\n{traceback.format_exc()}")
+        raise
+    
+    # Now try importing main
     from ai.main import app
-    log_error("Successfully imported app from ai.main")
+    log_error("=== Successfully imported app from ai.main ===")
+    log_error(f"App object: {app}")
+    log_error(f"App type: {type(app)}")
     
 except Exception as e:
     # Log the full error for debugging
-    log_error(f"Failed to import ai.main: {e}")
+    log_error("=== IMPORT FAILED ===")
+    log_error(f"Error: {e}")
     log_error(f"Exception type: {type(e).__name__}")
-    log_error(f"Traceback:\n{traceback.format_exc()}")
+    log_error(f"Full traceback:\n{traceback.format_exc()}")
     
     # Try fallback to ai_main
     try:
-        log_error("Attempting fallback import from ai_main...")
+        log_error("=== Attempting fallback import from ai_main ===")
         from ai_main import app
-        log_error("Successfully imported app from ai_main")
+        log_error("=== Successfully imported app from ai_main ===")
     except Exception as e2:
-        log_error(f"Failed to import ai_main: {e2}")
-        log_error(f"Exception type: {type(e2).__name__}")
-        log_error(f"Traceback:\n{traceback.format_exc()}")
-        # Re-raise the original error
-        raise e
+        log_error(f"Fallback import also failed: {e2}")
+        log_error(f"Fallback error type: {type(e2).__name__}")
+        log_error(f"Fallback traceback:\n{traceback.format_exc()}")
+        # Re-raise the original error with more context
+        raise RuntimeError(f"Failed to import app: {e}") from e
 
+log_error("=== ENTRYPOINT COMPLETE ===")
 __all__ = ("app",)
 PYCODE
 
