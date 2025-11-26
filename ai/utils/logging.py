@@ -13,26 +13,33 @@ from config import settings
 def setup_logging():
     """Configure structured logging for the application"""
     
-    # Create logs directory if it doesn't exist
-    log_dir = Path(settings.log_file).parent
-    log_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Configure standard logging
+    # Configure standard logging (always use stdout/stderr on Vercel)
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
         level=getattr(logging, settings.log_level.upper()),
     )
     
-    # Add file handler with rotation
-    file_handler = RotatingFileHandler(
-        settings.log_file,
-        maxBytes=10_485_760,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(getattr(logging, settings.log_level.upper()))
-    logging.root.addHandler(file_handler)
+    # Try to add file handler, but don't fail if filesystem is read-only (e.g., Vercel)
+    try:
+        # Create logs directory if it doesn't exist
+        log_dir = Path(settings.log_file).parent
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Add file handler with rotation
+        file_handler = RotatingFileHandler(
+            settings.log_file,
+            maxBytes=10_485_760,  # 10MB
+            backupCount=5,
+            encoding='utf-8'
+        )
+        file_handler.setLevel(getattr(logging, settings.log_level.upper()))
+        logging.root.addHandler(file_handler)
+    except (OSError, PermissionError, IOError) as e:
+        # On Vercel or other read-only filesystems, file logging isn't available
+        # This is OK - we'll just use stdout/stderr logging
+        import warnings
+        warnings.warn(f"File logging not available (filesystem may be read-only): {e}. Using stdout/stderr only.")
     
     # Configure structlog
     structlog.configure(
@@ -55,8 +62,15 @@ def setup_logging():
     return structlog.get_logger()
 
 
-# Create logger instance
-logger = setup_logging()
+# Create logger instance (with error handling to prevent import failures)
+try:
+    logger = setup_logging()
+except Exception as e:
+    # If logging setup fails, create a minimal logger to prevent import errors
+    import logging
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Failed to setup structured logging: {e}. Using basic logging.")
 
 
 def log_llm_call(model: str, prompt: str, response: str, tokens: int = 0, duration: float = 0):

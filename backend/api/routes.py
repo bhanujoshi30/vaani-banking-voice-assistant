@@ -316,6 +316,14 @@ async def create_device_binding_v1(
     voice_verifier: VoiceVerificationService = VoiceVerificationServiceDep,
     auth_service: AuthService = AuthServiceDep,
 ):
+    if not voice_verifier.enabled:
+        raise_http_error(
+            ctx,
+            message="Voice enrollment is temporarily unavailable. Please use OTP/password login.",
+            code="voice_verification_unavailable",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     voice_bytes = await voiceSample.read() if voiceSample else None
     if voice_bytes is None:
         raise_http_error(

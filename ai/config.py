@@ -38,14 +38,28 @@ class Settings(BaseSettings):
     
     # LLM Provider Selection
     # Options: "ollama" (local) or "openai" (cloud)
+    # If OPENAI_ENABLED is True and OPENAI_API_KEY is set, automatically use OpenAI
     llm_provider: str = "ollama"
+    
+    def model_post_init(self, __context):
+        """Post-initialization: auto-detect provider based on OpenAI settings"""
+        # Check LLM_PROVIDER env var first (takes precedence)
+        llm_provider_env = os.getenv("LLM_PROVIDER", "").lower()
+        if llm_provider_env in ("ollama", "openai"):
+            object.__setattr__(self, "llm_provider", llm_provider_env)
+        # Auto-detect provider: if OpenAI is enabled and API key is set, use OpenAI
+        elif self.openai_enabled and self.openai_api_key:
+            object.__setattr__(self, "llm_provider", "openai")
     
     # Azure TTS Configuration
     azure_tts_key: Optional[str] = None
     azure_tts_region: str = "centralindia"
     azure_tts_enabled: bool = False
     
-    # Database Configuration
+    # Backend API Configuration (for deployed backend)
+    backend_api_url: str = os.getenv("BACKEND_API_URL", "https://api.tech-tonic-ai.com")
+    
+    # Database Configuration (for local development only)
     database_url: str = "sqlite:///./vaani_banking.db"
     
     # Redis Configuration
@@ -118,11 +132,37 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     """Get cached settings instance"""
-    return Settings()
+    try:
+        return Settings()
+    except Exception as e:
+        # Log error but don't crash - use defaults
+        import logging
+        logging.basicConfig(level=logging.WARNING)
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to load settings from environment, using defaults: {e}")
+        # Return a Settings instance with defaults (Pydantic will use defaults if env vars fail)
+        # Try without env file to avoid .env parsing issues
+        try:
+            return Settings(_env_file=None)
+        except Exception:
+            # Last resort: create with minimal config
+            return Settings()
 
 
-# Export settings instance
-settings = get_settings()
+# Export settings instance (with error handling)
+try:
+    settings = get_settings()
+except Exception as e:
+    import logging
+    logging.basicConfig(level=logging.ERROR)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Critical: Failed to initialize settings: {e}")
+    # Fallback: create Settings without env file
+    try:
+        settings = Settings(_env_file=None)
+    except Exception:
+        # Absolute last resort: create with empty config
+        settings = Settings()
 
 
 def _sync_langsmith_env_vars() -> None:
@@ -133,27 +173,40 @@ def _sync_langsmith_env_vars() -> None:
     Without this bridge, LangSmith never sees our tracing config when the app is
     launched via python main.py (because .env isn't automatically exported).
     """
+    try:
+        env_mappings = {
+            "LANGCHAIN_TRACING_V2": settings.langchain_tracing_v2,
+            "LANGCHAIN_ENDPOINT": settings.langchain_endpoint,
+            "LANGCHAIN_API_KEY": settings.langchain_api_key,
+            "LANGCHAIN_PROJECT": settings.langchain_project,
+            # Backwards compatibility with older LangSmith clients
+            "LANGSMITH_API_KEY": settings.langchain_api_key,
+        }
 
-    env_mappings = {
-        "LANGCHAIN_TRACING_V2": settings.langchain_tracing_v2,
-        "LANGCHAIN_ENDPOINT": settings.langchain_endpoint,
-        "LANGCHAIN_API_KEY": settings.langchain_api_key,
-        "LANGCHAIN_PROJECT": settings.langchain_project,
-        # Backwards compatibility with older LangSmith clients
-        "LANGSMITH_API_KEY": settings.langchain_api_key,
-    }
+        for env_key, value in env_mappings.items():
+            if value in (None, ""):
+                continue
 
-    for env_key, value in env_mappings.items():
-        if value in (None, ""):
-            continue
+            if isinstance(value, bool):
+                str_value = "true" if value else "false"
+            else:
+                str_value = str(value)
 
-        if isinstance(value, bool):
-            str_value = "true" if value else "false"
-        else:
-            str_value = str(value)
-
-        # Only set if not already provided by the host environment
-        os.environ.setdefault(env_key, str_value)
+            # Only set if not already provided by the host environment
+            os.environ.setdefault(env_key, str_value)
+    except Exception as e:
+        # Don't crash if env var sync fails
+        import logging
+        logging.basicConfig(level=logging.WARNING)
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to sync LangSmith env vars: {e}")
 
 
-_sync_langsmith_env_vars()
+# Sync env vars (with error handling)
+try:
+    _sync_langsmith_env_vars()
+except Exception as e:
+    import logging
+    logging.basicConfig(level=logging.WARNING)
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Failed to sync LangSmith env vars during import: {e}")

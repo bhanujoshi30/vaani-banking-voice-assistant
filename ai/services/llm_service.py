@@ -5,12 +5,45 @@ Provides a single interface to switch between Ollama (local) and OpenAI (cloud)
 from typing import List, Dict, Optional, AsyncGenerator
 from enum import Enum
 import time
-from config import settings
-from utils import logger
-from utils.demo_logging import demo_logger
-from .ollama_service import OllamaService
-from .openai_service import OpenAIService
-from .langsmith_ollama_service import chat_with_tracing
+
+# Defensive imports - don't crash if these fail
+try:
+    from config import settings
+except Exception:
+    # Fallback settings
+    class Settings:
+        llm_provider = "openai"
+        openai_model = "gpt-3.5-turbo"
+        openai_api_key = None
+        openai_enabled = False
+    settings = Settings()
+
+try:
+    from utils import logger
+except Exception:
+    import logging
+    logger = logging.getLogger(__name__)
+
+try:
+    from utils.demo_logging import demo_logger
+except Exception:
+    import logging
+    demo_logger = logging.getLogger("demo")
+
+try:
+    from .ollama_service import OllamaService
+except ImportError:
+    OllamaService = None
+
+try:
+    from .openai_service import OpenAIService
+except ImportError:
+    OpenAIService = None
+
+try:
+    from .langsmith_ollama_service import chat_with_tracing
+except ImportError:
+    chat_with_tracing = None
 
 
 class LLMProvider(str, Enum):

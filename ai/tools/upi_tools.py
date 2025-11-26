@@ -7,23 +7,46 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-# Add backend to path
+# Add backend to path (only if it exists)
 backend_path = Path(__file__).parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+if backend_path.exists() and (backend_path / "db" / "repositories").exists():
+    sys.path.insert(0, str(backend_path))
+    try:
+        from db.repositories import accounts as account_repo
+        from db.repositories import beneficiaries as beneficiary_repo
+        from db.services.banking import BankingService
+        from db.engine import get_session_factory
+        from db.config import load_database_config
+        from db.engine import create_db_engine
+        from db.models import User, Account
+        _backend_available = True
+    except ImportError:
+        _backend_available = False
+        account_repo = None
+        beneficiary_repo = None
+        BankingService = None
+        get_session_factory = None
+        load_database_config = None
+        create_db_engine = None
+        User = None
+        Account = None
+else:
+    _backend_available = False
+    account_repo = None
+    beneficiary_repo = None
+    BankingService = None
+    get_session_factory = None
+    load_database_config = None
+    create_db_engine = None
+    User = None
+    Account = None
 
 from langchain.tools import tool
 from pydantic import BaseModel, Field
-
-# Import backend functions
-from db.repositories import accounts as account_repo
-from db.repositories import beneficiaries as beneficiary_repo
-from db.services.banking import BankingService
-from db.engine import get_session_factory
-from db.config import load_database_config
-from db.engine import create_db_engine
-from utils.db_helper import get_db
 from sqlalchemy import select
-from db.models import User, Account
+
+# Import db helper (handles missing backend gracefully)
+from utils.db_helper import get_db
 
 
 # Tool input schemas
@@ -44,6 +67,11 @@ class InitiateUPIPaymentInput(BaseModel):
 
 @tool("resolve_upi_id", args_schema=ResolveUPIIDInput)
 def resolve_upi_id(upi_identifier: str) -> Dict[str, Any]:
+    if not _backend_available or account_repo is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
     """
     Resolve UPI ID, phone number, or name to a user account.
     Use this to find the recipient account for UPI payments.
@@ -179,6 +207,12 @@ def initiate_upi_payment(
         user_id: User ID initiating the payment
         remarks: Optional payment remarks
         session_id: Optional session ID
+    """
+    if not _backend_available or BankingService is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
         
     Returns:
         Dictionary with transaction result

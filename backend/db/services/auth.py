@@ -312,6 +312,18 @@ class AuthService:
                         f"voice_sample_provided={voice_sample is not None}"
                     )
                     
+                    if not self._voice_verifier.enabled:
+                        logger.warning(
+                            "[Voice] Voice verification disabled or dependencies missing; rejecting voice login"
+                        )
+                        return AuthResult(
+                            success=False,
+                            reason="voice_verification_unavailable",
+                            detail={
+                                "message": "Voice login is temporarily unavailable. Please use OTP/password login instead.",
+                            },
+                        )
+
                     # Validate voice sample is provided
                     if not voice_sample:
                         return AuthResult(

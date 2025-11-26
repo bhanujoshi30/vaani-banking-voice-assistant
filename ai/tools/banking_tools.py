@@ -8,16 +8,27 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
-# Add backend to path
+# Add backend to path (only if it exists)
 backend_path = Path(__file__).parent.parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+if backend_path.exists() and (backend_path / "db" / "repositories").exists():
+    sys.path.insert(0, str(backend_path))
+    try:
+        from db.repositories import accounts as account_repo
+        from db.repositories import transactions as transaction_repo
+        _backend_available = True
+    except ImportError:
+        _backend_available = False
+        account_repo = None
+        transaction_repo = None
+else:
+    _backend_available = False
+    account_repo = None
+    transaction_repo = None
 
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 
-# Import backend functions
-from db.repositories import accounts as account_repo
-from db.repositories import transactions as transaction_repo
+# Import db helper (handles missing backend gracefully)
 from utils.db_helper import get_db
 
 # Import demo logging
@@ -63,6 +74,11 @@ def get_user_accounts(user_id: str) -> Dict[str, Any]:
     Returns:
         Dictionary with list of all user accounts
     """
+    if not _backend_available or account_repo is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
     try:
         with get_db() as db:
             accounts = account_repo.list_accounts_for_user(db, user_id)
@@ -111,6 +127,11 @@ def get_account_balance(account_number: str) -> Dict[str, Any]:
     Returns:
         Dictionary with balance information
     """
+    if not _backend_available or account_repo is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
     start_time = time.time()
     try:
         with get_db() as db:
@@ -160,6 +181,11 @@ def get_account_balance(account_number: str) -> Dict[str, Any]:
 
 @tool("get_transaction_history", args_schema=GetTransactionHistoryInput)
 def get_transaction_history(account_number: str, days: int = 30, limit: int = 10) -> Dict[str, Any]:
+    if not _backend_available or transaction_repo is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
     """
     Get recent transaction history for an account.
     Use this when user asks about transactions, transaction history, or recent activity.
@@ -244,6 +270,11 @@ def get_transaction_history(account_number: str, days: int = 30, limit: int = 10
 
 @tool("download_statement", args_schema=DownloadStatementInput)
 def download_statement(account_number: str, from_date: str, to_date: str, period_type: str = "custom") -> Dict[str, Any]:
+    if not _backend_available or transaction_repo is None:
+        return {
+            "success": False,
+            "error": "Backend database not available. Backend is deployed separately - use API calls instead."
+        }
     """
     Prepare account statement for download.
     Use this when user asks to download statement, get statement, or export transactions.

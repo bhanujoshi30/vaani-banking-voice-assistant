@@ -4,7 +4,13 @@ Provides high-quality TTS for Hindi and English with Indian voices
 """
 import asyncio
 from typing import Optional
-import azure.cognitiveservices.speech as speechsdk
+
+# Conditional import - Azure SDK not available in Vercel deployment
+try:
+    import azure.cognitiveservices.speech as speechsdk
+except ImportError:
+    speechsdk = None
+
 from config import settings
 from utils import logger, AzureTTSError
 
@@ -13,6 +19,9 @@ class AzureTTSService:
     """Service for Azure Text-to-Speech"""
     
     def __init__(self):
+        if speechsdk is None:
+            raise ImportError("azure-cognitiveservices-speech is not installed")
+        
         self.enabled = settings.azure_tts_enabled
         self.speech_config = None
         
