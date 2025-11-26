@@ -140,45 +140,108 @@ This file is executed when Vercel invokes the function.
 """
 import os
 import sys
+import traceback
 
 # CRITICAL: Add python directory to sys.path FIRST, before any imports
 # This directory contains all dependencies and our application code
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _python_dir = os.path.join(_script_dir, "python")
-if os.path.exists(_python_dir) and _python_dir not in sys.path:
-    sys.path.insert(0, _python_dir)
 
-# Now import the app - this should work because python_dir is in sys.path
-# The app is at python/ai/main.py, so we import from ai.main
-try:
-    from ai.main import app
-except Exception as e:
-    # If ai.main fails, try ai_main as fallback
+# Ensure python_dir is in sys.path
+if not os.path.exists(_python_dir):
+    # If python_dir doesn't exist, this is a critical error
+    # Create a minimal error app and exit early
     try:
-        from ai_main import app
+        from fastapi import FastAPI
+        app = FastAPI()
+        
+        @app.get("/")
+        @app.post("/")
+        def error():
+            return {
+                "error": "Python directory not found",
+                "python_dir": _python_dir,
+                "script_dir": _script_dir,
+                "current_dir": os.getcwd(),
+                "sys_path": sys.path[:10]
+            }
     except Exception:
-        # Last resort: try to create a minimal error app
-        # But only if FastAPI is available (it should be since we installed it)
+        # If FastAPI isn't available, create a minimal WSGI app
+        def app(environ, start_response):
+            status = '500 Internal Server Error'
+            headers = [('Content-type', 'application/json')]
+            body = b'{"error": "Critical: Python directory not found and FastAPI unavailable"}'
+            start_response(status, headers)
+            return [body]
+else:
+    # python_dir exists - add it to path and try to import
+    if _python_dir not in sys.path:
+        sys.path.insert(0, _python_dir)
+    
+    # Try to import the app - wrap everything in try/except to catch any import errors
+    try:
+        # First, try importing from ai.main (the actual app)
+        from ai.main import app
+    except Exception as e1:
+        # Log the first error for debugging
+        import_error = e1
+        error_traceback = traceback.format_exc()
+        
+        # Try fallback: ai_main.py (if it exists)
         try:
-            from fastapi import FastAPI
-            app = FastAPI()
-            
-            @app.get("/")
-            def error():
-                import traceback
-                return {
-                    "error": "Failed to import main application",
-                    "message": str(e),
-                    "error_type": type(e).__name__,
-                    "python_dir": _python_dir,
-                    "python_dir_exists": os.path.exists(_python_dir),
-                    "sys_path": sys.path[:5],  # First 5 entries
-                    "traceback": traceback.format_exc()
-                }
-        except Exception as fastapi_error:
-            # If even FastAPI import fails, we're in serious trouble
-            # Just raise the original error
-            raise ImportError(f"Failed to import app: {e}") from e
+            from ai_main import app
+        except Exception as e2:
+            # Both imports failed - create error app with diagnostic info
+            try:
+                from fastapi import FastAPI
+                
+                app = FastAPI(title="AI Backend - Import Error")
+                
+                @app.get("/")
+                @app.post("/")
+                @app.get("/health")
+                @app.post("/api/chat")
+                def error_handler():
+                    return {
+                        "error": "Failed to import main application",
+                        "primary_error": str(import_error),
+                        "primary_error_type": type(import_error).__name__,
+                        "fallback_error": str(e2),
+                        "fallback_error_type": type(e2).__name__,
+                        "python_dir": _python_dir,
+                        "python_dir_exists": os.path.exists(_python_dir),
+                        "script_dir": _script_dir,
+                        "current_dir": os.getcwd(),
+                        "sys_path": sys.path[:10],
+                        "traceback": error_traceback
+                    }
+                
+                # Also add a catch-all route
+                @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+                def catch_all(path: str):
+                    return {
+                        "error": "Failed to import main application",
+                        "path": path,
+                        "primary_error": str(import_error),
+                        "traceback": error_traceback
+                    }
+                
+            except Exception as fastapi_error:
+                # Even FastAPI import failed - this is very bad
+                # Create a minimal WSGI-compatible app
+                def app(environ, start_response):
+                    status = '500 Internal Server Error'
+                    headers = [('Content-type', 'application/json')]
+                    error_msg = {
+                        "error": "Critical: All imports failed",
+                        "primary_error": str(import_error),
+                        "fastapi_error": str(fastapi_error),
+                        "python_dir": _python_dir
+                    }
+                    import json
+                    body = json.dumps(error_msg).encode('utf-8')
+                    start_response(status, headers)
+                    return [body]
 
 __all__ = ["app"]
 PYCODE
@@ -186,7 +249,7 @@ PYCODE
 echo "⚙️ Writing function runtime config..."
 cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
 {
-    "runtime": "python3.11",
+    "runtime": "python3.12",
     "handler": "index.app"
 }
 JSON
