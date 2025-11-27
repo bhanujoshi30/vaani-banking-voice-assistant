@@ -72,9 +72,11 @@ Required environment variables (set in Vercel Dashboard):
 3. **Root Directory Settings**:
    - **Option A (Recommended)**: Leave Root Directory **EMPTY**
      - "Include files outside root directory": Can be enabled or disabled
-   - **Option B**: Set Root Directory to `backend`
+     - Build Command: `bash vercel-build.sh`
+   - **Option B**: Set Root Directory to `backend` (Current Setup)
      - "Include files outside root directory": **MUST be ENABLED** ✅
-     - This allows the build script to access `vercel-build.sh` and `api/index.py` at repo root
+     - Build Command: `bash vercel-build.sh` (uses `backend/vercel-build.sh` wrapper)
+     - The wrapper script automatically navigates to repo root and calls the main build script
 
 3. **Deploy**:
    - Push to your git branch
