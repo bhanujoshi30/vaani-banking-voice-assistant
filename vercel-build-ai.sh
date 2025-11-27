@@ -168,16 +168,15 @@ try:
                 app.add_middleware(
                     CORSMiddleware,
                     allow_origins=["*"],
+                    allow_origin_regex=r"https://.*\.vercel\.app",
                     allow_credentials=True,
                     allow_methods=["*"],
                     allow_headers=["*"],
                 )
                 
-                @app.options("/{path:path}")
                 @app.get("/")
                 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-                def error_handler(path: str = ""):
-                    import traceback
+                async def error_handler(path: str = ""):
                     return {
                         "error": "Failed to import application",
                         "path": path,
@@ -188,34 +187,28 @@ try:
                         "import_error_2": str(e2) if 'e2' in locals() else None
                     }
             except Exception as e3:
-                # Strategy 4: Minimal WSGI app with CORS headers
-                def app(environ, start_response):
-                    if environ['REQUEST_METHOD'] == 'OPTIONS':
-                        # Handle preflight requests
-                        headers = [
-                            ('Access-Control-Allow-Origin', '*'),
-                            ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS'),
-                            ('Access-Control-Allow-Headers', '*'),
-                            ('Access-Control-Allow-Credentials', 'true'),
-                            ('Content-Length', '0')
-                        ]
-                        start_response('200 OK', headers)
-                        return [b'']
-                    else:
-                        status = '500 Internal Server Error'
-                        headers = [
-                            ('Content-type', 'application/json'),
-                            ('Access-Control-Allow-Origin', '*'),
-                            ('Access-Control-Allow-Methods', '*'),
-                            ('Access-Control-Allow-Headers', '*')
-                        ]
-                        import json
-                        body = json.dumps({
-                            "error": "Import failed",
-                            "errors": [str(e1) if 'e1' in locals() else None, str(e2) if 'e2' in locals() else None, str(e3)]
-                        }).encode('utf-8')
-                        start_response(status, headers)
-                        return [body]
+                # Strategy 4: Create minimal FastAPI app (never use WSGI - Vercel needs FastAPI)
+                from fastapi import FastAPI
+                from fastapi.middleware.cors import CORSMiddleware
+                app = FastAPI(title="AI Backend - Critical Import Error")
+                
+                app.add_middleware(
+                    CORSMiddleware,
+                    allow_origins=["*"],
+                    allow_origin_regex=r"https://.*\.vercel\.app",
+                    allow_credentials=True,
+                    allow_methods=["*"],
+                    allow_headers=["*"],
+                )
+                
+                @app.get("/")
+                @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+                async def error_handler(path: str = ""):
+                    return {
+                        "error": "Critical import failure",
+                        "path": path,
+                        "errors": [str(e1) if 'e1' in locals() else None, str(e2) if 'e2' in locals() else None, str(e3)]
+                    }
     
     # Ensure app exists and add explicit OPTIONS handler
     if app is None:
@@ -225,12 +218,13 @@ try:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
+            allow_origin_regex=r"https://.*\.vercel\.app",
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
         @app.get("/")
-        def error():
+        async def error():
             return {"error": "App is None"}
     else:
         # Ensure CORS is configured on the real app
@@ -246,6 +240,7 @@ try:
                 app.add_middleware(
                     CORSMiddleware,
                     allow_origins=["*"],
+                    allow_origin_regex=r"https://.*\.vercel\.app",
                     allow_credentials=True,
                     allow_methods=["*"],
                     allow_headers=["*"],
@@ -254,46 +249,27 @@ try:
             pass  # CORS already configured or can't configure
             
 except Exception as e:
-    # Ultimate fallback - create minimal app that always works with CORS
+    # Ultimate fallback - ALWAYS create FastAPI app (never WSGI)
     import traceback
-    try:
-        from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
-        app = FastAPI(title="AI Backend - Critical Error")
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        @app.options("/{path:path}")
-        @app.get("/")
-        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-        def critical_error(path: str = ""):
-            return {
-                "error": "Critical initialization error",
-                "exception": str(e),
-                "traceback": traceback.format_exc()
-            }
-    except:
-        def app(environ, start_response):
-            if environ['REQUEST_METHOD'] == 'OPTIONS':
-                headers = [
-                    ('Access-Control-Allow-Origin', '*'),
-                    ('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS'),
-                    ('Access-Control-Allow-Headers', '*'),
-                    ('Access-Control-Allow-Credentials', 'true'),
-                    ('Content-Length', '0')
-                ]
-                start_response('200 OK', headers)
-                return [b'']
-            else:
-                start_response('500 Internal Server Error', [
-                    ('Content-type', 'application/json'),
-                    ('Access-Control-Allow-Origin', '*')
-                ])
-                return [b'{"error":"Critical failure"}']
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    app = FastAPI(title="AI Backend - Critical Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    async def critical_error(path: str = ""):
+        return {
+            "error": "Critical initialization error",
+            "exception": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 __all__ = ["app"]
 PYCODE
