@@ -169,13 +169,20 @@ def _build_allowed_origins() -> List[str]:
     """Return allowed CORS origins, including optional env overrides."""
 
     default_origins = [
+        # Local development
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
+        # Vercel deployments (wildcards for preview/production)
         "https://*.vercel.app",
         "https://vaani-banking-voice-assistant-*.vercel.app",
+        # Production domains
+        "https://tech-tonic-ai.com",
+        "https://www.tech-tonic-ai.com",
         "https://sunnationalbank.online",
         "https://www.sunnationalbank.online",
+        "https://test.sunnationalbank.online",
+        "https://www.test.sunnationalbank.online",
     ]
 
     extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")

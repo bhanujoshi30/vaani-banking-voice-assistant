@@ -53,12 +53,19 @@ def _build_allowed_origins() -> list[str]:
     """
 
     default_origins = [
+        # Local development
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        # Vercel deployments (wildcards for preview/production)
         "https://*.vercel.app",
         "https://vaani-banking-voice-assistant-*.vercel.app",
+        # Production domains
+        "https://tech-tonic-ai.com",
+        "https://www.tech-tonic-ai.com",
         "https://sunnationalbank.online",
         "https://www.sunnationalbank.online",
+        "https://test.sunnationalbank.online",
+        "https://www.test.sunnationalbank.online",
     ]
 
     extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
@@ -93,14 +100,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://tech-tonic-ai.com",
-            "https://www.tech-tonic-ai.com",
-            "https://sunnationalbank.online",
-            "https://www.sunnationalbank.online",
-            "https://test.sunnationalbank.online",
-            "https://www.test.sunnationalbank.online",
-        ],
+        allow_origins=_build_allowed_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
