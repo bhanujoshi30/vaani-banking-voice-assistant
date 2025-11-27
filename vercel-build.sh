@@ -38,7 +38,23 @@ else
     fi
 fi
 
-OUTPUT_DIR=".vercel/output"
+# Determine output directory based on where we're running from
+# If we're in backend/ context (Root Directory = "backend"), create output there
+# Otherwise, create at repo root
+if [[ -n "${VERCEL_ROOT_DIR:-}" ]] && [[ "$VERCEL_ROOT_DIR" == "backend" ]]; then
+    # Vercel Root Directory is set to backend, create output there
+    OUTPUT_DIR="backend/.vercel/output"
+    echo "📂 Using backend-relative output directory: $OUTPUT_DIR"
+elif [[ "$(basename "$(pwd)")" == "backend" ]]; then
+    # We're running from backend directory
+    OUTPUT_DIR=".vercel/output"
+    echo "📂 Using current directory output: $OUTPUT_DIR"
+else
+    # Running from repo root
+    OUTPUT_DIR=".vercel/output"
+    echo "📂 Using repo root output directory: $OUTPUT_DIR"
+fi
+
 FUNCTION_DIR="$OUTPUT_DIR/functions/api"
 
 # Clean previous build
