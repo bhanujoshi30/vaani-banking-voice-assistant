@@ -139,22 +139,120 @@ find "$PYTHON_DIR/backend/documents/investment_schemes" -name "*.pdf" ! -name "p
 
 echo "📝 Creating serverless function entrypoint..."
 cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
+"""
+Vercel serverless function entrypoint for AI Backend
+Simplified approach: Always ensure app is a FastAPI instance
+"""
 import os
 import sys
 
-python_dir = os.path.join(os.path.dirname(__file__), "python")
+# CRITICAL: Add python directory to path FIRST (before any imports)
+python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
 if python_dir not in sys.path:
     sys.path.insert(0, python_dir)
 
-from ai_main import app  # noqa: E402  # FastAPI application instance
+# Import FastAPI first to ensure it's available for fallback
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-__all__ = ("app",)
+# Try importing the actual app - if this fails, we'll create a fallback FastAPI app
+try:
+    # Strategy 1: Try direct import from ai.main (most reliable)
+    try:
+        from ai.main import app
+        # Verify app is a FastAPI instance
+        if not isinstance(app, FastAPI):
+            raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
+    except (ImportError, TypeError) as e1:
+        # Strategy 2: Try ai_main.py (fallback)
+        try:
+            from ai_main import app
+            if not isinstance(app, FastAPI):
+                raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
+        except (ImportError, TypeError) as e2:
+            # Both imports failed - create fallback FastAPI app
+            app = FastAPI(title="AI Backend - Import Error")
+            
+            # Add CORS middleware
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_origin_regex=r"https://.*\.vercel\.app",
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+            
+            @app.get("/")
+            @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+            async def error_handler(path: str = ""):
+                return {
+                    "error": "Failed to import application",
+                    "path": path,
+                    "python_dir": python_dir,
+                    "import_error_1": str(e1),
+                    "import_error_2": str(e2)
+                }
+except Exception as e:
+    # Ultimate fallback - ensure we ALWAYS have a FastAPI app
+    app = FastAPI(title="AI Backend - Critical Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    async def critical_error(path: str = ""):
+        return {
+            "error": "Critical initialization error",
+            "exception": str(e)
+        }
+
+# Ensure app is always a FastAPI instance (safety check)
+if not isinstance(app, FastAPI):
+    # This should never happen, but if it does, create a new FastAPI app
+    app = FastAPI(title="AI Backend - Type Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    async def type_error():
+        return {"error": "App type error - app was not a FastAPI instance"}
+
+# Final verification: Ensure app has __call__ method (required by Vercel)
+if not hasattr(app, '__call__'):
+    # Create a wrapper if needed (should never happen for FastAPI)
+    original_app = app
+    app = FastAPI(title="AI Backend - Callable Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    async def callable_error():
+        return {"error": "App is not callable", "app_type": str(type(original_app))}
+
+# Export app - Vercel expects this at module level
+__all__ = ["app"]
 PYCODE
 
 echo "⚙️ Writing function runtime config..."
 cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
 {
-    "runtime": "python3.11",
+    "runtime": "python3.12",
     "handler": "index.app"
 }
 JSON

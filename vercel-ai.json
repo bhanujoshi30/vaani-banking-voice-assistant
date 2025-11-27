@@ -1,4 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "bash vercel-build-ai.sh"
-    }
+  "buildCommand": "bash vercel-build-ai.sh",
+  "outputDirectory": ".vercel/output"
+}

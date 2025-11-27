@@ -151,16 +151,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Try importing the actual app - if this fails, we'll create a fallback FastAPI app
 try:
-    # Strategy 1: Try ai_main.py (recommended path)
+    # Strategy 1: Try direct import from ai.main (most reliable)
     try:
-        from ai_main import app
+        from ai.main import app
         # Verify app is a FastAPI instance
         if not isinstance(app, FastAPI):
             raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
     except (ImportError, TypeError) as e1:
-        # Strategy 2: Try direct import from ai.main
+        # Strategy 2: Try ai_main.py (fallback)
         try:
-            from ai.main import app
+            from ai_main import app
             if not isinstance(app, FastAPI):
                 raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
         except (ImportError, TypeError) as e2:
@@ -221,6 +221,23 @@ if not isinstance(app, FastAPI):
     @app.get("/")
     async def type_error():
         return {"error": "App type error - app was not a FastAPI instance"}
+
+# Final verification: Ensure app has __call__ method (required by Vercel)
+if not hasattr(app, '__call__'):
+    # Create a wrapper if needed (should never happen for FastAPI)
+    original_app = app
+    app = FastAPI(title="AI Backend - Callable Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    async def callable_error():
+        return {"error": "App is not callable", "app_type": str(type(original_app))}
 
 # Export app - Vercel expects this at module level
 __all__ = ["app"]
