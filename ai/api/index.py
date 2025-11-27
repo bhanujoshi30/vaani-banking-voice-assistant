@@ -44,3 +44,5 @@ except Exception:
         # This should never happen if dependencies are installed
         raise ImportError("FastAPI is required but not installed. Please ensure dependencies are installed.")
 
+__all__ = ["app"]
+
