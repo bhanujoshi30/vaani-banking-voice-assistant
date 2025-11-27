@@ -37,12 +37,22 @@ echo "📁 Copying backend source code..."
 # Create backend directory in function bundle
 mkdir -p "$FUNCTION_DIR/backend"
 # Copy backend contents, excluding .vercel directory to avoid circular copy
-# Use find to get all items and copy them
-find backend -maxdepth 1 -mindepth 1 ! -name '.vercel' ! -name '__pycache__' -print0 | while IFS= read -r -d '' item; do
+# Copy all Python files and directories from backend, excluding .vercel and __pycache__
+for item in backend/* backend/.[!.]*; do
+    # Skip if glob didn't match
+    [ ! -e "$item" ] && continue
     item_name=$(basename "$item")
+    # Skip .vercel, __pycache__, and other unwanted items
+    [ "$item_name" = ".vercel" ] && continue
+    [ "$item_name" = "__pycache__" ] && continue
+    [ "$item_name" = "*.pyc" ] && continue
     echo "  Copying: $item_name"
-    cp -r "$item" "$FUNCTION_DIR/backend/" 2>/dev/null || true
+    cp -r "$item" "$FUNCTION_DIR/backend/" 2>/dev/null || {
+        echo "    Warning: Failed to copy $item_name"
+    }
 done
+# Ensure __init__.py exists in backend directory if it's missing
+[ ! -f "$FUNCTION_DIR/backend/__init__.py" ] && touch "$FUNCTION_DIR/backend/__init__.py"
 
 # Copy API entry point
 echo "📝 Creating API entry point..."

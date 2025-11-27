@@ -6,44 +6,37 @@ This is the entry point that Vercel will use to serve the FastAPI application.
 import sys
 import os
 
-# Add the function directory to Python path (where backend code is copied)
-# In Vercel's build structure, backend will be in the same directory as this file
+# Get the directory where this file is located (the function directory)
 current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add current directory to Python path (where backend code is copied)
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Also add parent directory to path (for backend module)
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
+# Import the FastAPI app from backend module
+# The backend directory should be in the same directory as this file
 try:
-    # Import the FastAPI app
     from backend.app import app
 except ImportError as e:
-    # Fallback: try importing from current directory
-    import sys
-    # Add current directory explicitly
-    if current_dir not in sys.path:
-        sys.path.insert(0, current_dir)
-    # Try importing again
-    try:
-        from backend.app import app
-    except ImportError:
-        # Create a minimal error app
-        from fastapi import FastAPI
-        app = FastAPI()
-        @app.get("/")
-        async def error():
-            return {"error": f"Failed to import backend.app: {str(e)}", "path": current_dir, "sys_path": sys.path}
-
-# Verify app is a FastAPI instance
-if not hasattr(app, '__call__'):
+    # If import fails, create a diagnostic error app
     from fastapi import FastAPI
-    error_app = FastAPI()
+    import traceback
+    
+    error_app = FastAPI(title="Backend Import Error")
+    
     @error_app.get("/")
-    async def error():
-        return {"error": "App is not callable", "app_type": str(type(app))}
+    @error_app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    async def import_error(path: str = ""):
+        import traceback as tb
+        return {
+            "error": "Failed to import backend.app",
+            "message": str(e),
+            "current_dir": current_dir,
+            "sys_path": sys.path[:5],  # First 5 entries
+            "files_in_dir": os.listdir(current_dir) if os.path.exists(current_dir) else "Directory not found",
+            "traceback": "".join(tb.format_exception(type(e), e, e.__traceback__))
+        }
+    
     app = error_app
 
 # Export the app for Vercel
