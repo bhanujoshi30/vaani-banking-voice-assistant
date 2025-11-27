@@ -135,124 +135,60 @@ echo "📝 Creating serverless function entrypoint..."
 cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 """
 Vercel serverless function entrypoint for AI Backend
-All code wrapped in try/except to prevent any crashes
+Simplified approach: Always ensure app is a FastAPI instance
 """
 import os
 import sys
 
-# Wrap EVERYTHING in try/except to catch any possible error
+# CRITICAL: Add python directory to path FIRST (before any imports)
+python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
+if python_dir not in sys.path:
+    sys.path.insert(0, python_dir)
+
+# Import FastAPI first to ensure it's available for fallback
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Try importing the actual app - if this fails, we'll create a fallback FastAPI app
 try:
-    # CRITICAL: Add python directory to path FIRST (before any imports)
-    python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
-    if python_dir not in sys.path:
-        sys.path.insert(0, python_dir)
-    
-    # Try importing the app
-    app = None
-    
-    # Strategy 1: Try ai_main.py (simpler path setup)
+    # Strategy 1: Try ai_main.py (recommended path)
     try:
         from ai_main import app
-    except Exception as e1:
-        # Strategy 2: Try direct import
+        # Verify app is a FastAPI instance
+        if not isinstance(app, FastAPI):
+            raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
+    except (ImportError, TypeError) as e1:
+        # Strategy 2: Try direct import from ai.main
         try:
             from ai.main import app
-        except Exception as e2:
-            # Strategy 3: Create error app with CORS support
-            try:
-                from fastapi import FastAPI
-                from fastapi.middleware.cors import CORSMiddleware
-                app = FastAPI(title="AI Backend - Import Error")
-                
-                # Add CORS middleware even for error app
-                app.add_middleware(
-                    CORSMiddleware,
-                    allow_origins=["*"],
-                    allow_origin_regex=r"https://.*\.vercel\.app",
-                    allow_credentials=True,
-                    allow_methods=["*"],
-                    allow_headers=["*"],
-                )
-                
-                @app.get("/")
-                @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-                async def error_handler(path: str = ""):
-                    return {
-                        "error": "Failed to import application",
-                        "path": path,
-                        "python_dir": python_dir,
-                        "python_dir_exists": os.path.exists(python_dir),
-                        "sys_path": sys.path[:5] if sys.path else [],
-                        "import_error_1": str(e1) if 'e1' in locals() else None,
-                        "import_error_2": str(e2) if 'e2' in locals() else None
-                    }
-            except Exception as e3:
-                # Strategy 4: Create minimal FastAPI app (never use WSGI - Vercel needs FastAPI)
-                from fastapi import FastAPI
-                from fastapi.middleware.cors import CORSMiddleware
-                app = FastAPI(title="AI Backend - Critical Import Error")
-                
-                app.add_middleware(
-                    CORSMiddleware,
-                    allow_origins=["*"],
-                    allow_origin_regex=r"https://.*\.vercel\.app",
-                    allow_credentials=True,
-                    allow_methods=["*"],
-                    allow_headers=["*"],
-                )
-                
-                @app.get("/")
-                @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
-                async def error_handler(path: str = ""):
-                    return {
-                        "error": "Critical import failure",
-                        "path": path,
-                        "errors": [str(e1) if 'e1' in locals() else None, str(e2) if 'e2' in locals() else None, str(e3)]
-                    }
-    
-    # Ensure app exists and add explicit OPTIONS handler
-    if app is None:
-        from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
-        app = FastAPI()
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_origin_regex=r"https://.*\.vercel\.app",
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        @app.get("/")
-        async def error():
-            return {"error": "App is None"}
-    else:
-        # Ensure CORS is configured on the real app
-        try:
-            from fastapi.middleware.cors import CORSMiddleware
-            # Check if CORS middleware already exists
-            has_cors = any(
-                isinstance(middleware, CORSMiddleware) or 
-                (hasattr(middleware, 'cls') and middleware.cls == CORSMiddleware)
-                for middleware in getattr(app, 'user_middleware', [])
-            )
-            if not has_cors:
-                app.add_middleware(
-                    CORSMiddleware,
-                    allow_origins=["*"],
-                    allow_origin_regex=r"https://.*\.vercel\.app",
-                    allow_credentials=True,
-                    allow_methods=["*"],
-                    allow_headers=["*"],
-                )
-        except:
-            pass  # CORS already configured or can't configure
+            if not isinstance(app, FastAPI):
+                raise TypeError(f"app is not a FastAPI instance, got {type(app)}")
+        except (ImportError, TypeError) as e2:
+            # Both imports failed - create fallback FastAPI app
+            app = FastAPI(title="AI Backend - Import Error")
             
+            # Add CORS middleware
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_origin_regex=r"https://.*\.vercel\.app",
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+            
+            @app.get("/")
+            @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+            async def error_handler(path: str = ""):
+                return {
+                    "error": "Failed to import application",
+                    "path": path,
+                    "python_dir": python_dir,
+                    "import_error_1": str(e1),
+                    "import_error_2": str(e2)
+                }
 except Exception as e:
-    # Ultimate fallback - ALWAYS create FastAPI app (never WSGI)
-    import traceback
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
+    # Ultimate fallback - ensure we ALWAYS have a FastAPI app
     app = FastAPI(title="AI Backend - Critical Error")
     app.add_middleware(
         CORSMiddleware,
@@ -267,10 +203,26 @@ except Exception as e:
     async def critical_error(path: str = ""):
         return {
             "error": "Critical initialization error",
-            "exception": str(e),
-            "traceback": traceback.format_exc()
+            "exception": str(e)
         }
 
+# Ensure app is always a FastAPI instance (safety check)
+if not isinstance(app, FastAPI):
+    # This should never happen, but if it does, create a new FastAPI app
+    app = FastAPI(title="AI Backend - Type Error")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_origin_regex=r"https://.*\.vercel\.app",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    @app.get("/")
+    async def type_error():
+        return {"error": "App type error - app was not a FastAPI instance"}
+
+# Export app - Vercel expects this at module level
 __all__ = ["app"]
 PYCODE
 
