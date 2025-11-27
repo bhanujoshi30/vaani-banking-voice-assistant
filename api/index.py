@@ -12,8 +12,39 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Import the FastAPI app
-from backend.app import app
+# Also add parent directory to path (for backend module)
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+try:
+    # Import the FastAPI app
+    from backend.app import app
+except ImportError as e:
+    # Fallback: try importing from current directory
+    import sys
+    # Add current directory explicitly
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    # Try importing again
+    try:
+        from backend.app import app
+    except ImportError:
+        # Create a minimal error app
+        from fastapi import FastAPI
+        app = FastAPI()
+        @app.get("/")
+        async def error():
+            return {"error": f"Failed to import backend.app: {str(e)}", "path": current_dir, "sys_path": sys.path}
+
+# Verify app is a FastAPI instance
+if not hasattr(app, '__call__'):
+    from fastapi import FastAPI
+    error_app = FastAPI()
+    @error_app.get("/")
+    async def error():
+        return {"error": "App is not callable", "app_type": str(type(app))}
+    app = error_app
 
 # Export the app for Vercel
 # Vercel's Python runtime will automatically detect and serve the FastAPI app

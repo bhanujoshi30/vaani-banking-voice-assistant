@@ -17,7 +17,7 @@ cd "$REPO_ROOT" || exit 1
 
 # Create output directory in backend/ (where Vercel expects it)
 OUTPUT_DIR="backend/.vercel/output"
-FUNCTION_DIR="$OUTPUT_DIR/functions/api"
+FUNCTION_DIR="$OUTPUT_DIR/functions/api/index.func"
 
 echo "📦 Creating output directory: $OUTPUT_DIR"
 rm -rf "$OUTPUT_DIR"
@@ -46,8 +46,8 @@ done
 
 # Copy API entry point
 echo "📝 Creating API entry point..."
-mkdir -p "$FUNCTION_DIR/api"
-cp api/index.py "$FUNCTION_DIR/api/"
+# Copy api/index.py to the function directory root (not into api/ subdirectory)
+cp api/index.py "$FUNCTION_DIR/index.py"
 
 # Clean up Python cache files
 find "$FUNCTION_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
@@ -60,7 +60,8 @@ find "$FUNCTION_DIR" -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null ||
 echo "⚙️ Creating function configuration..."
 cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
 {
-    "runtime": "python3.12"
+    "runtime": "python3.12",
+    "handler": "index.app"
 }
 JSON
 
@@ -72,7 +73,7 @@ cat > "$OUTPUT_DIR/config.json" <<'JSON'
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/api"
+            "dest": "/api/index"
         }
     ]
 }
