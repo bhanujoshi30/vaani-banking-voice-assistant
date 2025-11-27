@@ -37,21 +37,31 @@ cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 import os
 import sys
 
-# Add python directory to path - use __file__ for relative path resolution
+# Add python directory to path
 python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
 if python_dir not in sys.path:
     sys.path.insert(0, python_dir)
 
-from backend.app import app  # noqa: E402  # FastAPI application instance
+# Import FastAPI app
+from backend.app import app
 
-__all__ = ("app",)
+# Wrap with Mangum for Lambda compatibility (Vercel uses AWS Lambda runtime)
+# Vercel uses REST API Gateway format (has httpMethod, path, etc.)
+from mangum import Mangum
+from mangum.handlers import RestAPIGatewayHandler
+
+# Create Lambda handler with explicit REST API Gateway handler
+handler = Mangum(app, lifespan="off", handler_class=RestAPIGatewayHandler)
+
+# Export both for compatibility
+__all__ = ("app", "handler")
 PYCODE
 
 echo "⚙️ Writing function runtime config..."
 cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
 {
     "runtime": "python3.12",
-    "handler": "index.app"
+    "handler": "index.handler"
 }
 JSON
 
