@@ -34,7 +34,15 @@ python3 -m pip install \
 
 # Copy backend source code
 echo "📁 Copying backend source code..."
-cp -r backend "$FUNCTION_DIR/"
+# Create backend directory in function bundle
+mkdir -p "$FUNCTION_DIR/backend"
+# Copy backend contents, excluding .vercel directory to avoid circular copy
+# Use find to get all items and copy them
+find backend -maxdepth 1 -mindepth 1 ! -name '.vercel' ! -name '__pycache__' -print0 | while IFS= read -r -d '' item; do
+    item_name=$(basename "$item")
+    echo "  Copying: $item_name"
+    cp -r "$item" "$FUNCTION_DIR/backend/" 2>/dev/null || true
+done
 
 # Copy API entry point
 echo "📝 Creating API entry point..."
