@@ -93,12 +93,12 @@ def create_app() -> FastAPI:
         description="Voice-first banking backend for the Vaani assistant.",
     )
 
+    # Build CORS origins from environment variable
+    cors_origins = _build_allowed_origins()
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://tech-tonic-ai.com",
-            "https://www.tech-tonic-ai.com"
-        ],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
