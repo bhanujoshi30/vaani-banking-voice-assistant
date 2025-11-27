@@ -93,7 +93,14 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_build_allowed_origins(),
+        allow_origins=[
+            "https://tech-tonic-ai.com",
+            "https://www.tech-tonic-ai.com",
+            "https://sunnationalbank.online",
+            "https://www.sunnationalbank.online",
+            "https://test.sunnationalbank.online",
+            "https://www.test.sunnationalbank.online",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
