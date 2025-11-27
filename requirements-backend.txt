@@ -35,6 +35,9 @@ tenacity==8.5.0
 # Logging
 structlog==24.4.0
 
+# ASGI to Lambda adapter for Vercel serverless functions
+mangum>=0.17.0
+
 # Note: Removed test dependencies (pytest, etc.) to reduce build memory
 # Note: Removed faker (only needed for seeding, not production)
 

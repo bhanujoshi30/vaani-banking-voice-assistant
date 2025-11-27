@@ -39,3 +39,4 @@ ai/chroma_db/**/chroma.sqlite3
 
 # Vercel build artifacts
 .vercel/
+.vercel

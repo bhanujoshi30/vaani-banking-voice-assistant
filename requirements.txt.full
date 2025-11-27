@@ -1,51 +1,43 @@
-# Minimal requirements for Vercel deployment (OpenAI-only)
-# Excludes heavy ML dependencies that aren't needed when using OpenAI
+# Backend API Dependencies Only
+# Minimal requirements for backend deployment on Vercel
+# Optimized to reduce memory usage during build
 
-# Core AI Framework (minimal - only what's needed for OpenAI)
-langchain>=0.3.0
-langchain-community>=0.3.0
-langgraph>=0.2.0
-langsmith>=0.1.0
-
-# OpenAI (via httpx - no need for openai package if using langchain)
-# Note: OpenAI is accessed via httpx in openai_service.py
-
-# API & Web
+# Core FastAPI and server
 fastapi>=0.115.0
 uvicorn[standard]>=0.31.0
+starlette>=0.27.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.13.0
+
+# Data validation and serialization
 pydantic>=2.9.0
 pydantic-settings>=2.5.0
-python-multipart>=0.0.12
-python-jose[cryptography]>=3.3.0
 
-# HTTP Client (for OpenAI API)
+# Authentication and security
+python-jose[cryptography]>=3.3.0
+passlib>=1.7.4
+bcrypt>=4.0.0
+
+# HTTP and form handling
+python-multipart>=0.0.12
 httpx==0.27.2
+
+# Packaging helpers
+setuptools>=68.0.0
 
 # Utilities
 python-dotenv==1.0.1
 tenacity==8.5.0
 
-# Logging & Monitoring
+# Logging
 structlog==24.4.0
-sentry-sdk==2.15.0
 
-# Database & ORM (for backend integration)
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
+# ASGI to Lambda adapter for Vercel serverless functions
+mangum>=0.17.0
 
-# Vector Database (library only - database files excluded via .vercelignore)
-# Note: ChromaDB library is needed for imports, but actual DB files are built on first use
-chromadb>=0.4.22
-langchain-chroma>=0.1.2
-
-# Document Processing (needed for RAG - PDF loading)
-pypdf>=3.17.0
-
-# Note: The following are EXCLUDED to reduce size:
-# - ollama (not needed for OpenAI)
-# - sentence-transformers (huge ML models - RAG uses OpenAI embeddings instead)
-# - langchain-ollama (not needed for OpenAI)
-# - redis (optional, not critical)
-# - azure-cognitiveservices-speech (optional TTS)
-# - ChromaDB database files (*.bin, *.sqlite3) - built on first use from PDFs
+# Note: Removed test dependencies (pytest, etc.) to reduce build memory
+# Note: Removed faker (only needed for seeding, not production)
 

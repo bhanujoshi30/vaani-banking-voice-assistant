@@ -38,6 +38,7 @@ cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 import os
 import sys
 
+# Use absolute path to ensure correct resolution
 python_dir = os.path.join(os.path.dirname(__file__), "python")
 if python_dir not in sys.path:
         sys.path.insert(0, python_dir)
@@ -66,4 +67,3 @@ cat > "$OUTPUT_DIR/config.json" <<'JSON'
 JSON
 
 echo "✅ Build output ready for deployment"
-

@@ -95,8 +95,10 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_build_allowed_origins(),
-        allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel preview/production URLs
+        allow_origins=[
+            "https://tech-tonic-ai.com",
+            "https://www.tech-tonic-ai.com"
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
