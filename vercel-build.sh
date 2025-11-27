@@ -22,7 +22,6 @@ mkdir -p "$PYTHON_DIR"
 
 echo "📦 Installing backend dependencies into function bundle..."
 python3 -m pip install \
-        --no-deps \
         --no-compile \
         --no-cache-dir \
         -r requirements-backend.txt \
@@ -38,10 +37,10 @@ cat > "$FUNCTION_DIR/index.py" <<'PYCODE'
 import os
 import sys
 
-# Use absolute path to ensure correct resolution
-python_dir = os.path.join(os.path.dirname(__file__), "python")
+# Add python directory to path - use __file__ for relative path resolution
+python_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
 if python_dir not in sys.path:
-        sys.path.insert(0, python_dir)
+    sys.path.insert(0, python_dir)
 
 from backend.app import app  # noqa: E402  # FastAPI application instance
 
@@ -51,7 +50,7 @@ PYCODE
 echo "⚙️ Writing function runtime config..."
 cat > "$FUNCTION_DIR/.vc-config.json" <<'JSON'
 {
-    "runtime": "python3.11",
+    "runtime": "python3.12",
     "handler": "index.app"
 }
 JSON
