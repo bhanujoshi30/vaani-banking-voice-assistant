@@ -3,7 +3,24 @@
  * Connects frontend to AI backend for chat and TTS
  */
 
-const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8001';
+const AI_BACKEND_URL = (() => {
+  // Prefer explicit AI backend env var; also accept legacy VITE_AI_API_BASE_URL
+  const explicit = (import.meta.env.VITE_AI_BACKEND_URL ?? import.meta.env.VITE_AI_API_BASE_URL) || 'http://localhost:8001';
+  if (explicit) return String(explicit).replace(/\/$/, "");
+
+  // Try deriving from VITE_API_BASE_URL if present
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+  try {
+    if (apiBase.includes(':8000')) {
+      return apiBase.replace(':8000', ':8001').replace(/\/$/, "");
+    }
+    const u = new URL(apiBase);
+    u.port = '8001';
+    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  } catch (err) {
+    return 'http://localhost:8001';
+  }
+})();
 
 /**
  * Send chat message to AI backend

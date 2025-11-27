@@ -62,12 +62,7 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:5173",
             "https://*.vercel.app",  # Allow all Vercel deployments (production and preview)
             "https://vaani-banking-voice-assistant-*.vercel.app",  # Specific pattern for your frontend
-            # Production domains for the deployed frontend/API
-            "https://sunnationalbank.online",
-            "https://api.sunnationalbank.online",
         ],
-        # Also allow any subdomain under sunnationalbank.online (for API / preview subdomains)
-        allow_origin_regex=r"https://.*\.sunnationalbank\.online",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

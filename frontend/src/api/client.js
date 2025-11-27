@@ -481,7 +481,26 @@ export async function revokeDeviceBinding({ accessToken, bindingId }) {
   return json?.data ?? null;
 }
 
-const AI_API_BASE_URL = import.meta.env.VITE_AI_API_BASE_URL ?? "http://localhost:8001";
+const AI_API_BASE_URL = (() => {
+  // Prefer explicit AI backend env var; also accept legacy VITE_AI_API_BASE_URL
+  const explicit = (import.meta.env.VITE_AI_BACKEND_URL ?? import.meta.env.VITE_AI_API_BASE_URL) || 'http://localhost:8001';
+  if (explicit) return String(explicit).replace(/\/$/, "");
+
+  try {
+    // If API_BASE_URL references port 8000, replace with 8001
+    if (API_BASE_URL.includes(':8000')) {
+      return API_BASE_URL.replace(':8000', ':8001').replace(/\/$/, "");
+    }
+
+    // Otherwise, try to construct a same-host URL with port 8001
+    const u = new URL(API_BASE_URL);
+    u.port = '8001';
+    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+  } catch (err) {
+    // Fallback to localhost:8001 for local development
+    return 'http://localhost:8001';
+  }
+})();
 
 export async function processQRCode({ imageBase64, language = "en-IN" }) {
   let response;
