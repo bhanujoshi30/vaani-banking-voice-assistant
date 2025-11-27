@@ -166,16 +166,16 @@ app = FastAPI(
 )
 
 def _build_allowed_origins() -> List[str]:
-    """Return allowed CORS origins, including optional env overrides."""
+    """Return allowed CORS origins (exact matches only).
+    
+    Note: Vercel URLs are handled via allow_origin_regex parameter.
+    """
 
     default_origins = [
         # Local development
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
-        # Vercel deployments (wildcards for preview/production)
-        "https://*.vercel.app",
-        "https://vaani-banking-voice-assistant-*.vercel.app",
         # Production domains
         "https://tech-tonic-ai.com",
         "https://www.tech-tonic-ai.com",
@@ -190,7 +190,7 @@ def _build_allowed_origins() -> List[str]:
         default_origins.extend(
             origin.strip()
             for origin in extra_origins.split(",")
-            if origin.strip()
+            if origin.strip() and "*" not in origin.strip()  # Skip wildcards
         )
 
     seen = set()
@@ -206,6 +206,7 @@ def _build_allowed_origins() -> List[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_build_allowed_origins(),
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel preview/production URLs
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],

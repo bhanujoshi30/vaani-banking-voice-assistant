@@ -44,21 +44,16 @@ def setup_logging():
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 def _build_allowed_origins() -> list[str]:
-    """Return the merged list of allowed CORS origins.
-
-    Uses sensible defaults for local/Vercel environments and extends them with
+    """Return the merged list of allowed CORS origins (exact matches only).
+    
+    Uses sensible defaults for local/production environments and extends them with
     any comma-separated origins specified via the ``CORS_ALLOWED_ORIGINS``
-    environment variable so production domains can be injected without code
-    edits.
+    environment variable.
     """
-
     default_origins = [
         # Local development
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        # Vercel deployments (wildcards for preview/production)
-        "https://*.vercel.app",
-        "https://vaani-banking-voice-assistant-*.vercel.app",
         # Production domains
         "https://tech-tonic-ai.com",
         "https://www.tech-tonic-ai.com",
@@ -73,7 +68,7 @@ def _build_allowed_origins() -> list[str]:
         default_origins.extend(
             origin.strip()
             for origin in extra_origins.split(",")
-            if origin.strip()
+            if origin.strip() and "*" not in origin.strip()  # Skip wildcards
         )
 
     # Remove duplicates while preserving order
@@ -101,6 +96,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_build_allowed_origins(),
+        allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel preview/production URLs
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
