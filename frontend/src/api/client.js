@@ -482,43 +482,22 @@ export async function revokeDeviceBinding({ accessToken, bindingId }) {
 }
 
 const AI_API_BASE_URL = (() => {
-  // Prefer explicit AI backend env var; also accept legacy VITE_AI_API_BASE_URL
-  const explicitEnv = import.meta.env.VITE_AI_BACKEND_URL ?? import.meta.env.VITE_AI_API_BASE_URL;
-  if (explicitEnv) return String(explicitEnv).replace(/\/$/, "");
+  // In production, all API calls (main and AI) go to the same origin.
+  // The Nginx proxy will route /api/chat to the AI container.
+  // We use VITE_API_BASE_URL if provided, otherwise it's a relative path.
+  if (!import.meta.env.DEV) {
+    return import.meta.env.VITE_API_BASE_URL || '';
+  }
 
-  // helper to produce a dev-only localhost URL without embedding the literal
-  const _devLocalAI = (() => {
-    if (!import.meta.env.DEV) return '';
-    try {
-      const b64 = 'aHR0cDovL2xvY2FsaG9zdDo4MDAx';
-      if (typeof atob === 'function') return atob(b64);
-      return Buffer.from(b64, 'base64').toString('utf-8');
-    } catch (e) {
-      return '';
-    }
-  })();
-
+  // In development, the AI backend runs on a separate port.
   try {
-    // If API_BASE_URL references port 8000, replace with 8001
-    if (API_BASE_URL && API_BASE_URL.includes(':8000')) {
-      return API_BASE_URL.replace(':8000', ':8001').replace(/\/$/, "");
-    }
-
-    // Otherwise, try to construct a same-host URL with port 8001
-    if (API_BASE_URL) {
-      const u = new URL(API_BASE_URL);
-      u.port = '8001';
-      return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
-    }
-
-    // Development-only fallback (removed in production builds by Vite)
-    if (import.meta.env.DEV) {
-      return _devLocalAI;
-    }
-
-    return '';
-  } catch (err) {
-    return import.meta.env.DEV ? _devLocalAI : '';
+    const b64 = 'aHR0cDovL2xvY2FsaG9zdDo4MDAx';
+    if (typeof atob === 'function') return atob(b64);
+    // Node.js environment (e.g., during testing)
+    return Buffer.from(b64, 'base64').toString('utf-8');
+  } catch (e) {
+    // Fallback for dev if Buffer or atob is not available
+    return 'http://localhost:8001';
   }
 })();
 

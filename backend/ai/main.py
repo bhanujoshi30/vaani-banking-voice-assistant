@@ -114,6 +114,8 @@ app.add_middleware(
         "http://localhost:5174",
         "https://*.vercel.app",  # Allow all Vercel deployments (production and preview)
         "https://vaani-banking-voice-assistant-*.vercel.app",  # Specific pattern for your frontend
+        "https://sunnationalbank.online",
+        "https://api.sunnationalbank.online",
     ],
     allow_credentials=True,
     allow_methods=["*"],
