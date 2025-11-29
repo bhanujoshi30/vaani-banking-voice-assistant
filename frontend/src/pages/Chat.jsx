@@ -7,6 +7,7 @@ import ChatMessage from "../components/Chat/ChatMessage.jsx";
 import TypingIndicator from "../components/Chat/TypingIndicator.jsx";
 import ChatInput from "../components/Chat/ChatInput.jsx";
 import ChatSidebar from "../components/Chat/ChatSidebar.jsx";
+import QuickActionIcon from "../components/Chat/QuickActionIcon.jsx";
 import LanguageDropdown from "../components/LanguageDropdown.jsx";
 import UPIPinModal from "../components/UPIPinModal.jsx";
 import UPIConsentModal from "../components/UPIConsentModal.jsx";
@@ -56,6 +57,7 @@ const Chat = ({ session, onSignOut }) => {
   const [hasVoiceBinding, setHasVoiceBinding] = useState(false);
   const [checkingVoiceBinding, setCheckingVoiceBinding] = useState(true);
   const [isVoiceEnrollmentModalOpen, setIsVoiceEnrollmentModalOpen] = useState(false);
+  const [isHamburgerMenuOpen, setIsHamburgerMenuOpen] = useState(false);
 
   // Check if current session was logged in with voice
   const loggedInWithVoice = useMemo(() => {
@@ -220,6 +222,9 @@ const Chat = ({ session, onSignOut }) => {
     
     // Update local language state - keep all messages as they are
     setLanguage(newLang);
+    
+    // Close hamburger menu if open
+    setIsHamburgerMenuOpen(false);
     
     // Dispatch event to notify other components (including dropdown)
     // This ensures dropdown and other components stay in sync
@@ -861,7 +866,7 @@ const Chat = ({ session, onSignOut }) => {
           <SunHeader
             subtitle={`${session.user.branch.name} · ${session.user.branch.city}`}
             actionSlot={
-              <div className="chat-header-actions">
+              <div className="chat-header-actions chat-header-actions--desktop">
                 <LanguageDropdown onSelect={handleLanguageChange} value={language} />
                 <button
                   type="button"
@@ -874,6 +879,20 @@ const Chat = ({ session, onSignOut }) => {
                   {chatPageStrings.logOut || "Log out"}
                 </button>
               </div>
+            }
+            mobileMenuButton={
+              <button
+                type="button"
+                className="chat-hamburger-button"
+                onClick={() => setIsHamburgerMenuOpen(true)}
+                aria-label="Open menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
             }
           />
           <main className={`chat-container ${isVoiceModeEnabled ? 'chat-container--voice-mode' : ''}`}>
@@ -1296,6 +1315,212 @@ const Chat = ({ session, onSignOut }) => {
           okay: pageStrings.profile.okay,
         }}
       />
+
+      {/* Mobile Hamburger Menu */}
+      {isHamburgerMenuOpen && (
+        <div className="chat-hamburger-menu-overlay" onClick={() => setIsHamburgerMenuOpen(false)}>
+          <div className="chat-hamburger-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-hamburger-menu__header">
+              <h2>Menu</h2>
+              <button
+                type="button"
+                className="chat-hamburger-menu__close"
+                onClick={() => setIsHamburgerMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Section 1: Language, Profile, Logout */}
+            <div className="chat-hamburger-menu__section">
+              <h3 className="chat-hamburger-menu__section-title">Account</h3>
+              <div className="chat-hamburger-menu__section-content">
+                <div className="chat-hamburger-menu__item">
+                  <LanguageDropdown onSelect={handleLanguageChange} value={language} />
+                </div>
+                <button
+                  type="button"
+                  className="chat-hamburger-menu__button"
+                  onClick={() => {
+                    setIsHamburgerMenuOpen(false);
+                    navigate("/profile");
+                  }}
+                >
+                  {chatPageStrings.backToProfile || "← Back to Profile"}
+                </button>
+                <button
+                  type="button"
+                  className="chat-hamburger-menu__button"
+                  onClick={() => {
+                    setIsHamburgerMenuOpen(false);
+                    onSignOut();
+                  }}
+                >
+                  {chatPageStrings.logOut || "Log out"}
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Mode Toggles */}
+            <div className="chat-hamburger-menu__section">
+              <h3 className="chat-hamburger-menu__section-title">Modes</h3>
+              <div className="chat-hamburger-menu__section-content">
+                <div className="chat-hamburger-menu__mode-buttons">
+                  {/* Voice Mode Pill */}
+                  {!checkingVoiceBinding && (
+                    isVoiceModeEnabled ? (
+                      // Voice mode active - show green secured pill
+                      <div
+                        className="profile-pill profile-pill--secured chat-hamburger-menu__mode-pill"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVoiceModeToggle();
+                          setIsHamburgerMenuOpen(false);
+                          e.currentTarget.blur();
+                        }}
+                        onMouseDown={(e) => {
+                          if (e.button === 0) {
+                            e.preventDefault();
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleVoiceModeToggle();
+                            setIsHamburgerMenuOpen(false);
+                          }
+                        }}
+                      >
+                        <span className="status-dot status-dot--online" />
+                        {pageStrings?.profile?.voiceMode || "Voice Mode"}
+                      </div>
+                    ) : isVoiceSecured ? (
+                      // Voice mode off but secured - show orange pill that activates voice mode on click
+                      <div
+                        className="profile-pill profile-pill--orange chat-hamburger-menu__mode-pill"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVoiceModeToggle();
+                          setIsHamburgerMenuOpen(false);
+                          e.currentTarget.blur();
+                        }}
+                        onMouseDown={(e) => {
+                          if (e.button === 0) {
+                            e.preventDefault();
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleVoiceModeToggle();
+                            setIsHamburgerMenuOpen(false);
+                          }
+                        }}
+                      >
+                        <span className="status-dot status-dot--orange" />
+                        {pageStrings?.profile?.voiceMode || "Voice Mode"}
+                      </div>
+                    ) : (
+                      // Voice mode off and unsecured - show tag that prompts to secure
+                      <div
+                        className="profile-pill profile-pill--unsecured chat-hamburger-menu__mode-pill"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsVoiceEnrollmentModalOpen(true);
+                          setIsHamburgerMenuOpen(false);
+                          e.currentTarget.blur();
+                        }}
+                        onMouseDown={(e) => {
+                          if (e.button === 0) {
+                            e.preventDefault();
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsVoiceEnrollmentModalOpen(true);
+                            setIsHamburgerMenuOpen(false);
+                          }
+                        }}
+                      >
+                        <span className="status-dot status-dot--warning" />
+                        {pageStrings?.profile?.voiceSessionUnsecured || "Voice session unsecured"}
+                      </div>
+                    )
+                  )}
+                  
+                  {/* UPI Mode Pill */}
+                  <div 
+                    className={`profile-pill ${upiMode ? 'profile-pill--secured' : 'profile-pill--unsecured'} chat-hamburger-menu__mode-pill`} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUPIModeToggle();
+                      setIsHamburgerMenuOpen(false);
+                      e.currentTarget.blur();
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.button === 0) {
+                        e.preventDefault();
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUPIModeToggle();
+                        setIsHamburgerMenuOpen(false);
+                      }
+                    }}
+                  >
+                    <span className={`status-dot ${upiMode ? 'status-dot--online' : 'status-dot--warning'}`} />
+                    {upiMode ? (upiStrings?.upiModeActive || "UPI Mode Active") : (upiStrings?.upiModeInactive || "UPI Mode Inactive")}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Quick Actions */}
+            <div className="chat-hamburger-menu__section">
+              <h3 className="chat-hamburger-menu__section-title">{chatCopy.quickActionsTitle || "Quick Actions"}</h3>
+              <div className="chat-hamburger-menu__section-content">
+                <div className="chat-hamburger-menu__quick-actions">
+                  {chatCopy.quickActions?.map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      className="chat-hamburger-menu__quick-action"
+                      onClick={() => {
+                        setIsHamburgerMenuOpen(false);
+                        handleQuickAction(action);
+                      }}
+                    >
+                      <span className="chat-hamburger-menu__quick-action-icon">
+                        <QuickActionIcon actionId={action.id} />
+                      </span>
+                      <span className="chat-hamburger-menu__quick-action-label">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

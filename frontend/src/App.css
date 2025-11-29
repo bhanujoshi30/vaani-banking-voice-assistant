@@ -978,7 +978,37 @@
 .profile-surface {
   gap: 2rem;
   margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .profile-surface {
+    gap: 1rem;
   }
+
+  .profile-card {
+    padding: 1.25rem;
+    gap: 0.875rem;
+  }
+
+  .profile-hero {
+    gap: 1rem;
+  }
+
+  .profile-hero h1 {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-surface {
+    gap: 0.75rem;
+  }
+
+  .profile-card {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+}
 
 .profile-hero {
   display: flex;
@@ -1507,14 +1537,32 @@
     padding: 1.5rem 1rem;
   }
 
+  /* Profile page: remove outer padding to match Chat page */
+  .app-shell:has(.profile-surface) .app-content {
+    padding: 0;
+  }
+
   .app-gradient {
     padding: 0.75rem;
     border-radius: 20px;
   }
 
+  /* Profile page specific: match Chat page spacing */
+  .app-gradient:has(.profile-surface) {
+    padding: 0.25rem 0.5rem 0.5rem;
+    border-radius: 16px;
+  }
+
   .card-surface {
     padding: 2rem 1.5rem;
     gap: 2rem;
+  }
+
+  /* Profile page card-surface: reduce padding to match Chat page spacing */
+  .app-gradient:has(.profile-surface) .card-surface {
+    padding: 1rem 1rem;
+    gap: 1rem;
+    margin-top: 0;
   }
 
   .card-hero h1 {
@@ -1559,6 +1607,20 @@
 
   .card-form__actions {
     flex-direction: column;
+  }
+
+  /* Profile page: very small screens */
+  .app-shell:has(.profile-surface) .app-content {
+    padding: 0;
+  }
+
+  .app-gradient:has(.profile-surface) {
+    padding: 0.25rem 0.375rem 0.375rem;
+  }
+
+  .app-gradient:has(.profile-surface) .card-surface {
+    padding: 0.875rem 0.875rem;
+    gap: 0.75rem;
   }
 }
 

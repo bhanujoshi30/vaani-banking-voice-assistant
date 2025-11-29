@@ -22,7 +22,7 @@ import {
 } from "../api/client.js";
 import VoiceEnrollmentModal from "../components/VoiceEnrollmentModal.jsx";
 import ForceLogoutModal from "../components/ForceLogoutModal.jsx";
-import { setPreferredLanguage } from "../utils/preferences.js";
+import { setPreferredLanguage, getPreferredLanguage } from "../utils/preferences.js";
 
 const formatDateTime = (value) => {
   if (!value) return null;
@@ -67,6 +67,18 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
   const [isForceLogoutModalOpen, setIsForceLogoutModalOpen] = useState(false);
   const [hasVoiceBinding, setHasVoiceBinding] = useState(false);
   const [checkingVoiceBinding, setCheckingVoiceBinding] = useState(true);
+  const [isHamburgerMenuOpen, setIsHamburgerMenuOpen] = useState(false);
+  
+  // Handle language change
+  const handleLanguageChange = useCallback((newLang) => {
+    if (!newLang || !["en-IN", "hi-IN"].includes(newLang)) {
+      console.warn('Invalid language code:', newLang);
+      return;
+    }
+    setPreferredLanguage(newLang);
+    setIsHamburgerMenuOpen(false);
+    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { language: newLang } }));
+  }, []);
   
   // Check if current session was logged in with voice
   const loggedInWithVoice = useMemo(() => {
@@ -756,12 +768,26 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
           <SunHeader
             subtitle={`${branch.name} · ${branch.city}`}
             actionSlot={
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <LanguageDropdown />
+              <div className="profile-header-actions profile-header-actions--desktop" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <LanguageDropdown onSelect={handleLanguageChange} value={language} />
                 <button type="button" className="ghost-btn" onClick={onSignOut}>
                   {s.logOut}
                 </button>
               </div>
+            }
+            mobileMenuButton={
+              <button
+                type="button"
+                className="chat-hamburger-button"
+                onClick={() => setIsHamburgerMenuOpen(true)}
+                aria-label="Open menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
             }
           />
           
@@ -1456,6 +1482,48 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
           <AIAssistantLogo size={166} showAssistant={true} />
         </button>
       </div>
+
+      {/* Mobile Hamburger Menu */}
+      {isHamburgerMenuOpen && (
+        <div className="chat-hamburger-menu-overlay" onClick={() => setIsHamburgerMenuOpen(false)}>
+          <div className="chat-hamburger-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-hamburger-menu__header">
+              <h2>Menu</h2>
+              <button
+                type="button"
+                className="chat-hamburger-menu__close"
+                onClick={() => setIsHamburgerMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Section 1: Language and Logout */}
+            <div className="chat-hamburger-menu__section">
+              <h3 className="chat-hamburger-menu__section-title">Account</h3>
+              <div className="chat-hamburger-menu__section-content">
+                <div className="chat-hamburger-menu__item">
+                  <LanguageDropdown onSelect={handleLanguageChange} value={language} />
+                </div>
+                <button
+                  type="button"
+                  className="chat-hamburger-menu__button"
+                  onClick={() => {
+                    setIsHamburgerMenuOpen(false);
+                    onSignOut();
+                  }}
+                >
+                  {s.logOut || "Log out"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
