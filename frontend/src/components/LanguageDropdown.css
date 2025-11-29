@@ -1,0 +1,33 @@
+/* Language Dropdown Styles */
+
+.language-dropdown {
+  position: relative;
+  z-index: 10003;
+}
+
+.language-dropdown__menu {
+  z-index: 10002 !important;
+  position: absolute !important;
+}
+
+/* Ensure dropdown appears above all cards and content in desktop view */
+@media (min-width: 769px) {
+  .language-dropdown {
+    z-index: 10003;
+    position: relative;
+  }
+
+  .language-dropdown__menu {
+    z-index: 10002 !important;
+    position: absolute !important;
+  }
+
+  /* Ensure header actions container doesn't clip dropdown */
+  .sun-header__actions .language-dropdown,
+  .chat-header-actions .language-dropdown,
+  .profile-header-actions .language-dropdown {
+    z-index: 10003;
+    position: relative;
+  }
+}
+

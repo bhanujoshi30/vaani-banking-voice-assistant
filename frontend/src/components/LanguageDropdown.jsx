@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { getPreferredLanguage, setPreferredLanguage } from "../utils/preferences.js";
 import { getLanguageByCode } from "../config/voiceConfig.js";
+import "./LanguageDropdown.css";
 
 const SUPPORTED_LANGUAGES = ["en-IN", "hi-IN"];
 
@@ -151,7 +152,7 @@ const LanguageDropdown = ({ disabled, className, onSelect, value }) => {
     <div 
       ref={dropdownRef}
       className={className || "language-dropdown"}
-      style={{ position: "relative", display: "inline-block" }}
+      style={{ position: "relative", display: "inline-block", zIndex: 10003 }}
     >
       <button
         type="button"
@@ -231,12 +232,21 @@ const LanguageDropdown = ({ disabled, className, onSelect, value }) => {
             borderRadius: "0.375rem",
             boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
             minWidth: "150px",
-            zIndex: 1000,
-            overflow: "hidden",
+            width: "max-content",
+            maxWidth: "100%",
+            zIndex: 10002,
+            overflow: "visible",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: "fit-content",
           }}
         >
           {SUPPORTED_LANGUAGES.map((langCode) => {
             const langInfo = getLanguageByCode(langCode);
+            if (!langInfo) {
+              console.warn(`Language info not found for code: ${langCode}`);
+              return null;
+            }
             const isSelected = langCode === currentLanguage;
             return (
               <button
@@ -256,6 +266,8 @@ const LanguageDropdown = ({ disabled, className, onSelect, value }) => {
                   fontSize: "0.875rem",
                   textAlign: "left",
                   transition: "background-color 0.15s",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
@@ -268,10 +280,10 @@ const LanguageDropdown = ({ disabled, className, onSelect, value }) => {
                   }
                 }}
               >
-                <span>{langInfo?.flag || "🇮🇳"}</span>
-                <span>{langInfo?.nativeName || langInfo?.name || langCode}</span>
+                <span style={{ flexShrink: 0 }}>{langInfo?.flag || "🇮🇳"}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>{langInfo?.nativeName || langInfo?.name || langCode}</span>
                 {isSelected && (
-                  <span style={{ marginLeft: "auto", color: "#ff8f42" }}>✓</span>
+                  <span style={{ marginLeft: "auto", color: "#ff8f42", flexShrink: 0 }}>✓</span>
                 )}
               </button>
             );
