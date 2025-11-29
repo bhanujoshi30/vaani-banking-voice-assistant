@@ -767,7 +767,7 @@
   justify-content: center;
   box-shadow: none;
   transition: transform 0.2s ease;
-  z-index: 1000;
+  z-index: 1100;
   padding: 0;
 }
 
@@ -794,6 +794,54 @@
   font-size: 0.7rem;
   font-weight: 600;
   border: 2px solid white;
+}
+
+/* Tablet and Mobile: keep assistant at bottom-right with responsive sizing */
+@media (max-width: 1024px) {
+  .floating-chat-button {
+    left: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    transform: none;
+    min-width: 120px;
+    min-height: 145px;
+    max-width: 120px;
+    max-height: 145px;
+    z-index: 1100;
+  }
+
+  .floating-chat-button svg {
+    width: 100%;
+    height: auto;
+    max-width: 120px;
+    max-height: 145px;
+  }
+
+  .floating-chat-button:hover {
+    transform: translateY(-2px) scale(1.1);
+  }
+
+  .floating-chat-badge {
+    top: -4px;
+    right: -4px;
+  }
+}
+
+/* Mobile: smaller size for better mobile experience */
+@media (max-width: 768px) {
+  .floating-chat-button {
+    right: 1rem;
+    bottom: 1rem;
+    min-width: 100px;
+    min-height: 120px;
+    max-width: 100px;
+    max-height: 120px;
+  }
+
+  .floating-chat-button svg {
+    max-width: 100px;
+    max-height: 120px;
+  }
 }
 
 /* Custom Scrollbar Styles */

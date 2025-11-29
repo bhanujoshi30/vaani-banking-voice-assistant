@@ -765,21 +765,6 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
             }
           />
           
-          {/* Floating Chat Button */}
-          <button
-            type="button"
-            className="floating-chat-button"
-            onClick={() => {
-              // Use the current page language from the toggle
-              setPreferredLanguage(language);
-              navigate("/chat");
-            }}
-            title="Voice assistant"
-            aria-label="Open voice assistant"
-          >
-            <AIAssistantLogo size={166} showAssistant={true} />
-          </button>
-
           <VoiceEnrollmentModal
             isOpen={isVoiceEnrollmentModalOpen}
             onClose={() => setIsVoiceEnrollmentModalOpen(false)}
@@ -1455,6 +1440,21 @@ const Profile = ({ user, accessToken, onSignOut, sessionDetail }) => {
             </section>
           </main>
         </div>
+        
+        {/* Floating Chat Button - Outside app-gradient to avoid clipping */}
+        <button
+          type="button"
+          className="floating-chat-button"
+          onClick={() => {
+            // Use the current page language from the toggle
+            setPreferredLanguage(language);
+            navigate("/chat");
+          }}
+          title="Voice assistant"
+          aria-label="Open voice assistant"
+        >
+          <AIAssistantLogo size={166} showAssistant={true} />
+        </button>
       </div>
     </div>
   );
