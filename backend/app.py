@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time
 
@@ -42,6 +43,43 @@ def setup_logging():
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+def _build_allowed_origins() -> list[str]:
+    """Return the merged list of allowed CORS origins (exact matches only).
+    
+    Uses sensible defaults for local/production environments and extends them with
+    any comma-separated origins specified via the ``CORS_ALLOWED_ORIGINS``
+    environment variable.
+    """
+    default_origins = [
+        # Local development
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        # Production domains
+        "https://tech-tonic-ai.com",
+        "https://www.tech-tonic-ai.com",
+        "https://sunnationalbank.online",
+        "https://www.sunnationalbank.online",
+        "https://test.sunnationalbank.online",
+        "https://www.test.sunnationalbank.online",
+    ]
+
+    extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if extra_origins:
+        default_origins.extend(
+            origin.strip()
+            for origin in extra_origins.split(",")
+            if origin.strip() and "*" not in origin.strip()  # Skip wildcards
+        )
+
+    # Remove duplicates while preserving order
+    seen: set[str] = set()
+    merged = []
+    for origin in default_origins:
+        if origin not in seen:
+            merged.append(origin)
+            seen.add(origin)
+    return merged
+
 
 def create_app() -> FastAPI:
     # Setup logging first
@@ -55,18 +93,30 @@ def create_app() -> FastAPI:
         description="Voice-first banking backend for the Vaani assistant.",
     )
 
+    # Build CORS origins from environment variable
+    cors_origins = _build_allowed_origins()
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://*.vercel.app",  # Allow all Vercel deployments (production and preview)
-            "https://vaani-banking-voice-assistant-*.vercel.app",  # Specific pattern for your frontend
-        ],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        """Lightweight health probe used by Vercel and external monitors."""
+        return {"status": "healthy"}
+
+    @app.get("/", tags=["Health"])
+    async def root_status():
+        """Default landing route returning a friendly status payload."""
+        return {
+            "status": "ok",
+            "service": "Sun National Bank API",
+            "docs": "/docs",
+        }
     
     # Add demo logging middleware
     @app.middleware("http")

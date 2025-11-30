@@ -87,10 +87,10 @@ ai/**
 .env.*.local
 
 # Scripts
-*.sh
 run.sh
 start.sh
 run_services.py
+requirements.txt.full
 
 # IDE files
 .vscode/
@@ -108,6 +108,15 @@ uv.lock
 # Hide pyproject.toml during build so Vercel uses requirements.txt instead
 # This prevents Vercel from using 'uv sync' which installs all dependencies
 pyproject.toml
+
+# For AI Backend: Hide requirements.txt to prevent auto-detection
+# (AI backend uses Build Output API, so requirements.txt not needed)
+# Note: This is for AI backend project - backend project uses requirements-backend.txt
+requirements.txt
+
+# Hide main.py at root to prevent Vercel auto-detection
+# AI backend uses Build Output API with index.py in .vercel/output
+main.py
 
 # Node modules (if any)
 node_modules/

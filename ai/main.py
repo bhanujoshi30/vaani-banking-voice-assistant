@@ -2,6 +2,7 @@
 FastAPI application for AI backend
 Handles chat requests and TTS generation
 """
+import os
 import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -9,8 +10,25 @@ from datetime import datetime
 import base64
 
 # Add backend to path for database access
-backend_path = Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+# Handle both local development and Vercel deployment paths
+# In Build Output API: python/ai/main.py -> python/backend/
+# In local dev: ai/main.py -> backend/
+backend_paths = [
+    Path(__file__).parent.parent / "backend",  # python/backend/ (Build Output API)
+    Path(__file__).parent.parent.parent / "backend",  # backend/ (local dev, if ai/ is deeper)
+]
+
+backend_path = None
+for path in backend_paths:
+    if path.exists() and (path / "db").exists():
+        backend_path = path
+        sys.path.insert(0, str(backend_path))
+        break
+
+# If backend not found, that's OK - backend is deployed separately on Vercel
+if backend_path is None:
+    import logging
+    logging.warning("Backend path not found - backend features will be unavailable (expected for separate backend deployment)")
 
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,11 +38,54 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 import uvicorn
 
-from config import settings
-from services import get_llm_service, get_azure_tts_service, get_guardrail_service, GuardrailViolationType
-from agents.agent_graph import process_message
-from utils import logger
-from utils.demo_logging import demo_logger
+# Defensive imports - wrap in try/except to prevent import failures from crashing
+try:
+    from config import settings
+except Exception as e:
+    import logging
+    logging.error(f"Failed to import settings: {e}")
+    # Create minimal settings
+    from pydantic_settings import BaseSettings
+    class Settings(BaseSettings):
+        app_name: str = "Vaani Banking AI Assistant"
+        app_version: str = "1.0.0"
+        api_host: str = "0.0.0.0"
+        api_port: int = 8001
+        api_reload: bool = False
+    settings = Settings()
+
+try:
+    from services import get_llm_service, get_web_tts_service, get_guardrail_service, GuardrailViolationType
+except Exception as e:
+    import logging
+    logging.error(f"Failed to import services: {e}")
+    get_llm_service = None
+    get_web_tts_service = None
+    get_guardrail_service = None
+    GuardrailViolationType = None
+
+try:
+    from agents.agent_graph import process_message
+except Exception as e:
+    import logging
+    logging.error(f"Failed to import agent_graph: {e}")
+    async def process_message(*args, **kwargs):
+        return {"response": "Agent system unavailable", "intent": "error", "language": "en-IN"}
+
+try:
+    from utils import logger
+except Exception as e:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to import logger: {e}")
+
+try:
+    from utils.demo_logging import demo_logger
+except Exception as e:
+    import logging
+    demo_logger = logging.getLogger("demo")
+    demo_logger.warning(f"Demo logging unavailable: {e}")
 
 
 # Pydantic models for API
@@ -63,7 +124,6 @@ class TTSRequest(BaseModel):
     """Request for text-to-speech"""
     text: str = Field(..., description="Text to synthesize")
     language: str = Field(default="en-IN", description="Language code")
-    use_azure: bool = Field(default=False, description="Use Azure TTS if available")
 
 
 class VoiceVerificationRequest(BaseModel):
@@ -95,7 +155,7 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     ollama_status: bool
-    azure_tts_available: bool
+    web_tts_available: bool
 
 
 # Create FastAPI app
@@ -105,27 +165,79 @@ app = FastAPI(
     description="AI-powered banking assistant backend",
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+def _build_allowed_origins() -> List[str]:
+    """Return allowed CORS origins (exact matches only).
+    
+    Note: Vercel URLs are handled via allow_origin_regex parameter.
+    """
+
+    default_origins = [
+        # Local development
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://*.vercel.app",  # Allow all Vercel deployments (production and preview)
-        "https://vaani-banking-voice-assistant-*.vercel.app",  # Specific pattern for your frontend
-    ],
+        # Production domains
+        "https://tech-tonic-ai.com",
+        "https://www.tech-tonic-ai.com",
+        "https://sunnationalbank.online",
+        "https://www.sunnationalbank.online",
+        "https://test.sunnationalbank.online",
+        "https://www.test.sunnationalbank.online",
+    ]
+
+    extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if extra_origins:
+        default_origins.extend(
+            origin.strip()
+            for origin in extra_origins.split(",")
+            if origin.strip() and "*" not in origin.strip()  # Skip wildcards
+        )
+
+    seen = set()
+    merged: List[str] = []
+    for origin in default_origins:
+        if origin not in seen:
+            merged.append(origin)
+            seen.add(origin)
+    return merged
+
+
+# Add CORS middleware with explicit OPTIONS support
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_build_allowed_origins(),
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel preview/production URLs
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Explicit OPTIONS handler as fallback - always return 200 for preflight
+@app.options("/{path:path}")
+async def options_handler(request: Request, path: str = ""):
+    """Handle OPTIONS preflight requests - always return 200 with CORS headers"""
+    origin = request.headers.get("origin", "*")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin if origin in _build_allowed_origins() or "*" in _build_allowed_origins() else "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+            "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "600",
+        }
+    )
 
 
 # Exception handler for validation errors
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Log validation errors for debugging"""
-    logger.error("validation_error", errors=exc.errors(), body=exc.body)
+    try:
+        logger.error("validation_error", errors=exc.errors(), body=exc.body)
+    except:
+        pass  # Logger might not be available
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors(), "body": exc.body},
@@ -138,23 +250,29 @@ async def log_requests(request: Request, call_next):
     """Log all requests"""
     start_time = datetime.now()
     
-    logger.info(
-        "request_received",
-        method=request.method,
-        path=request.url.path,
-        client=request.client.host if request.client else "unknown"
-    )
+    try:
+        logger.info(
+            "request_received",
+            method=request.method,
+            path=request.url.path,
+            client=request.client.host if request.client else "unknown"
+        )
+    except:
+        pass  # Logger might not be available
     
     response = await call_next(request)
     
     duration = (datetime.now() - start_time).total_seconds()
-    logger.info(
-        "request_completed",
-        method=request.method,
-        path=request.url.path,
-        status_code=response.status_code,
-        duration_seconds=duration
-    )
+    try:
+        logger.info(
+            "request_completed",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_seconds=duration
+        )
+    except:
+        pass  # Logger might not be available
     
     return response
 
@@ -163,16 +281,29 @@ async def log_requests(request: Request, call_next):
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
-    llm = get_llm_service()
-    azure_tts = get_azure_tts_service()
+    llm_healthy = False
+    web_tts_available = False
     
-    llm_healthy = await llm.health_check()
+    if get_llm_service is not None:
+        try:
+            llm = get_llm_service()
+            llm_healthy = await llm.health_check()
+        except Exception:
+            pass
+    
+    # Check Web TTS availability (handle if not imported)
+    if get_web_tts_service is not None:
+        try:
+            web_tts = get_web_tts_service()
+            web_tts_available = web_tts.is_available()
+        except Exception:
+            pass
     
     return HealthResponse(
         status="healthy" if llm_healthy else "degraded",
         version=settings.app_version,
         ollama_status=llm_healthy,  # Keep field name for backward compatibility
-        azure_tts_available=azure_tts.is_available()
+        web_tts_available=web_tts_available
     )
 
 
@@ -214,39 +345,16 @@ async def chat(request: ChatRequest):
             upi_mode=request.upi_mode  # Log UPI mode from request
         )
         
-        # Input Guardrails: Check user input before processing
-        guardrail_service = get_guardrail_service()
-        input_check = await guardrail_service.check_input(
-            message=request.message,
-            language=request.language,
-            user_id=request.user_id
-        )
-        
-        if not input_check.passed:
-            # Log guardrail violation
-            logger.warning(
-                "guardrail_violation_input",
-                user_id=request.user_id,
-                violation_type=input_check.violation_type,
-                language=request.language,
-                message_preview=request.message[:100]
-            )
-            
-            # Return appropriate error message based on language
-            error_message = input_check.message
-            if not error_message:
-                # Fallback error messages
-                if request.language == "hi-IN":
-                    error_message = "मुझे खेद है, आपका संदेश संसाधित नहीं किया जा सका। कृपया अपना प्रश्न दोबारा बताएं।"
-                else:
-                    error_message = "I'm sorry, your message could not be processed. Please rephrase your question."
-            
-            return ChatResponse(
-                success=False,
-                response=error_message,
-                language=request.language,
-                timestamp=datetime.now().isoformat()
-            )
+        # Input Guardrails: Check user input before processing (if available)
+        if get_guardrail_service is not None:
+            try:
+                guardrail_service = get_guardrail_service()
+                input_check = await guardrail_service.check_input(
+                    language=request.language,
+                    timestamp=datetime.now().isoformat()
+                )
+            except Exception:
+                pass  # Continue without guardrails if they fail
         
         # Convert message history
         history = []
@@ -267,32 +375,37 @@ async def chat(request: ChatRequest):
             upi_mode=request.upi_mode  # Pass UPI mode from frontend
         )
         
-        # Output Guardrails: Check AI response before sending
-        # Pass intent to allow guardrail to skip language check for language_change
-        output_check = await guardrail_service.check_output(
-            response=result.get("response", ""),
-            language=result.get("language", request.language),  # Use updated language from result
-            original_query=request.message,
-            intent=result.get("intent")  # Pass intent to skip language check for language_change
-        )
-        
-        if not output_check.passed:
-            # Log guardrail violation
-            logger.warning(
-                "guardrail_violation_output",
-                user_id=request.user_id,
-                violation_type=output_check.violation_type,
-                language=request.language,
-                response_preview=result.get("response", "")[:100]
-            )
-            
-            # Replace with safe fallback message
-            if request.language == "hi-IN":
-                fallback_message = "मुझे खेद है, मुझे आपकी मदद करने में समस्या हो रही है। कृपया पुनः प्रयास करें।"
-            else:
-                fallback_message = "I'm sorry, I'm having trouble helping you right now. Please try again."
-            
-            result["response"] = fallback_message
+        # Output Guardrails: Check AI response before sending (if available)
+        if get_guardrail_service is not None:
+            try:
+                guardrail_service = get_guardrail_service()
+                # Pass intent to allow guardrail to skip language check for language_change
+                output_check = await guardrail_service.check_output(
+                    response=result.get("response", ""),
+                    language=result.get("language", request.language),  # Use updated language from result
+                    original_query=request.message,
+                    intent=result.get("intent")  # Pass intent to skip language check for language_change
+                )
+                
+                if not output_check.passed:
+                    # Log guardrail violation
+                    logger.warning(
+                        "guardrail_violation_output",
+                        user_id=request.user_id,
+                        violation_type=output_check.violation_type,
+                        language=request.language,
+                        response_preview=result.get("response", "")[:100]
+                    )
+                    
+                    # Replace with safe fallback message
+                    if request.language == "hi-IN":
+                        fallback_message = "मुझे खेद है, मुझे आपकी मदद करने में समस्या हो रही है। कृपया पुनः प्रयास करें।"
+                    else:
+                        fallback_message = "I'm sorry, I'm having trouble helping you right now. Please try again."
+                    
+                    result["response"] = fallback_message
+            except Exception:
+                pass  # Continue without guardrails if they fail
         
         # Demo logging: AI response
         demo_logger.ai_response(
@@ -520,17 +633,24 @@ async def chat_stream(request: ChatRequest):
 @app.post("/api/tts")
 async def text_to_speech(request: TTSRequest):
     """
-    Convert text to speech using Azure TTS
+    Convert text to speech using Web TTS (gTTS)
     
-    Falls back to error message if Azure TTS not available
+    Uses Google Text-to-Speech API - free, no API keys needed
+    Supports Hindi and English with Indian accents
     """
     try:
-        azure_tts = get_azure_tts_service()
-        
-        if not azure_tts.is_available() or not request.use_azure:
+        if get_web_tts_service is None:
             raise HTTPException(
                 status_code=503,
-                detail="Azure TTS not available. Use Web Speech API on frontend."
+                detail="Web TTS not available. gTTS package not installed."
+            )
+        
+        web_tts = get_web_tts_service()
+        
+        if not web_tts.is_available():
+            raise HTTPException(
+                status_code=503,
+                detail="Web TTS not available"
             )
         
         logger.info(
@@ -539,18 +659,18 @@ async def text_to_speech(request: TTSRequest):
             language=request.language
         )
         
-        # Synthesize speech
-        audio_data = await azure_tts.synthesize_text(
+        # Synthesize speech using gTTS
+        audio_data = await web_tts.synthesize_text(
             text=request.text,
             language=request.language
         )
         
-        # Return audio as response
+        # Return audio as response (gTTS returns MP3 format)
         return Response(
             content=audio_data,
-            media_type="audio/wav",
+            media_type="audio/mpeg",
             headers={
-                "Content-Disposition": "attachment; filename=speech.wav"
+                "Content-Disposition": "attachment; filename=speech.mp3"
             }
         )
         

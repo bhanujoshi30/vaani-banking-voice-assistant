@@ -36,3 +36,7 @@ ai/chroma_db/**/chroma.sqlite3
 
 # Binary files from ChromaDB
 *.bin
+
+# Vercel build artifacts
+.vercel/
+.vercel

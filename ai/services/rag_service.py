@@ -42,6 +42,80 @@ class OllamaEmbeddings(Embeddings):
         return response['embedding']
 
 
+class OpenAIEmbeddings(Embeddings):
+    """OpenAI embeddings wrapper for LangChain compatibility"""
+    
+    def __init__(self, api_key: str = None, model: str = "text-embedding-ada-002"):
+        """
+        Initialize OpenAI embeddings
+        
+        Args:
+            api_key: OpenAI API key (if None, will try to get from config)
+            model: Embedding model to use (default: text-embedding-ada-002)
+        """
+        import httpx
+        from config import settings
+        
+        self.api_key = api_key or settings.openai_api_key
+        self.model = model
+        self.base_url = "https://api.openai.com/v1"
+        self.timeout = 60.0
+        
+        if not self.api_key:
+            raise ValueError("OpenAI API key not configured")
+        
+        self.client = httpx.Client(
+            timeout=self.timeout,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+        )
+        
+        logger.info("openai_embeddings_init", model=self.model)
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Embed a list of documents"""
+        embeddings = []
+        # OpenAI API can handle up to 2048 texts in one request, but we'll batch to be safe
+        batch_size = 100
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            try:
+                response = self.client.post(
+                    f"{self.base_url}/embeddings",
+                    json={
+                        "model": self.model,
+                        "input": batch,
+                    },
+                )
+                response.raise_for_status()
+                result = response.json()
+                batch_embeddings = [item["embedding"] for item in result["data"]]
+                embeddings.extend(batch_embeddings)
+            except Exception as e:
+                logger.error("openai_embeddings_error", error=str(e), batch_start=i)
+                raise
+        return embeddings
+    
+    def embed_query(self, text: str) -> List[float]:
+        """Embed a single query"""
+        try:
+            response = self.client.post(
+                f"{self.base_url}/embeddings",
+                json={
+                    "model": self.model,
+                    "input": text,
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["data"][0]["embedding"]
+        except Exception as e:
+            logger.error("openai_embeddings_query_error", error=str(e))
+            raise
+
+
 class RAGService:
     """Service for RAG operations - document loading, storage, and retrieval"""
     
@@ -74,18 +148,55 @@ class RAGService:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         
-        # Initialize embeddings - use sentence-transformers (reliable, no external dependencies)
-        try:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True}
-            )
-            logger.info("rag_service_init", embedding_model="all-MiniLM-L6-v2")
-        except Exception as e:
-            logger.error("embeddings_init_failed", error=str(e))
-            raise
+        # Initialize embeddings - prefer OpenAI if available, fallback to sentence-transformers
+        from config import settings
+        
+        # Check if OpenAI is enabled and API key is available
+        use_openai = (
+            getattr(settings, 'openai_enabled', False) and 
+            getattr(settings, 'openai_api_key', None)
+        )
+        
+        if use_openai:
+            # Use OpenAI embeddings (no heavy ML models needed)
+            try:
+                self.embeddings = OpenAIEmbeddings(
+                    api_key=settings.openai_api_key,
+                    model="text-embedding-ada-002"
+                )
+                logger.info("rag_service_init", embedding_model="openai-text-embedding-ada-002")
+            except Exception as e:
+                logger.warning("openai_embeddings_init_failed", error=str(e))
+                logger.info("falling_back_to_sentence_transformers")
+                use_openai = False
+        
+        if not use_openai:
+            # Fallback to sentence-transformers (for local development)
+            # Note: sentence-transformers not available in Vercel deployment
+            # Will use OpenAI embeddings instead
+            try:
+                from langchain_community.embeddings import HuggingFaceEmbeddings
+                self.embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_kwargs={'device': 'cpu'},
+                    encode_kwargs={'normalize_embeddings': True}
+                )
+                logger.info("rag_service_init", embedding_model="all-MiniLM-L6-v2")
+            except ImportError:
+                # sentence-transformers not available - use OpenAI embeddings
+                logger.warning("sentence_transformers_not_available", message="Using OpenAI embeddings instead")
+                if getattr(settings, 'openai_api_key', None):
+                    self.embeddings = OpenAIEmbeddings(
+                        api_key=settings.openai_api_key,
+                        model="text-embedding-ada-002"
+                    )
+                    logger.info("rag_service_init", embedding_model="openai-text-embedding-ada-002")
+                else:
+                    logger.error("no_embeddings_available", message="Neither sentence-transformers nor OpenAI available")
+                    raise RuntimeError("No embeddings available. Please set OPENAI_API_KEY or install sentence-transformers")
+            except Exception as e:
+                logger.error("embeddings_init_failed", error=str(e))
+                raise
         
         # Initialize text splitter (fallback for simple splitting)
         self.text_splitter = RecursiveCharacterTextSplitter(

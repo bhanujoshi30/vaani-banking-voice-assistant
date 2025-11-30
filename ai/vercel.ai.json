@@ -1,0 +1,4 @@
+{
+  "version": 2,
+  "buildCommand": "bash vercel-build-ai.sh"
+}

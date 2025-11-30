@@ -4,9 +4,22 @@ from typing import Any, Dict, List, Optional
 
 from utils import logger
 
-from orchestrator import HybridSupervisor
+# Lazy initialization - don't create supervisor at import time
+# This prevents import failures if dependencies aren't available
+_supervisor = None
 
-supervisor = HybridSupervisor()
+
+def _get_supervisor():
+    """Get or create supervisor instance (lazy initialization)"""
+    global _supervisor
+    if _supervisor is None:
+        try:
+            from orchestrator import HybridSupervisor
+            _supervisor = HybridSupervisor()
+        except Exception as e:
+            logger.error("supervisor_init_failed", error=str(e))
+            raise
+    return _supervisor
 
 
 async def process_message(
@@ -19,6 +32,7 @@ async def process_message(
     upi_mode: Optional[bool] = None,
 ) -> Dict[str, Any]:
     try:
+        supervisor = _get_supervisor()
         return await supervisor.process(
             message=message,
             user_id=user_id,

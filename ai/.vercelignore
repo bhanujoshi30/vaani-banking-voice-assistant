@@ -1,26 +1,21 @@
+# AI Backend specific .vercelignore
+# This file is used when deploying AI backend from ai/ directory
+
 # Virtual environments
 .venv/
 venv/
-env/
-ENV/
 **/.venv/
-**/venv/
 
 # Python cache
 **/__pycache__/
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-*.egg-info/
-build/
-dist/
-wheels/
-*.egg
 
-# Vector database (ChromaDB) - should be initialized at runtime or use external storage
-chroma_db/
-**/chroma_db/
+# ChromaDB database files (will be rebuilt on first use)
+chroma_db/**/*.bin
+chroma_db/**/*.sqlite3
+chroma_db/**/chroma.sqlite3
 
 # Log files
 *.log
@@ -32,34 +27,9 @@ test_*.py
 *_test.py
 tests/
 
-# Large binary files
-*.dylib
-*.so
-*.dll
-*.bin
-**/*.dylib
-**/*.so
-**/*.dll
-**/*.bin
-**/site-packages/torch/**
-**/site-packages/onnxruntime/**
-**/site-packages/chromadb_rust_bindings/**
-**/site-packages/faiss/**
-**/site-packages/grpc/**
-**/site-packages/azure/cognitiveservices/speech/**
-**/site-packages/cryptography/**
-**/site-packages/llvmlite/**
-**/site-packages/resemblyzer/pretrained.pt
-
 # Environment files
 .env
 .env.local
-.env.*.local
-
-# Scripts
-*.sh
-run.sh
-start.sh
 
 # IDE files
 .vscode/
@@ -71,3 +41,18 @@ start.sh
 .DS_Store
 Thumbs.db
 
+# Keep build scripts - they're needed!
+# build.sh
+# vercel-build-ai.sh
+
+# Prevent Vercel from auto-detecting Python
+# Hide Python detection files - Build Output API handles everything
+# These files trigger Vercel's Python auto-detection
+../requirements.txt
+../pyproject.toml
+../uv.lock
+../main.py
+requirements.txt
+pyproject.toml
+uv.lock
+main.py

@@ -8,9 +8,8 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 import httpx
-import numpy as np
 
 from .voice_verification import VoiceVerificationService
 
@@ -32,6 +31,10 @@ class AIVoiceVerificationResult:
     fallback_to_basic: bool = False
 
 
+if TYPE_CHECKING:  # pragma: no cover - typing aids only
+    import numpy as np
+
+
 class AIVoiceVerificationService:
     """
     Enhanced voice verification service that combines:
@@ -47,30 +50,30 @@ class AIVoiceVerificationService:
     ):
         self._base_verifier = base_verifier
         self._ai_backend_url = ai_backend_url.rstrip('/')
-        self._enabled = enabled
+        self._enabled = enabled and base_verifier.enabled
         self._client = httpx.Client(timeout=AI_VERIFICATION_TIMEOUT)
         self._threshold = base_verifier.threshold
 
-    def compute_embedding(self, audio_bytes: bytes) -> Optional[np.ndarray]:
+    def compute_embedding(self, audio_bytes: bytes):  # type: ignore[override]
         """Compute embedding using base verifier (Resemblyzer)"""
         return self._base_verifier.compute_embedding(audio_bytes)
 
-    def serialize_embedding(self, embedding: np.ndarray) -> bytes:
+    def serialize_embedding(self, embedding):
         """Serialize embedding"""
         return self._base_verifier.serialize_embedding(embedding)
 
-    def deserialize_embedding(self, payload: bytes) -> np.ndarray:
+    def deserialize_embedding(self, payload: bytes):
         """Deserialize embedding"""
         return self._base_verifier.deserialize_embedding(payload)
 
-    def similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+    def similarity(self, a, b) -> float:
         """Compute similarity using base verifier"""
         return self._base_verifier.similarity(a, b)
 
     def _analyze_voice_with_ai(
         self,
-        stored_embedding: np.ndarray,
-        candidate_embedding: np.ndarray,
+        stored_embedding,
+        candidate_embedding,
         similarity_score: float,
         user_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
@@ -179,8 +182,8 @@ Respond in JSON format:
 
     def verify_with_ai(
         self,
-        stored_embedding: np.ndarray,
-        candidate_embedding: np.ndarray,
+        stored_embedding,
+        candidate_embedding,
         user_context: Optional[Dict[str, Any]] = None,
     ) -> AIVoiceVerificationResult:
         """
@@ -267,8 +270,8 @@ Respond in JSON format:
 
     def matches(
         self,
-        stored: np.ndarray,
-        candidate: np.ndarray,
+        stored,
+        candidate,
         use_ai: bool = True,
         user_context: Optional[Dict[str, Any]] = None,
     ) -> tuple[bool, float]:
