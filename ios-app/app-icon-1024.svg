@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Orange/golden-orange gradient -->
+    <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8C00" stop-opacity="1" />
+      <stop offset="50%" stop-color="#FFA500" stop-opacity="1" />
+      <stop offset="100%" stop-color="#FFD700" stop-opacity="1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- White background -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  
+  <!-- Center everything at 512, 512 -->
+  <g transform="translate(512, 512)">
+    <!-- 24 thin rays radiating outward -->
+    <line x1="0" y1="-207" x2="0" y2="-384" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="79" y1="-191" x2="146" y2="- 355" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="146" y1="-146" x2="268" y2="-268" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="191" y1="-79" x2="355" y2="-146" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="207" y1="0" x2="384" y2="0" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="191" y1="79" x2="355" y2="146" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="146" y1="146" x2="268" y2="268" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="79" y1="191" x2="146" y2="355" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="0" y1="207" x2="0" y2="384" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-79" y1="191" x2="-146" y2="355" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-146" y1="146" x2="-268" y2="268" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-191" y1="79" x2="-355" y2="146" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-207" y1="0" x2="-384" y2="0" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-191" y1="-79" x2="-355" y2="-146" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-146" y1="-146" x2="-268" y2="-268" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-79" y1="-191" x2="-146" y2="-355" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    
+    <!-- Additional intermediate rays for 24 total -->
+    <line x1="39" y1="-203" x2="73" y2="-377" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="115" y1="-172" x2="213" y2="-319" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="172" y1="-115" x2="319" y2="-213" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="203" y1="-39" x2="377" y2="-73" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="203" y1="39" x2="377" y2="73" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="172" y1="115" x2="319" y2="213" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="115" y1="172" x2="213" y2="319" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="39" y1="203" x2="73" y2="377" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-39" y1="203" x2="-73" y2="377" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-115" y1="172" x2="-213" y2="319" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-172" y1="115" x2="-319" y2="213" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-203" y1="39" x2="-377" y2="73" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-203" y1="-39" x2="-377" y2="-73" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-172" y1="-115" x2="-319" y2="-213" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-115" y1="-172" x2="-213" y2="-319" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    <line x1="-39" y1="-203" x2="-73" y2="-377" stroke="url(#orangeGradient)" stroke-width="14" stroke-linecap="round"/>
+    
+    <!-- 8 teardrop elements at cardinal and diagonal positions -->
+    <g transform="translate(0, -393) rotate(90)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(278, -278) rotate(135)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(393, 0) rotate(180)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(278, 278) rotate(225)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(0, 393) rotate(270)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(-278, 278) rotate(315)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(-393, 0) rotate(0)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    <g transform="translate(-278, -278) rotate(45)">
+      <ellipse cx="0" cy="0" rx="36" ry="73" fill="url(#orangeGradient)"/>
+    </g>
+    
+    <!-- Central speech bubble circle -->
+    <circle cx="0" cy="0" r="165" fill="url(#orangeGradient)"/>
+    
+    <!-- Speech bubble tail pointing down -->
+    <path d="M -36 165 L 0 220 L 36 165 Z" fill="url(#orangeGradient)"/>
+    
+    <!-- AI text inside the bubble -->
+    <text x="0" y="50" font-size="128" font-weight="bold" fill="#333333" text-anchor="middle" font-family="-apple-system, system-ui, Arial, sans-serif" letter-spacing="9">AI</text>
+  </g>
+</svg>
