@@ -1,6 +1,1 @@
-
-# Expose AI process as the web process so Dokku routes app domain -> AI API
-# web: gunicorn -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT backend.app:appai.main:app
-
-web: gunicorn -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT backend.app:app
-ai: ./backend/ai/run.sh 
+web: gunicorn main:app

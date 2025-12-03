@@ -3,25 +3,7 @@
  * Connects frontend to AI backend for chat and TTS
  */
 
-const AI_BACKEND_URL = (() => {
-  // In production, all API calls (main and AI) go to the same origin.
-  // The Nginx proxy will route /api/chat to the AI container.
-  // We use VITE_API_BASE_URL if provided, otherwise it's a relative path.
-  if (!import.meta.env.DEV) {
-    return import.meta.env.VITE_API_BASE_URL || '';
-  }
-
-  // In development, the AI backend runs on a separate port.
-  try {
-    const b64 = 'aHR0cDovL2xvY2FsaG9zdDo4MDAx';
-    if (typeof atob === 'function') return atob(b64);
-    // Node.js environment (e.g., during testing)
-    return Buffer.from(b64, 'base64').toString('utf-8');
-  } catch (e) {
-    // Fallback for dev if Buffer or atob is not available
-    return 'http://localhost:8001';
-  }
-})();
+const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8001';
 
 /**
  * Send chat message to AI backend
