@@ -42,7 +42,7 @@ Vaani is a production-ready, AI-powered voice banking assistant that enables cus
 - **Local Storage** - Session persistence and user preferences
 
 **📍 Screenshot Placeholder 1:** Frontend Architecture Diagram
-- **Location:** `documentation/frontend-architecture.md` or create visual diagram
+- **Location:** `documentation/frontend-architecture.md` (in main documentation folder) or create visual diagram
 - **Content:** Show React component hierarchy, voice integration, API client connections
 - **File to reference:** `frontend/src/` directory structure
 
@@ -72,7 +72,7 @@ Vaani is a production-ready, AI-powered voice banking assistant that enables cus
 - Structured error handling
 
 **📍 Screenshot Placeholder 2:** Backend API Architecture
-- **Location:** `documentation/backend_architecture.md` or `backend_architecture.mmd`
+- **Location:** `documentation/backend_architecture.md` (in main documentation folder) or `backend_architecture.mmd`
 - **Content:** Show API routes, services, repositories, database models
 - **File to reference:** `backend/api/routes.py`, `backend/db/models/`
 
@@ -101,7 +101,7 @@ Vaani is a production-ready, AI-powered voice banking assistant that enables cus
 - **Azure TTS** (Optional) - Cloud-based text-to-speech
 
 **📍 Screenshot Placeholder 3:** AI Architecture Diagram
-- **Location:** `documentation/ai_architecture.md` or `ai_architecture.mmd`
+- **Location:** `documentation/ai_architecture.md` (in main documentation folder) or `ai_architecture.mmd`
 - **Content:** Show agent flow, RAG system, LLM integration, tool calling
 - **File to reference:** `ai/agents/`, `ai/orchestrator/`, `ai/services/`
 
@@ -185,7 +185,7 @@ Vaani follows a modern microservices architecture with clear separation of conce
 **📍 Screenshot Placeholder 5:** Complete System Architecture Diagram
 - **Location:** `documentation/system_architecture.mmd` (Mermaid diagram)
 - **Content:** Full system architecture showing all three services, data flows, and external dependencies
-- **File to reference:** `documentation/system_architecture.md`
+- **File to reference:** `documentation/other/system_architecture.md`
 
 ### 2.2 Request Flow Architecture
 
@@ -833,7 +833,7 @@ Vaani implements a sophisticated multi-agent system using LangGraph for orchestr
 **📍 Screenshot Placeholder 25:** Security Architecture
 - **Location:** Create security architecture diagram
 - **Content:** Show authentication layers, data encryption, API security, compliance measures
-- **File to reference:** `documentation/system_architecture.md` (Security section)
+- **File to reference:** `documentation/other/system_architecture.md` (Security section)
 
 ### 5.3 RBI Compliance (UPI Payments)
 
@@ -867,7 +867,7 @@ Vaani implements a sophisticated multi-agent system using LangGraph for orchestr
 **📍 Screenshot Placeholder 26:** UPI Compliance Features
 - **Location:** Show UPI consent modal, PIN entry, transaction confirmation
 - **Content:** Display consent screen, PIN input (masked), transaction details, reference ID
-- **File to reference:** `frontend/src/pages/ChatPage.jsx` (UPI components), `documentation/upi_payment_flow.md`
+- **File to reference:** `frontend/src/pages/ChatPage.jsx` (UPI components), `documentation/other/upi_payment_flow.md`
 
 ### 5.4 Guardrails & Content Safety
 
@@ -928,7 +928,7 @@ Vaani implements a sophisticated multi-agent system using LangGraph for orchestr
 **📍 Screenshot Placeholder 29:** Scalability Architecture
 - **Location:** Create scalability diagram showing load balancing, multiple instances
 - **Content:** Show horizontal scaling, load balancer, database replication, CDN
-- **File to reference:** `documentation/system_architecture.md` (Scalability section)
+- **File to reference:** `documentation/other/system_architecture.md` (Scalability section)
 
 #### 6.1.2 Caching Strategy
 
@@ -1175,7 +1175,7 @@ Vaani implements a sophisticated multi-agent system using LangGraph for orchestr
 **📍 Screenshot Placeholder 40:** Compliance Features
 - **Location:** Show compliance checklist or features
 - **Content:** Display RBI compliance, privacy features, audit trail
-- **File to reference:** `documentation/upi_payment_flow.md` (Compliance section)
+- **File to reference:** `documentation/other/upi_payment_flow.md` (Compliance section)
 
 ---
 

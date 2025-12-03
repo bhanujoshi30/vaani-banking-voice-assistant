@@ -820,9 +820,9 @@ vaani-banking-voice-assistant/
 ### Related Documentation
 
 - [Setup Guide](./setup_guide.md) - Installation instructions
-- [AI Modules](./ai_modules.md) - Detailed AI documentation
-- [Backend Modules](./backend_modules.md) - Backend API documentation
-- [Frontend Modules](./frontend_modules.md) - Frontend documentation
+- [AI Modules](../ai_modules.md) - Detailed AI documentation
+- [Backend Modules](../backend_modules.md) - Backend API documentation
+- [Frontend Modules](../frontend_modules.md) - Frontend documentation
 - [Investment Schemes](./investment_schemes.md) - Investment feature guide
 - [Hindi Support](./hindi_support.md) - Hindi implementation guide
 - [UPI Payment Flow](./upi_payment_flow.md) - UPI payment guide

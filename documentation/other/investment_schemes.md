@@ -563,10 +563,10 @@ Detailed card component:
 
 ## Related Documentation
 
-- [AI Modules Documentation](./ai_modules.md) - Complete AI architecture
+- [AI Modules Documentation](../ai_modules.md) - Complete AI architecture
 - [Hindi Support Documentation](./hindi_support.md) - Hindi implementation details
 - [Setup Guide](./setup_guide.md) - Installation and configuration
-- [Frontend Documentation](./frontend_modules.md) - UI components
+- [Frontend Documentation](../frontend_modules.md) - UI components
 
 ---
 

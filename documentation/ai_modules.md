@@ -1300,8 +1300,8 @@ ollama list
 
 ## Related Documentation
 
-- [Setup Guide](./setup_guide.md) - Installation and configuration
+- [Setup Guide](./other/setup_guide.md) - Installation and configuration
 - [Backend Documentation](./backend_modules.md) - Backend API details
 - [Frontend Documentation](./frontend_modules.md) - Frontend components
-- [UPI Payment Flow](./upi_payment_flow.md) - UPI implementation
+- [UPI Payment Flow](./other/upi_payment_flow.md) - UPI implementation
 - [API Reference](./api_reference.md) - Complete API docs

@@ -1152,8 +1152,8 @@ const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL;
 
 ## Related Documentation
 
-- [Setup Guide](./setup_guide.md) - Installation instructions
+- [Setup Guide](./other/setup_guide.md) - Installation instructions
 - [Backend Documentation](./backend_modules.md) - Backend API details
 - [AI Documentation](./ai_modules.md) - AI module details
-- [UPI Flow](./upi_payment_flow.md) - UPI implementation
+- [UPI Flow](./other/upi_payment_flow.md) - UPI implementation
 - [API Reference](./api_reference.md) - Complete API docs

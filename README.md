@@ -53,7 +53,7 @@ Frontend (React)  →  Backend API (FastAPI)  →  Database (SQLite)
 
 ### System Overview
 
-- **[System Architecture](./documentation/system_architecture.md)** - Complete system design
+- **[System Architecture](./documentation/other/system_architecture.md)** - Complete system design
   - Three-tier architecture (Frontend, Backend API, AI Backend)
   - Data flow diagrams for voice login, banking queries, RAG, UPI payments
   - Technology stack details
@@ -63,7 +63,7 @@ Frontend (React)  →  Backend API (FastAPI)  →  Database (SQLite)
 
 ### Getting Started
 
-- **[Setup Guide](./documentation/setup_guide.md)** - Complete installation and setup instructions
+- **[Setup Guide](./documentation/other/setup_guide.md)** - Complete installation and setup instructions
   - Prerequisites installation (Python, Node.js, uv, Ollama)
   - Model downloads (qwen2.5:7b, llama3.2:3b)
   - Environment configuration
@@ -94,19 +94,19 @@ Frontend (React)  →  Backend API (FastAPI)  →  Database (SQLite)
 
 ### Feature Documentation
 
-- **[Investment Schemes](./documentation/investment_schemes.md)** - Investment information system
+- **[Investment Schemes](./documentation/other/investment_schemes.md)** - Investment information system
   - 7 investment schemes with detailed information
   - RAG-based retrieval from PDF documents
   - Bilingual support (English/Hindi)
   - Structured information cards
 
-- **[Hindi Language Support](./documentation/hindi_support.md)** - Complete Hindi implementation
+- **[Hindi Language Support](./documentation/other/hindi_support.md)** - Complete Hindi implementation
   - Hindi vector databases
   - Hindi PDF document generation
   - Font management and extraction
   - Bilingual RAG system
 
-- **[UPI Payment Flow](./documentation/upi_payment_flow.md)** - Hello UPI implementation
+- **[UPI Payment Flow](./documentation/other/upi_payment_flow.md)** - Hello UPI implementation
   - Complete payment flow
   - PIN verification
   - RBI compliance
@@ -123,7 +123,7 @@ Frontend (React)  →  Backend API (FastAPI)  →  Database (SQLite)
 - **[AI Architecture](./documentation/ai_architecture.md)** - AI system design
 - **[Backend Architecture](./documentation/backend_architecture.md)** - Backend design
 - **[Frontend Architecture](./documentation/frontend_architecture.md)** - Frontend design
-- **[Hybrid Supervisor Pattern](./documentation/hybrid_supervisor_pattern.md)** - Agent orchestration
+- **[Hybrid Supervisor Pattern](./documentation/other/hybrid_supervisor_pattern.md)** - Agent orchestration
 
 ### Additional Resources
 

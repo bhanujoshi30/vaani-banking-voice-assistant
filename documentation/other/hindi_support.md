@@ -613,10 +613,10 @@ pip install --upgrade reportlab fonttools
 
 ## Related Documentation
 
-- [AI Modules Documentation](./ai_modules.md) - AI architecture and agents
+- [AI Modules Documentation](../ai_modules.md) - AI architecture and agents
 - [Investment Schemes Documentation](./investment_schemes.md) - Investment feature details
 - [Setup Guide](./setup_guide.md) - Installation and configuration
-- [Frontend Documentation](./frontend_modules.md) - UI components
+- [Frontend Documentation](../frontend_modules.md) - UI components
 
 ---
 

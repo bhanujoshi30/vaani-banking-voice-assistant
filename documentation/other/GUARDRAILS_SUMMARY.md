@@ -77,8 +77,8 @@ Comprehensive test script covering:
 ### New Files
 1. `ai/services/guardrail_service.py` - Main guardrail implementation
 2. `ai/test_guardrails.py` - Test script
-3. `documentation/guardrails_implementation.md` - Implementation guide
-4. `documentation/guardrails_quick_reference.md` - Quick reference
+3. `documentation/other/guardrails_implementation.md` - Implementation guide
+4. `documentation/other/guardrails_quick_reference.md` - Quick reference
 
 ### Modified Files
 1. `ai/main.py` - Integrated guardrails into chat endpoint
@@ -153,9 +153,9 @@ All error messages are provided in both Hindi and English based on the user's la
 
 ## Documentation
 
-- **Implementation Guide**: `documentation/guardrails_implementation.md`
-- **Quick Reference**: `documentation/guardrails_quick_reference.md`
-- **Analysis**: `documentation/ai_chat_guardrails_analysis.md`
+- **Implementation Guide**: `documentation/other/guardrails_implementation.md`
+- **Quick Reference**: `documentation/other/guardrails_quick_reference.md`
+- **Analysis**: `documentation/other/ai_chat_guardrails_analysis.md`
 
 ## Status
 

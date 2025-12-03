@@ -836,8 +836,8 @@ Defined in `db/utils/enums.py`:
 
 ## Related Documentation
 
-- [Setup Guide](./setup_guide.md) - Installation instructions
+- [Setup Guide](./other/setup_guide.md) - Installation instructions
 - [AI Architecture](./ai_architecture.md) - AI backend details
-- [Frontend Architecture](./frontend_architecture.md) - Frontend structure
+- [Frontend Architecture](./frontend-architecture.md) - Frontend structure
 - [API Reference](./api_reference.md) - Complete API documentation
 - [Database Schema](./database_schema.md) - Detailed schema documentation

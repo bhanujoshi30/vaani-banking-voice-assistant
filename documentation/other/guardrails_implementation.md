@@ -338,7 +338,7 @@ guardrail.enable_output_guardrails = False
 For issues or questions:
 1. Check logs: `logs/ai_backend.log`
 2. Run test script: `python test_guardrails.py`
-3. Review documentation: `documentation/ai_chat_guardrails_analysis.md`
+3. Review documentation: `documentation/other/ai_chat_guardrails_analysis.md`
 
 ---
 
@@ -348,8 +348,8 @@ For issues or questions:
 
 ## Related Documentation
 
-- **Analysis**: `documentation/ai_chat_guardrails_analysis.md` - Comprehensive analysis and implementation details
-- **Quick Reference**: `documentation/guardrails_quick_reference.md` - Quick reference guide
-- **Architecture**: `documentation/ai-architecture.md` - Includes guardrails in system architecture
-- **Summary**: `documentation/GUARDRAILS_SUMMARY.md` - Implementation summary
+- **Analysis**: `documentation/other/ai_chat_guardrails_analysis.md` - Comprehensive analysis and implementation details
+- **Quick Reference**: `documentation/other/guardrails_quick_reference.md` - Quick reference guide
+- **Architecture**: `documentation/ai_architecture.md` - Includes guardrails in system architecture
+- **Summary**: `documentation/other/GUARDRAILS_SUMMARY.md` - Implementation summary
 

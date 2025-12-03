@@ -674,9 +674,9 @@ python run_services.py
 Now that your setup is complete:
 
 1. **Explore the documentation**:
-   - [Architecture Overview](./ai_architecture.md)
-   - [Backend Documentation](./backend_architecture.md)
-   - [Frontend Documentation](./frontend_architecture.md)
+   - [Architecture Overview](../ai_architecture.md)
+   - [Backend Documentation](../backend_architecture.md)
+   - [Frontend Documentation](../frontend-architecture.md)
 
 2. **Learn the features**:
    - [UPI Payment Flow](./upi_payment_flow.md)

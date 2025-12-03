@@ -863,8 +863,8 @@ Process UPI payment.
 ## Related Documentation
 
 - [Setup Guide](./setup_guide.md) - Installation and setup
-- [AI Modules](./ai_modules.md) - AI agent details
-- [Backend Modules](./backend_modules.md) - Backend API
-- [Frontend Modules](./frontend_modules.md) - Frontend components
+- [AI Modules](../ai_modules.md) - AI agent details
+- [Backend Modules](../backend_modules.md) - Backend API
+- [Frontend Modules](../frontend_modules.md) - Frontend components
 - [Voice Authentication](./voice_authentication.md) - Voice login
 - [API Reference](./api_reference.md) - Complete API docs

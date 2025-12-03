@@ -188,5 +188,5 @@ logger.info("guardrail_check",
 
 ---
 
-**Quick Start**: See `ai_chat_guardrails_analysis.md` for detailed implementation guide.
+**Quick Start**: See `documentation/other/ai_chat_guardrails_analysis.md` for detailed implementation guide.
 
