@@ -859,6 +859,66 @@ const Chat = ({ session, onSignOut }) => {
     sessionStorage.removeItem('upi_consent_given_session'); // Also remove from session storage
   };
 
+  // iOS Native Bridge Integration
+  // Listen for messages from native iOS app (App Intents / Siri / Shortcuts)
+  useEffect(() => {
+    const handleNativeMessage = (event) => {
+      const { message, timestamp } = event.detail || {};
+      
+      if (!message) {
+        console.warn('📱 Received native message without content');
+        return;
+      }
+      
+      console.log('📱 Received message from iOS native app:', message);
+      
+      // Stop any ongoing speech/listening first
+      if (isSpeaking) {
+        stopSpeaking();
+      }
+      if (isListening) {
+        stopListening();
+      }
+      
+      // Send the message using the existing sendMessage function
+      sendMessage(message);
+      
+      // Optional: Send response back to native app for Siri card display
+      // This will be handled automatically when assistant responds (see below)
+    };
+    
+    window.addEventListener('nativeAutoSend', handleNativeMessage);
+    
+    return () => {
+      window.removeEventListener('nativeAutoSend', handleNativeMessage);
+    };
+  }, [sendMessage, isSpeaking, isListening, stopSpeaking, stopListening]);
+
+  // Send assistant responses back to iOS native app
+  // This allows Siri to show the response in a snippet card
+  useEffect(() => {
+    if (window.webkit?.messageHandlers?.nativeHandler && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      
+      // Only send assistant messages back to native app
+      if (lastMsg.role === 'assistant') {
+        try {
+          window.webkit.messageHandlers.nativeHandler.postMessage({
+            type: 'chatResponse',
+            response: lastMsg.content,
+            timestamp: new Date().toISOString(),
+            language: language,
+            // Include structured data if available (for rich cards)
+            structuredData: lastMsg.structuredData || null
+          });
+          console.log('📱 Sent response to native app:', lastMsg.content.substring(0, 50));
+        } catch (error) {
+          console.error('❌ Error sending message to native app:', error);
+        }
+      }
+    }
+  }, [messages, language]);
+
   return (
     <div className="app-shell">
       <div className="app-content app-content--fullwidth">

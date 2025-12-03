@@ -57,7 +57,7 @@ def main() -> None:
 
     service_commands = [
         ("Backend", "python main.py"),
-        ("AI", "cd ai && ./run.sh"),
+        ("AI", "cd backend/ai && ./run.sh"),
         ("Frontend", "cd frontend && npm run dev"),
     ]
 

@@ -1201,16 +1201,16 @@ vaani-banking-voice-assistant/
 │   │   └── services/      # Business logic
 │   └── app.py             # FastAPI application
 │
-├── ai/                    # AI backend (Port 8001)
-│   ├── agents/            # LangGraph agents
-│   │   ├── banking_agent.py
-│   │   ├── upi_agent.py
-│   │   └── rag_agents/    # Loan, Investment, Support agents
-│   ├── orchestrator/      # HybridSupervisor, IntentRouter
-│   ├── services/          # LLM, RAG, Guardrail services
-│   ├── tools/             # Banking and UPI tools
-│   ├── chroma_db/         # Vector databases
-│   └── main.py            # FastAPI server
+  ├── backend/ai/            # AI backend (Port 8001)
+  │   ├── agents/            # LangGraph agents
+  │   │   ├── banking_agent.py
+  │   │   ├── upi_agent.py
+  │   │   └── rag_agents/    # Loan, Investment, Support agents
+  │   ├── orchestrator/      # HybridSupervisor, IntentRouter
+  │   ├── services/          # LLM, RAG, Guardrail services
+  │   ├── tools/             # Banking and UPI tools
+  │   ├── chroma_db/         # Vector databases
+  │   └── main.py            # FastAPI server
 │
 ├── documentation/         # Comprehensive documentation
 │   ├── system_architecture.md
