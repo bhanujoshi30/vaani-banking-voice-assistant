@@ -13,25 +13,10 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-# Check if we are running in a Dokku/production environment
-# You can set a simple environment variable on Dokku, e.g., 'dokku config:set backend ENVIRONMENT=PRODUCTION'
-IS_DEPLOYMENT = os.getenv("ENVIRONMENT") == "DEPLOYMENT"
-
-# ssh dokku@192.168.64.5 config:set backend ENVIRONMENT=DEPLOYMENT
-
-if IS_DEPLOYMENT:
-    # 1. PATH FOR DOKKU DEPLOYMENT (Must use absolute mount point)
-    DEFAULT_SQLITE_PATH = os.path.join(
-        "/app/data", 
-        "vaani.db", 
-    )
-else:
-    # 2. PATH FOR LOCAL DEVELOPMENT (Uses the file's relative location)
-    # This preserves your original, working local logic.
-    DEFAULT_SQLITE_PATH = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "vaani.db",
-    )
+DEFAULT_SQLITE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "vaani.db",
+)
 
 
 @dataclass(frozen=True)

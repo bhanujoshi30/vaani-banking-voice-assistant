@@ -164,10 +164,9 @@ source .venv/bin/activate
 uv add -r requirements.txt
 ```
 
-
 5) Install AI module dependencies
 ```
-uv add -r backend/ai/requirements.txt
+uv add -r ai/requirements.txt
 ```
 
 6) Install frontend dependencies
@@ -178,7 +177,7 @@ cd ..
 ```
 
 7) Configure AI env (optional)
-Review `backend/ai/.env` for `OLLAMA_MODEL=qwen2.5:7b`, `OLLAMA_FAST_MODEL=llama3.2:3b`, and `API_PORT=8001`.
+Review `ai/.env` for `OLLAMA_MODEL=qwen2.5:7b`, `OLLAMA_FAST_MODEL=llama3.2:3b`, and `API_PORT=8001`.
 
 8) Run all three modules
 ```
@@ -186,13 +185,13 @@ python run_services.py
 ```
 This starts:
 - Backend: `python main.py` (port 8000)
-- AI: `cd backend/ai && ./run.sh` (port 8001)
+- AI: `cd ai && ./run.sh` (port 8001)
 - Frontend: `cd frontend && npm run dev` (port 5173)
 
 Optional manual runs
 ```
 python main.py
-(cd backend/ai && ./run.sh)
+(cd ai && ./run.sh)
 (cd frontend && npm run dev)
 ```
 

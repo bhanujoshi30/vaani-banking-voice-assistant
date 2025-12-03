@@ -83,7 +83,7 @@ Add your database and other backend environment variables in **Settings → Envi
 
 #### Option B: Deploy from AI Directory (Requires Refactoring)
 
-If deploying from `backend/ai/` directory, you'll need to:
+If deploying from `ai/` directory, you'll need to:
 - Refactor imports to use backend as an external API, OR
 - Copy backend models to AI directory, OR
 - Use a monorepo build setup
@@ -122,7 +122,7 @@ Both backend projects have been configured to allow Vercel frontend URLs:
 
 CORS is already configured in:
 - `backend/app.py`
-- `backend/ai/main.py`
+- `ai/main.py`
 
 ### 3. Redeploy Frontend
 

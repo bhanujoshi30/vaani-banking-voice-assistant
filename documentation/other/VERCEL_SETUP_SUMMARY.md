@@ -8,7 +8,7 @@
 - **Allows**: All Vercel deployments (`https://*.vercel.app`)
 
 ### ✅ AI Backend CORS Updated
-- **File**: `backend/ai/main.py`
+- **File**: `ai/main.py`
 - **Change**: Added Vercel frontend URLs to CORS origins
 - **Allows**: All Vercel deployments (`https://*.vercel.app`)
 
@@ -18,9 +18,9 @@
 - **Allows**: AI backend to access backend directory imports
 
 ### ✅ Configuration Files Created
-- `backend/ai/vercel.json` - For deploying AI backend from `backend/ai/` directory
+- `ai/vercel.json` - For deploying AI backend from `ai/` directory
 - `vercel-ai.json` - Alternative config for deploying AI backend from root
-- `backend/ai/.vercelignore` - Excludes large files from AI backend deployment
+- `ai/.vercelignore` - Excludes large files from AI backend deployment
 
 ## Deployment Instructions
 
